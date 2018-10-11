@@ -13,7 +13,7 @@ from kytos.core.switch import Switch
 from napps.kytos.topology.models import Topology
 
 
-class Main(KytosNApp):
+class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     """Main class of kytos/topology NApp.
 
     This class is the entry point for this napp.
@@ -467,7 +467,8 @@ class Main(KytosNApp):
         event = KytosEvent(name=name, content=content)
         self.controller.buffers.app.put(event)
 
-    def update_instance(self, event, data, error):
+    @staticmethod
+    def update_instance(event, _data, error):
         """Display in Kytos console if the data was updated."""
         entities = event.content.get('namespace', '').split('.')[-2]
         if error:
@@ -484,14 +485,14 @@ class Main(KytosNApp):
         self.controller.buffers.app.put(event)
         log.info(f'verify data in storehouse for {entities}.')
 
-    def request_retrieve_entities(self, event, data, error):
+    def request_retrieve_entities(self, event, data, _error):
         """Create a box or retrieve an existent box from storehouse."""
         msg = ''
         content = {'namespace': event.content.get('namespace'),
                    'callback': self.load_from_store,
                    'data': {}}
 
-        if len(data) == 0:
+        if not data:
             name = 'kytos.storehouse.create'
             msg = 'Create new box in storehouse'
         else:
