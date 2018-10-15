@@ -1,7 +1,8 @@
 #########
 Changelog
 #########
-All notable changes to the topology project will be documented in this file.
+
+All notable changes to the ``topology`` project will be documented in this file.
 
 [UNRELEASED] - Under development
 ********************************
@@ -23,15 +24,23 @@ Fixed
 Security
 ========
 
+[3.3.0] - 2018-10-15
+******************************************
+
+ - Added support for automated tests and CI with Scrutinizer
+ - Fixed undefined interface link NameError
+ - Fixed linter warnings
+
 [3.2.0] - 2018-06-15
 ******************************************
-- Added support persistence with the NApp kytos/storehouse.
+- Added persistence support with the NApp ``kytos/storehouse``.
 - Added KytosEvent named `kytos/topology.{entities}.metadata.{action}` when the
   metadata changes.The `entities` could be `switches`, `links` or `interfaces`
   and the `action` could be `removed` or `added`.
 
 [3.1.0] - 2018-04-20
 ******************************************
+
 Added
 =====
 - Added method to send KytosEvent when a metadata changes.
