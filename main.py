@@ -65,6 +65,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Return an object representing the topology."""
         return Topology(self.controller.switches, self.links)
 
+    def _get_link_from_interface(self, interface):
+        """Return the link of the interface, or None if it does not exist."""
+        for link in self.links.values():
+            if interface in (link.endpoint_a, link.endpoint_b):
+                return link
+        return None
+
     @rest('v3/')
     def get_topology(self):
         """Return the latest known topology.
@@ -368,8 +375,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         The event notifies that an interface's link was changed to 'up'.
         """
         interface = event.content['interface']
-        if interface.link:
-            interface.link.activate()
+        link = self._get_link_from_interface(interface)
+        if link:
+            link.activate()
         self.notify_topology_update()
         self.update_instance_metadata(interface.link)
 
@@ -380,8 +388,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         The event notifies that an interface's link was changed to 'down'.
         """
         interface = event.content['interface']
-        if interface.link:
-            interface.link.deactivate()
+        link = self._get_link_from_interface(interface)
+        if link:
+            link.deactivate()
         self.notify_topology_update()
 
     @listen_to('.*.interface.is.nni')
