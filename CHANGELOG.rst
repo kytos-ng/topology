@@ -24,6 +24,11 @@ Fixed
 Security
 ========
 
+[3.4.0] - 2018-12-14
+******************************************
+
+ - Fixed activation/deactivation of links on interface up/down events
+
 [3.3.0] - 2018-10-15
 ******************************************
 
