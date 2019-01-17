@@ -336,7 +336,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             log.debug('Switch %s removed from the Topology.', switch.id)
             self.notify_topology_update()
 
-    @listen_to('.*.switch.interface.up')
     def handle_interface_up(self, event):
         """Update the topology based on a Port Modify event.
 
@@ -352,7 +351,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Update the topology based on a Port Create event."""
         self.handle_interface_up(event)
 
-    @listen_to('.*.switch.interface.down')
     def handle_interface_down(self, event):
         """Update the topology based on a Port Modify event.
 
