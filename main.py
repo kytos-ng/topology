@@ -374,10 +374,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """
         interface = event.content['interface']
         link = self._get_link_from_interface(interface)
-        if link:
+        if link and not link.is_active():
             link.activate()
-        self.notify_topology_update()
-        self.update_instance_metadata(interface.link)
+            self.notify_topology_update()
+            self.update_instance_metadata(interface.link)
+            self.notify_link_status_change(link)
 
     @listen_to('.*.switch.interface.link_down')
     def handle_interface_link_down(self, event):
@@ -387,9 +388,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """
         interface = event.content['interface']
         link = self._get_link_from_interface(interface)
-        if link:
+        if link and link.is_active():
             link.deactivate()
-        self.notify_topology_update()
+            self.notify_topology_update()
+            self.notify_link_status_change(link)
 
     @listen_to('.*.interface.is.nni')
     def add_links(self, event):
