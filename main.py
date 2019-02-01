@@ -432,6 +432,16 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                                                self._get_topology()})
         self.controller.buffers.app.put(event)
 
+    def notify_link_status_change(self, link):
+        """Send an event to notify about a status change on a link."""
+        name = 'kytos/topology.'
+        if link.is_active():
+            status = 'link_up'
+        else:
+            status = 'link_down'
+        event = KytosEvent(name=name+status, content={'link': link})
+        self.controller.buffers.app.put(event)
+        
     def notify_metadata_changes(self, obj, action):
         """Send an event to notify about metadata changes."""
         if isinstance(obj, Switch):
