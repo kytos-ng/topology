@@ -8,7 +8,6 @@ from kytos.core.helpers import listen_to
 from kytos.core.interface import Interface
 from kytos.core.link import Link
 from kytos.core.switch import Switch
-
 # from napps.kytos.topology import settings
 from napps.kytos.topology.models import Topology
 
@@ -71,6 +70,35 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             if interface in (link.endpoint_a, link.endpoint_b):
                 return link
         return None
+
+    @rest('v3/path_status')
+    def get_path_status(self):
+        """REST API to get and return the status of a path."""
+        path = request.get_json()
+        links = []
+        log.info(f'Path {path}')
+        for link_dict in path['path']:
+            id_a = link_dict.get('endpoint_a').get('id')
+            id_b = link_dict.get('endpoint_b').get('id')
+            endpoint_a = self.controller.get_interface_by_id(id_a)
+            endpoint_b = self.controller.get_interface_by_id(id_b)
+            link = Link(endpoint_a, endpoint_b)
+            links.append(link)
+
+        status = self._path_status(links)
+        return jsonify(status), 200
+
+    def _path_status(self, path):
+        """Return the status of a path (list of links).
+
+        The path is up only if all its links are up.
+        """
+        for path_link in path:
+            links_list = list(self.links.values())
+            link = links_list[links_list.index(path_link)]
+            if not link.is_active():
+                return False
+        return True
 
     @rest('v3/')
     def get_topology(self):
@@ -374,10 +402,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """
         interface = event.content['interface']
         link = self._get_link_from_interface(interface)
-        if link:
+        if link and not link.is_active():
             link.activate()
-        self.notify_topology_update()
-        self.update_instance_metadata(interface.link)
+            self.notify_topology_update()
+            self.update_instance_metadata(interface.link)
+            self.notify_link_status_change(link)
 
     @listen_to('.*.switch.interface.link_down')
     def handle_interface_link_down(self, event):
@@ -387,9 +416,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """
         interface = event.content['interface']
         link = self._get_link_from_interface(interface)
-        if link:
+        if link and link.is_active():
             link.deactivate()
-        self.notify_topology_update()
+            self.notify_topology_update()
+            self.notify_link_status_change(link)
 
     @listen_to('.*.interface.is.nni')
     def add_links(self, event):
@@ -428,6 +458,16 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         name = 'kytos/topology.updated'
         event = KytosEvent(name=name, content={'topology':
                                                self._get_topology()})
+        self.controller.buffers.app.put(event)
+
+    def notify_link_status_change(self, link):
+        """Send an event to notify about a status change on a link."""
+        name = 'kytos/topology.'
+        if link.is_active():
+            status = 'link_up'
+        else:
+            status = 'link_down'
+        event = KytosEvent(name=name+status, content={'link': link})
         self.controller.buffers.app.put(event)
 
     def notify_metadata_changes(self, obj, action):
