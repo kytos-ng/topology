@@ -27,10 +27,8 @@ class TestMain(TestCase):
                            '.*.connection.lost',
                            '.*.switch.interface.created',
                            '.*.switch.interface.deleted',
-                           '.*.switch.interface.down',
                            '.*.switch.interface.link_down',
                            '.*.switch.interface.link_up',
-                           '.*.switch.interface.up',
                            '.*.switch.(new|reconnected)',
                            'kytos/topology.*.metadata.*']
         actual_events = self.napp.listeners()

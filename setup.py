@@ -190,7 +190,7 @@ class DevelopMode(develop):
 
 
 setup(name='kytos_topology',
-      version='3.3.0',
+      version='3.4.0',
       description='Core Napps developed by Kytos Team',
       url='http://github.com/kytos/topology',
       author='Kytos Team',
