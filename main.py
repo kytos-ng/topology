@@ -71,35 +71,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 return link
         return None
 
-    @rest('v3/path_status')
-    def get_path_status(self):
-        """REST API to get and return the status of a path."""
-        path = request.get_json()
-        links = []
-        log.info(f'Path {path}')
-        for link_dict in path['path']:
-            id_a = link_dict.get('endpoint_a').get('id')
-            id_b = link_dict.get('endpoint_b').get('id')
-            endpoint_a = self.controller.get_interface_by_id(id_a)
-            endpoint_b = self.controller.get_interface_by_id(id_b)
-            link = Link(endpoint_a, endpoint_b)
-            links.append(link)
-
-        status = self._path_status(links)
-        return jsonify(status), 200
-
-    def _path_status(self, path):
-        """Return the status of a path (list of links).
-
-        The path is up only if all its links are up.
-        """
-        for path_link in path:
-            links_list = list(self.links.values())
-            link = links_list[links_list.index(path_link)]
-            if not link.is_active():
-                return False
-        return True
-
     @rest('v3/')
     def get_topology(self):
         """Return the latest known topology.
