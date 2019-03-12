@@ -30,7 +30,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def execute(self):
         """Do nothing."""
-        pass
 
     def shutdown(self):
         """Do nothing."""
