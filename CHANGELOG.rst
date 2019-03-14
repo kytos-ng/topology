@@ -9,10 +9,10 @@ All notable changes to the ``topology`` project will be documented in this file.
 Added
 =====
  - Added method to trigger an event when a link goes up/down.
+ - Continuum integration enabled at scrutinizer.
 
 Changed
 =======
- - Updated Scrutinizer configuration.
 
 Deprecated
 ==========
