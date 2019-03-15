@@ -24,28 +24,43 @@ Fixed
 Security
 ========
 
+[3.5.0] - 2019-03-15
+********************
+Added
+=====
+ - Added method to trigger an event when a link goes up/down.
+ - Continuous integration enabled at scrutinizer.
+
+Fixed
+=====
+ - Fixed link up/down events.
+ - Fixed some linter issues.
+
+Removed
+=======
+ - Removed interface.(up|down). Fix kytos/of_core#32
+
 [3.4.0] - 2018-12-14
-******************************************
+*********************
 
  - Fixed activation/deactivation of links on interface up/down events
 
 [3.3.0] - 2018-10-15
-******************************************
+********************
 
  - Added support for automated tests and CI with Scrutinizer
  - Fixed undefined interface link NameError
  - Fixed linter warnings
 
 [3.2.0] - 2018-06-15
-******************************************
+********************
 - Added persistence support with the NApp ``kytos/storehouse``.
 - Added KytosEvent named `kytos/topology.{entities}.metadata.{action}` when the
   metadata changes.The `entities` could be `switches`, `links` or `interfaces`
   and the `action` could be `removed` or `added`.
 
 [3.1.0] - 2018-04-20
-******************************************
-
+********************
 Added
 =====
 - Added method to send KytosEvent when a metadata changes.
@@ -60,7 +75,7 @@ Fixed
 - Fixed search switch component.
 
 [3.0.0] - 2018-03-08
-******************************************
+********************
 Added
 =====
 - Add 'enable' and 'disable' endpoints.
