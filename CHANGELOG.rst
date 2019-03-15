@@ -8,6 +8,8 @@ All notable changes to the ``topology`` project will be documented in this file.
 ********************************
 Added
 =====
+ - Added method to trigger an event when a link goes up/down.
+ - Continuum integration enabled at scrutinizer.
 
 Changed
 =======
@@ -20,6 +22,8 @@ Removed
 
 Fixed
 =====
+ - Fixed link up/down events.
+ - Fixed some linter issues.
 
 Security
 ========
