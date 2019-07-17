@@ -47,8 +47,16 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def _get_switches_dict(self):
         """Return a dictionary with the known switches."""
-        return {'switches': {s.id: s.as_dict() for s in
-                             self.controller.switches.values()}}
+        switches = {'switches': {}}        
+        for idx, switch in enumerate(self.controller.switches.values()):
+            switch_data = switch.as_dict()
+            if not all(key in switch_data['metadata']
+                       for key in ('lat', 'lng')):
+                # Switches are initialized somewhere in the ocean
+                switch_data['metadata']['lat'] = str(0.0)
+                switch_data['metadata']['lng'] = str(-30.0+idx*10.0)
+            switches['switches'][switch.id] = switch_data
+        return switches
 
     def _get_links_dict(self):
         """Return a dictionary with the known links."""
