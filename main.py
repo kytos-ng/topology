@@ -459,6 +459,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.controller.buffers.app.put(event)
         log.debug(f'Metadata from {obj.id} was {action}.')
 
+    @listen_to('.*.switch.port.created')
+    def notify_port_created(self, original_event):
+        """Notify when a port is created."""
+        name = f'kytos/topology.port.created'
+        event = KytosEvent(name=name, content=original_event.content)
+        self.controller.buffers.app.put(event)
+
     @listen_to('kytos/topology.*.metadata.*')
     def save_metadata_on_store(self, event):
         """Send to storehouse the data updated."""

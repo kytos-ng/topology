@@ -30,6 +30,7 @@ class TestMain(TestCase):
                            '.*.switch.interface.link_down',
                            '.*.switch.interface.link_up',
                            '.*.switch.(new|reconnected)',
+                           '.*.switch.port.created',
                            'kytos/topology.*.metadata.*']
         actual_events = self.napp.listeners()
         self.assertEqual(expected_events, actual_events)
