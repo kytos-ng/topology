@@ -373,7 +373,16 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """
         interface = event.content['interface']
         link = self._get_link_from_interface(interface)
-        if link and not link.is_active():
+        if not link:
+            return
+        if link.endpoint_a == interface:
+            other_interface = link.endpoint_b
+        else:
+            other_interface = link.endpoint_a
+        interface.activate()
+        if other_interface.is_active() is False:
+            return
+        if link.is_active() is False:
             link.activate()
             self.notify_topology_update()
             self.update_instance_metadata(interface.link)
