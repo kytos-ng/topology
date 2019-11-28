@@ -394,7 +394,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             now = time.time()
             if link.is_active() and \
                     now - last_status_change >= self.link_up_timer:
-                log.info('Notificando link up')
                 self.notify_topology_update()
                 self.update_instance_metadata(interface.link)
                 self.notify_link_status_change(link)
