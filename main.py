@@ -26,7 +26,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Initialize the NApp's links list."""
         self.links = {}
         self.store_items = {}
-        self.link_up_timer = settings.LINK_UP_TIMER
+        self.link_up_timer = getattr(settings, 'LINK_UP_TIMER', 10)
 
         self.verify_storehouse('switches')
         self.verify_storehouse('interfaces')
