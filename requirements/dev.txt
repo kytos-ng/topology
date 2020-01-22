@@ -9,7 +9,7 @@
 -e git+https://github.com/kytos/python-openflow.git#egg=python-openflow
 astroid==2.0.4            # via pylint
 click==6.7                # via pip-tools
-coverage==4.5.1
+coverage==5.0.3
 docopt==0.6.2             # via yala
 first==2.0.1              # via pip-tools
 isort==4.3.4              # via pylint, yala
