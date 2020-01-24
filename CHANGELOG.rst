@@ -8,6 +8,7 @@ All notable changes to the ``topology`` project will be documented in this file.
 ********************************
 Added
 =====
+ - Added event to notify when a new port is created. 
 
 Changed
 =======
