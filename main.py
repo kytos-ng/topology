@@ -3,12 +3,12 @@
 Manage the network topology
 """
 from flask import jsonify, request
+
 from kytos.core import KytosEvent, KytosNApp, log, rest
 from kytos.core.helpers import listen_to
 from kytos.core.interface import Interface
 from kytos.core.link import Link
 from kytos.core.switch import Switch
-
 # from napps.kytos.topology import settings
 from napps.kytos.topology.models import Topology
 
