@@ -6,12 +6,14 @@ All notable changes to the ``topology`` project will be documented in this file.
 
 [UNRELEASED] - Under development
 ********************************
+
 Added
 =====
  - Added event to notify when a new port is created. 
 
 Changed
 =======
+ - README.rst to include some info badges.
 
 Deprecated
 ==========
@@ -21,6 +23,8 @@ Removed
 
 Fixed
 =====
+ - Fixed Scrutinizer coverage error.
+ - Fixed some linter issues.
 
 Security
 ========
