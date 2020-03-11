@@ -19,6 +19,12 @@ class TestMain(TestCase):
         self.server_name_url = 'http://localhost:8181/api/kytos/topology'
         self.napp = Main(self.get_controller_mock())
 
+    def test_get_switches_dict(self):
+        """Basic test for switch listing."""
+        switches = self.napp._get_switches_dict()
+        assert isinstance(switches['switches'], dict)
+        assert switches['switches'] == {}
+
     def test_get_event_listeners(self):
         """Verify all event listeners registered."""
         expected_events = ['kytos/core.shutdown',
