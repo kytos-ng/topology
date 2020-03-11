@@ -9,11 +9,11 @@ All notable changes to the ``topology`` project will be documented in this file.
 
 Added
 =====
- - Added event to notify when a new port is created. 
+- Added event to notify when a new port is created: ``topology.port.created``
 
 Changed
 =======
- - README.rst to include some info badges.
+- README.rst to include some info badges.
 
 Deprecated
 ==========
@@ -23,8 +23,8 @@ Removed
 
 Fixed
 =====
- - Fixed Scrutinizer coverage error.
- - Fixed some linter issues.
+- Fixed Scrutinizer coverage error.
+- Fixed some linter issues.
 
 Security
 ========
@@ -33,29 +33,29 @@ Security
 ********************
 Added
 =====
- - Added method to trigger an event when a link goes up/down.
- - Continuous integration enabled at scrutinizer.
+- Added method to trigger an event when a link goes up/down.
+- Continuous integration enabled at scrutinizer.
 
 Fixed
 =====
- - Fixed link up/down events.
- - Fixed some linter issues.
+- Fixed link up/down events.
+- Fixed some linter issues.
 
 Removed
 =======
- - Removed interface.(up|down). Fix kytos/of_core#32
+- Removed interface.(up|down). Fix kytos/of_core#32
 
 [3.4.0] - 2018-12-14
 *********************
 
- - Fixed activation/deactivation of links on interface up/down events
+- Fixed activation/deactivation of links on interface up/down events
 
 [3.3.0] - 2018-10-15
 ********************
 
- - Added support for automated tests and CI with Scrutinizer
- - Fixed undefined interface link NameError
- - Fixed linter warnings
+- Added support for automated tests and CI with Scrutinizer
+- Fixed undefined interface link NameError
+- Fixed linter warnings
 
 [3.2.0] - 2018-06-15
 ********************
