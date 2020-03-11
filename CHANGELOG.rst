@@ -6,14 +6,11 @@ All notable changes to the ``topology`` project will be documented in this file.
 
 [UNRELEASED] - Under development
 ********************************
-
 Added
 =====
-- Added event to notify when a new port is created: ``topology.port.created``
 
 Changed
 =======
-- README.rst to include some info badges.
 
 Deprecated
 ==========
@@ -23,11 +20,22 @@ Removed
 
 Fixed
 =====
-- Fixed Scrutinizer coverage error.
-- Fixed some linter issues.
 
 Security
 ========
+
+
+[3.5.1] - 2020-03-11
+********************
+
+Added
+=====
+- Added event to notify when a new port is created: ``topology.port.created``
+
+Fixed
+=====
+- Fixed unit tests / coverage / linter issues
+
 
 [3.5.0] - 2019-03-15
 ********************
