@@ -14,13 +14,14 @@ class TestMain(TestCase):
     def setUp(self):
         """Execute steps before each tests.
 
-        Set the server_name_url_url from kytos/topology
+        Set the server_name_url from kytos/topology
         """
         self.server_name_url = 'http://localhost:8181/api/kytos/topology'
         self.napp = Main(self.get_controller_mock())
 
     def test_get_switches_dict(self):
         """Basic test for switch listing."""
+        # pylint: disable=protected-access
         switches = self.napp._get_switches_dict()
         assert isinstance(switches['switches'], dict)
         assert switches['switches'] == {}
