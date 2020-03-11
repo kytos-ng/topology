@@ -1,13 +1,8 @@
-"""Module to test the napp kytos/topology."""
-import sys
+"""NApp Unit Tests."""
 import os
+import sys
 from pathlib import Path
 
-if 'VIRTUAL_ENV' in os.environ:
-    BASE_ENV = Path(os.environ['VIRTUAL_ENV'])
-else:
-    BASE_ENV = Path('/')
-
-NAPPS_PATH = BASE_ENV / '/var/lib/kytos/napps/..'
-
-sys.path.insert(0, str(NAPPS_PATH))
+BASE_ENV = Path(os.environ.get('VIRTUAL_ENV', '/'))
+NAPPS_DIR = BASE_ENV / 'var/lib/kytos/'
+sys.path.insert(0, str(NAPPS_DIR))
