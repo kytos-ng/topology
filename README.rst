@@ -27,6 +27,14 @@ repository. To install this NApp, run:
 
    $ kytos napps install kytos/topology
 
+############
+Requirements
+############
+
+- kytos/of_core
+- kytos/of_lldp
+- kytos/storehouse
+
 ###########
 Configuring
 ###########
