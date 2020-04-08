@@ -114,6 +114,11 @@ class TestMain(TestCase):
         Set the server_name_url from kytos/topology
         """
         self.server_name_url = 'http://localhost:8181/api/kytos/topology'
+
+        patch('kytos.core.helpers.run_on_thread', lambda x: x).start()
+        from napps.kytos.topology.main import Main
+        self.addCleanup(patch.stopall)
+        self.napp = Main(get_controller_mock())
         self.init_napp()
 
     @patch('napps.kytos.topology.main.Main.verify_storehouse')
