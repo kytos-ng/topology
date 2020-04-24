@@ -47,6 +47,7 @@ class TestMain(TestCase):
         expected_urls = [
          ({}, {'GET', 'OPTIONS', 'HEAD'}, '/api/kytos/topology/v3/interfaces'),
          ({}, {'GET', 'OPTIONS', 'HEAD'}, '/api/kytos/topology/v3/switches'),
+         ({}, {'POST', 'OPTIONS'}, '/api/kytos/topology/v3/restore'),
          ({}, {'GET', 'OPTIONS', 'HEAD'}, '/api/kytos/topology/v3/links'),
          ({}, {'GET', 'OPTIONS', 'HEAD'}, '/api/kytos/topology/v3/'),
          ({'key': '[key]', 'interface_id': '[interface_id]'},

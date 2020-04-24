@@ -11,6 +11,7 @@ from kytos.core.link import Link
 from kytos.core.switch import Switch
 # from napps.kytos.topology import settings
 from napps.kytos.topology.models import Topology
+from napps.kytos.topology.storehouse import StoreHouse
 
 
 class Main(KytosNApp):  # pylint: disable=too-many-public-methods
@@ -27,6 +28,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.verify_storehouse('switches')
         self.verify_storehouse('interfaces')
         self.verify_storehouse('links')
+
+        self.storehouse = StoreHouse(self.controller)
 
     def execute(self):
         """Do nothing."""
@@ -71,6 +74,51 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 return link
         return None
 
+    def _restore_status(self, switches_status, interfaces_status):
+        """Restore the network administratively status."""
+        # restore Switches
+        for dpid, state in switches_status.items():
+            try:
+                if state:
+                    self.controller.switches[dpid].enable()
+                else:
+                    self.controller.switches[dpid].disable()
+            except KeyError as err:
+                log.error("Error restoring {err}")
+                raise
+        # restore interfaces
+        for interface_id, state in interfaces_status.items():
+            switch_id = ":".join(interface_id.split(":")[:-1])
+            interface_number = int(interface_id.split(":")[-1])
+            try:
+                switch = self.controller.switches[switch_id]
+                if state:
+                    switch.interfaces[interface_number].enable()
+                else:
+                    switch.interfaces[interface_number].disable()
+            except KeyError as err:
+                log.error("Error restoring {err}")
+                raise
+        log.info('Network status restored.')
+
+    def _restore_network_status(self):
+        """Load and restore network status saved in storehouse."""
+        switches_status = {}
+        interfaces_status = {}
+        status = self.storehouse.get_data()
+        if status:
+            switches = status.get(0)['switches']
+            for switch, attrib_switch in switches.items():
+                # get status the switches
+                switches_status[switch] = attrib_switch.get('enabled')
+                interfaces = attrib_switch['interfaces']
+                # get status the interfaces
+                for interface, attrib_inter in interfaces.items():
+                    interfaces_status[interface] = attrib_inter.get('enabled')
+            self._restore_status(switches_status, interfaces_status)
+        else:
+            log.info('Not have status saved to restore.')
+
     @rest('v3/')
     def get_topology(self):
         """Return the latest known topology.
@@ -78,6 +126,16 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         This topology is updated when there are network events.
         """
         return jsonify(self._get_topology_dict())
+
+    @rest('v3/restore', methods=['POST'])
+    def restore_network_status(self):
+        """Restore the network administratively status saved in StoreHouse."""
+        try:
+            self._restore_network_status()
+        except KeyError as err:
+            return jsonify(f"Error restoring status {err}"), 404
+
+        return jsonify("Operation successful."), 200
 
     # Switch related methods
     @rest('v3/switches')
@@ -90,6 +148,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Administratively enable a switch in the topology."""
         try:
             self.controller.switches[dpid].enable()
+            self.save_status_on_store()
             return jsonify("Operation successful"), 201
         except KeyError:
             return jsonify("Switch not found"), 404
@@ -99,6 +158,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Administratively disable a switch in the topology."""
         try:
             self.controller.switches[dpid].disable()
+            self.save_status_on_store()
             return jsonify("Operation successful"), 201
         except KeyError:
             return jsonify("Switch not found"), 404
@@ -165,6 +225,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         except KeyError:
             return jsonify("Interface not found"), 404
 
+        self.save_status_on_store()
         return jsonify("Operation successful"), 201
 
     @rest('v3/interfaces/<interface_id>/disable', methods=['POST'])
@@ -183,6 +244,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         except KeyError:
             return jsonify("Interface not found"), 404
 
+        self.save_status_on_store()
         return jsonify("Operation successful"), 201
 
     @rest('v3/interfaces/<interface_id>/metadata')
@@ -423,6 +485,12 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     #    if settings.DISPLAY_FULL_DUPLEX_LINKS:
     #        self.topology.add_link(host.id, interface.id)
+
+    def save_status_on_store(self):
+        """Save network status in storehouse."""
+        status = self._get_switches_dict()
+        status['id'] = 0
+        self.storehouse.save_status(status)
 
     def notify_topology_update(self):
         """Send an event to notify about updates on the topology."""
