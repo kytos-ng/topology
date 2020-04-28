@@ -557,3 +557,37 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if metadata:
             obj.extend_metadata(metadata)
             log.debug(f'Metadata to {obj.id} was updated')
+
+    @listen_to('kytos/maintenance.start_link')
+    def handle_link_maintenance_start(self, event):
+        """Deals with the start of links maintenance."""
+        notify_links = []
+        maintenance_links = event.content['links']
+        for maintenance_link in maintenance_links:
+            try:
+                link = self.links[maintenance_link.id]
+            except KeyError:
+                continue
+            notify_links.append(link)
+        for link in notify_links:
+            link.deactivate()
+            link.endpoint_a.deactivate()
+            link.endpoint_b.deactivate()
+            self.notify_link_status_change(link)
+
+    @listen_to('kytos/maintenance.end_link')
+    def handle_link_maintenance_end(self, event):
+        """Deals with the end of links maintenance."""
+        notify_links = []
+        maintenance_links = event.content['links']
+        for maintenance_link in maintenance_links:
+            try:
+                link = self.links[maintenance_link.id]
+            except KeyError:
+                continue
+            notify_links.append(link)
+        for link in notify_links:
+            link.activate()
+            link.endpoint_a.activate()
+            link.endpoint_b.activate()
+            self.notify_link_status_change(link)
