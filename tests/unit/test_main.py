@@ -30,6 +30,8 @@ class TestMain(TestCase):
         """Verify all event listeners registered."""
         expected_events = ['kytos/core.shutdown',
                            'kytos/core.shutdown.kytos/topology',
+                           'kytos/maintenance.start_link',
+                           'kytos/maintenance.end_link',
                            '.*.interface.is.nni',
                            '.*.connection.lost',
                            '.*.switch.interface.created',
@@ -40,7 +42,7 @@ class TestMain(TestCase):
                            '.*.switch.port.created',
                            'kytos/topology.*.metadata.*']
         actual_events = self.napp.listeners()
-        self.assertEqual(expected_events, actual_events)
+        self.assertCountEqual(expected_events, actual_events)
 
     def test_verify_api_urls(self):
         """Verify all APIs registered."""
