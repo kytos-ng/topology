@@ -374,6 +374,15 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface = event.content['interface']
         self.handle_link_up(interface)
 
+    @listen_to('kytos/maintenance.end_switch')
+    def handle_switch_maintenance_end(self, event):
+        """Handle the end of the maintenance of a switch."""
+        switches = event.content['switches']
+        for switch in switches:
+            switch.activate()
+            for interface in switch.interfaces.values():
+                self.handle_link_up(interface)
+
     def handle_link_up(self, interface):
         """Notify a link is up."""
         link = self._get_link_from_interface(interface)
@@ -391,6 +400,16 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """
         interface = event.content['interface']
         self.handle_link_down(interface)
+
+    @listen_to('kytos/maintenance.start_switch')
+    def handle_switch_maintenance_start(self, event):
+        """Handle the start of the maintenance of a switch."""
+        switches = event.content['switches']
+        for switch in switches:
+            switch.deactivate()
+            for interface in switch.interfaces.values():
+                if interface.is_active():
+                    self.handle_link_down(interface)
 
     def handle_link_down(self, interface):
         """Notify a link is down."""

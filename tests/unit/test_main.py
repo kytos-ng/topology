@@ -32,6 +32,8 @@ class TestMain(TestCase):
                            'kytos/core.shutdown.kytos/topology',
                            'kytos/maintenance.start_link',
                            'kytos/maintenance.end_link',
+                           'kytos/maintenance.start_switch',
+                           'kytos/maintenance.end_switch',
                            '.*.interface.is.nni',
                            '.*.connection.lost',
                            '.*.switch.interface.created',
