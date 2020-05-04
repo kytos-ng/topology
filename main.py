@@ -372,6 +372,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         The event notifies that an interface's link was changed to 'up'.
         """
         interface = event.content['interface']
+        self.handle_link_up(interface)
+
+    def handle_link_up(self, interface):
+        """Notify a link is up."""
         link = self._get_link_from_interface(interface)
         if link and not link.is_active():
             link.activate()
@@ -386,6 +390,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         The event notifies that an interface's link was changed to 'down'.
         """
         interface = event.content['interface']
+        self.handle_link_down(interface)
+
+    def handle_link_down(self, interface):
+        """Notify a link is down."""
         link = self._get_link_from_interface(interface)
         if link and link.is_active():
             link.deactivate()
