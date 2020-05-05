@@ -379,8 +379,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Handle the end of the maintenance of a switch."""
         switches = event.content['switches']
         for switch in switches:
+            switch.enable()
             switch.activate()
             for interface in switch.interfaces.values():
+                interface.enable()
                 self.handle_link_up(interface)
 
     def handle_link_up(self, interface):
@@ -406,8 +408,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Handle the start of the maintenance of a switch."""
         switches = event.content['switches']
         for switch in switches:
+            switch.disable()
             switch.deactivate()
             for interface in switch.interfaces.values():
+                interface.disable()
                 if interface.is_active():
                     self.handle_link_down(interface)
 
@@ -597,9 +601,12 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 continue
             notify_links.append(link)
         for link in notify_links:
+            link.disable()
             link.deactivate()
             link.endpoint_a.deactivate()
             link.endpoint_b.deactivate()
+            link.endpoint_a.disable()
+            link.endpoint_b.disable()
             self.notify_link_status_change(link)
 
     @listen_to('kytos/maintenance.end_link')
@@ -614,7 +621,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 continue
             notify_links.append(link)
         for link in notify_links:
+            link.enable()
             link.activate()
             link.endpoint_a.activate()
             link.endpoint_b.activate()
+            link.endpoint_a.enable()
+            link.endpoint_b.enable()
             self.notify_link_status_change(link)
