@@ -14,7 +14,6 @@ from kytos.core.switch import Switch
 from napps.kytos.topology import settings
 from napps.kytos.topology.models import Topology
 
-
 DEFAULT_LINK_UP_TIMER = 10
 
 
