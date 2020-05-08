@@ -15,6 +15,9 @@ from napps.kytos.topology import settings
 from napps.kytos.topology.models import Topology
 
 
+DEFAULT_LINK_UP_TIMER = 10
+
+
 class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     """Main class of kytos/topology NApp.
 
@@ -25,7 +28,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Initialize the NApp's links list."""
         self.links = {}
         self.store_items = {}
-        self.link_up_timer = getattr(settings, 'LINK_UP_TIMER', 10)
+        self.link_up_timer = getattr(settings, 'LINK_UP_TIMER',
+                                     DEFAULT_LINK_UP_TIMER)
 
         self.verify_storehouse('switches')
         self.verify_storehouse('interfaces')
@@ -388,13 +392,17 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if link.is_active() is False:
             link.update_metadata('last_status_change', time.time())
             link.activate()
+
+            # As each run of this method uses a different thread,
+            # there is no risk this sleep will lock the NApp.
             time.sleep(self.link_up_timer)
+
             last_status_change = link.get_metadata('last_status_change')
             now = time.time()
             if link.is_active() and \
                     now - last_status_change >= self.link_up_timer:
                 self.notify_topology_update()
-                self.update_instance_metadata(interface.link)
+                self.update_instance_metadata(link)
                 self.notify_link_status_change(link)
 
     @listen_to('.*.switch.interface.link_down')
