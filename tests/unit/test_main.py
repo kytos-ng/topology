@@ -1,4 +1,5 @@
 """Module to test the main napp file."""
+import json
 from unittest import TestCase
 from unittest.mock import MagicMock, create_autospec, patch
 
@@ -7,7 +8,8 @@ from kytos.core.interface import Interface
 from kytos.core.link import Link
 
 
-from tests.unit.helpers import (get_controller_mock, get_napp_urls)
+from tests.unit.helpers import (get_controller_mock, get_napp_urls,
+                                get_app_test_client)
 
 
 class TestMain(TestCase):
@@ -89,6 +91,78 @@ class TestMain(TestCase):
 
         urls = get_napp_urls(self.napp)
         self.assertEqual(expected_urls, urls)
+
+    def test_enable_interfaces(self):
+        """Test enable_interfaces."""
+        mock_switch = create_autospec(Switch)
+        mock_interface = create_autospec(Interface)
+        mock_switch.interfaces = {1: mock_interface}
+        self.napp.controller.switches = {'00:00:00:00:00:00:00:01':
+                                         mock_switch}
+        api = get_app_test_client(self.napp)
+        expected_success = 'Operation successful'
+
+        interface_id = '00:00:00:00:00:00:00:01:1'
+        url = f'{self.server_name_url}/v3/interfaces/{interface_id}/enable'
+        response = api.post(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(expected_success, json.loads(response.data))
+
+        dpid = '00:00:00:00:00:00:00:01'
+        url = f'{self.server_name_url}/v3/interfaces/switch/{dpid}/enable'
+        response = api.post(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(expected_success, json.loads(response.data))
+
+        # test interface not found
+        interface_id = '00:00:00:00:00:00:00:01:2'
+        url = f'{self.server_name_url}/v3/interfaces/{interface_id}/enable'
+        response = api.post(url)
+        self.assertEqual(response.status_code, 409, response.data)
+
+        # test switch not found
+        dpid = '00:00:00:00:00:00:00:02'
+        expected_fail = f"Switch not found: '{dpid}'"
+        url = f'{self.server_name_url}/v3/interfaces/switch/{dpid}/enable'
+        response = api.post(url)
+        self.assertEqual(response.status_code, 404, response.data)
+        self.assertEqual(expected_fail, json.loads(response.data))
+
+    def test_disable_interfaces(self):
+        """Test disable_interfaces."""
+        interface_id = '00:00:00:00:00:00:00:01:1'
+        dpid = '00:00:00:00:00:00:00:01'
+        expected = 'Operation successful'
+        mock_switch = create_autospec(Switch)
+        mock_interface = create_autospec(Interface)
+        mock_switch.interfaces = {1: mock_interface}
+        self.napp.controller.switches = {'00:00:00:00:00:00:00:01':
+                                         mock_switch}
+        api = get_app_test_client(self.napp)
+
+        url = f'{self.server_name_url}/v3/interfaces/{interface_id}/disable'
+        response = api.post(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(expected, json.loads(response.data))
+
+        url = f'{self.server_name_url}/v3/interfaces/switch/{dpid}/disable'
+        response = api.post(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(expected, json.loads(response.data))
+
+        # test interface not found
+        interface_id = '00:00:00:00:00:00:00:01:2'
+        url = f'{self.server_name_url}/v3/interfaces/{interface_id}/disable'
+        response = api.post(url)
+        self.assertEqual(response.status_code, 409, response.data)
+
+        # test switch not found
+        dpid = '00:00:00:00:00:00:00:02'
+        expected_fail = f"Switch not found: '{dpid}'"
+        url = f'{self.server_name_url}/v3/interfaces/switch/{dpid}/disable'
+        response = api.post(url)
+        self.assertEqual(response.status_code, 404, response.data)
+        self.assertEqual(expected_fail, json.loads(response.data))
 
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.update_instance_metadata')
