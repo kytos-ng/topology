@@ -75,7 +75,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         return None
 
     def _restore_status(self, switches_status, interfaces_status):
-        """Restore the network administratively status."""
+        """Restore the network administrative status."""
         # restore Switches
         for switch_id, state in switches_status.items():
             try:
@@ -84,7 +84,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 else:
                     self.controller.switches[switch_id].disable()
             except KeyError:
-                error = ('Error while restoring switche status. The '
+                error = ('Error while restoring switches status. The '
                          f'{switch_id} does not exist.')
                 raise KeyError(error)
         # restore interfaces
@@ -121,7 +121,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     interfaces_status[interface] = enabled_value
 
         else:
-            error = 'There is not status saved to restore.'
+            error = 'There is no status saved to restore.'
             log.info(error)
             raise FileNotFoundError(error)
 
@@ -135,7 +135,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """
         return jsonify(self._get_topology_dict())
 
-    @rest('v3/restore', methods=['POST'])
+    @rest('v3/restore')
     def restore_network_status(self):
         """Restore the network administratively status saved in StoreHouse."""
         try:
@@ -144,7 +144,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         except (KeyError, FileNotFoundError) as exc:
             return jsonify(f'{str(exc)}'), 404
 
-        return jsonify('Administratively status restored.'), 200
+        return jsonify('Administrative status restored.'), 200
 
     # Switch related methods
     @rest('v3/switches')

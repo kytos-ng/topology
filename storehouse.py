@@ -74,7 +74,7 @@ class StoreHouse:
 
         event = KytosEvent(name=name, content=content)
         self.controller.buffers.app.put(event)
-        log.debug(f'Bootstraping storehouse box for {self.namespace}.')
+        log.debug(f'Bootstrapping storehouse box for {self.namespace}.')
 
     def _get_or_create_a_box_from_list_of_boxes(self, _event, data, _error):
         """Create a new box or retrieve the stored box."""
@@ -100,7 +100,7 @@ class StoreHouse:
             log.error(f'Box {data.box_id} not found in {self.namespace}.')
 
         self.box = data
-        log.debug(f'Box {self.box.box_id} was load from storehouse.')
+        log.debug(f'Box {self.box.box_id} was loaded from storehouse.')
 
     def save_status(self, status):
         """Save a status network using the storehouse."""
@@ -115,8 +115,8 @@ class StoreHouse:
         self.controller.buffers.app.put(event)
 
     def _save_status_callback(self, _event, data, error):
-        """Display the save Status network result in the log."""
+        """Display the saved network status in the log."""
         if error:
-            log.error(f'Can\'t update the {self.box.box_id}')
+            log.error(f'Can\'t update box {self.box.box_id}')
 
         log.info(f'Box {data.box_id} was updated.')
