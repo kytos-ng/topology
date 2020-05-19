@@ -56,7 +56,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def _get_switches_dict(self):
         """Return a dictionary with the known switches."""
-        switches = {'switches': {}}        
+        switches = {'switches': {}}
         for idx, switch in enumerate(self.controller.switches.values()):
             switch_data = switch.as_dict()
             if not all(key in switch_data['metadata']
