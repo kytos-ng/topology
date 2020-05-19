@@ -2,6 +2,8 @@
 
 Manage the network topology
 """
+import time
+
 from flask import jsonify, request
 
 from kytos.core import KytosEvent, KytosNApp, log, rest
@@ -9,8 +11,10 @@ from kytos.core.helpers import listen_to
 from kytos.core.interface import Interface
 from kytos.core.link import Link
 from kytos.core.switch import Switch
-# from napps.kytos.topology import settings
+from napps.kytos.topology import settings
 from napps.kytos.topology.models import Topology
+
+DEFAULT_LINK_UP_TIMER = 10
 
 
 class Main(KytosNApp):  # pylint: disable=too-many-public-methods
@@ -23,6 +27,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Initialize the NApp's links list."""
         self.links = {}
         self.store_items = {}
+        self.link_up_timer = getattr(settings, 'LINK_UP_TIMER',
+                                     DEFAULT_LINK_UP_TIMER)
 
         self.verify_storehouse('switches')
         self.verify_storehouse('interfaces')
@@ -393,11 +399,30 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """
         interface = event.content['interface']
         link = self._get_link_from_interface(interface)
-        if link and not link.is_active():
+        if not link:
+            return
+        if link.endpoint_a == interface:
+            other_interface = link.endpoint_b
+        else:
+            other_interface = link.endpoint_a
+        interface.activate()
+        if other_interface.is_active() is False:
+            return
+        if link.is_active() is False:
+            link.update_metadata('last_status_change', time.time())
             link.activate()
-            self.notify_topology_update()
-            self.update_instance_metadata(interface.link)
-            self.notify_link_status_change(link)
+
+            # As each run of this method uses a different thread,
+            # there is no risk this sleep will lock the NApp.
+            time.sleep(self.link_up_timer)
+
+            last_status_change = link.get_metadata('last_status_change')
+            now = time.time()
+            if link.is_active() and \
+                    now - last_status_change >= self.link_up_timer:
+                self.notify_topology_update()
+                self.update_instance_metadata(link)
+                self.notify_link_status_change(link)
 
     @listen_to('.*.switch.interface.link_down')
     def handle_interface_link_down(self, event):
@@ -409,6 +434,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         link = self._get_link_from_interface(interface)
         if link and link.is_active():
             link.deactivate()
+            link.update_metadata('last_status_change', time.time())
             self.notify_topology_update()
             self.notify_link_status_change(link)
 

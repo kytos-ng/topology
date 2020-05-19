@@ -1,5 +1,7 @@
 """Module to test the main napp file."""
+import time
 import json
+
 from unittest import TestCase
 from unittest.mock import MagicMock, create_autospec, patch
 
@@ -259,12 +261,21 @@ class TestMain(TestCase):
         (mock_status_change, mock_instance_metadata, mock_topology_update,
          mock_link_from_interface) = args
 
+        now = time.time()
         mock_event = MagicMock()
-        mock_interface = create_autospec(Interface)
+        mock_interface_a = create_autospec(Interface)
+        mock_interface_a.is_active.return_value = False
+        mock_interface_b = create_autospec(Interface)
+        mock_interface_b.is_active.return_value = True
         mock_link = create_autospec(Link)
-        mock_link.is_active.return_value = False
+        mock_link.get_metadata.return_value = now
+        mock_link.is_active.side_effect = [False, True]
+        mock_link.endpoint_a = mock_interface_a
+        mock_link.endpoint_b = mock_interface_b
         mock_link_from_interface.return_value = mock_link
-        mock_event.content['interface'] = mock_interface
+        content = {'interface': mock_interface_a}
+        mock_event.content = content
+        self.napp.link_up_timer = 1
         self.napp.handle_interface_link_up(mock_event)
         mock_topology_update.assert_called()
         mock_instance_metadata.assert_called()
