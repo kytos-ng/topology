@@ -6,12 +6,13 @@ from unittest.mock import MagicMock, create_autospec, patch
 from kytos.core.switch import Switch
 from kytos.core.interface import Interface
 from kytos.core.link import Link
+from kytos.lib.helpers import get_switch_mock, get_test_client
 
 
-from tests.unit.helpers import (get_controller_mock, get_napp_urls,
-                                get_app_test_client)
+from tests.unit.helpers import get_controller_mock, get_napp_urls
 
 
+# pylint: disable=too-many-public-methods
 class TestMain(TestCase):
     """Test the Main class."""
 
@@ -92,6 +93,117 @@ class TestMain(TestCase):
         urls = get_napp_urls(self.napp)
         self.assertEqual(expected_urls, urls)
 
+    def test_enable_switch(self):
+        """Test enable_swicth."""
+        dpid = "00:00:00:00:00:00:00:01"
+        mock_switch = get_switch_mock(dpid)
+        msg_success = "Operation successful"
+        msg_fail = "Switch not found"
+        self.napp.controller.switches = {"00:00:00:00:00:00:00:01":
+                                         mock_switch}
+        api = get_test_client(self.napp.controller, self.napp)
+
+        url = f'{self.server_name_url}/v3/switches/{dpid}/enable'
+        response = api.post(url)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(msg_success, json.loads(response.data))
+        self.assertEqual(mock_switch.enable.call_count, 1)
+
+        # fail case
+        mock_switch.enable.call_count = 0
+        dpid = "00:00:00:00:00:00:00:02"
+        url = f'{self.server_name_url}/v3/switches/{dpid}/enable'
+        response = api.post(url)
+        self.assertEqual(response.status_code, 404, response.data)
+        self.assertEqual(msg_fail, json.loads(response.data))
+        self.assertEqual(mock_switch.enable.call_count, 0)
+
+    def test_disable_switch(self):
+        """Test disable_swicth."""
+        dpid = "00:00:00:00:00:00:00:01"
+        mock_switch = get_switch_mock(dpid)
+        msg_success = "Operation successful"
+        msg_fail = "Switch not found"
+        self.napp.controller.switches = {dpid: mock_switch}
+        api = get_test_client(self.napp.controller, self.napp)
+
+        url = f'{self.server_name_url}/v3/switches/{dpid}/disable'
+        response = api.post(url)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(msg_success, json.loads(response.data))
+        self.assertEqual(mock_switch.disable.call_count, 1)
+
+        # fail case
+        mock_switch.disable.call_count = 0
+        dpid = "00:00:00:00:00:00:00:02"
+        url = f'{self.server_name_url}/v3/switches/{dpid}/disable'
+        response = api.post(url)
+        self.assertEqual(response.status_code, 404, response.data)
+        self.assertEqual(msg_fail, json.loads(response.data))
+        self.assertEqual(mock_switch.disable.call_count, 0)
+
+    def test_get_switch_metadata(self):
+        """Test get_switch_metadata."""
+        dpid = "00:00:00:00:00:00:00:01"
+        mock_switch = get_switch_mock(dpid)
+        mock_switch.metadata = "A"
+        self.napp.controller.switches = {dpid: mock_switch}
+        api = get_test_client(self.napp.controller, self.napp)
+
+        url = f'{self.server_name_url}/v3/switches/{dpid}/metadata'
+        response = api.get(url)
+        self.assertEqual(response.status_code, 200, response.data)
+
+        # fail case
+        dpid = "00:00:00:00:00:00:00:02"
+        url = f'{self.server_name_url}/v3/switches/{dpid}/metadata'
+        response = api.get(url)
+        self.assertEqual(response.status_code, 404, response.data)
+
+    @patch('napps.kytos.topology.main.Main.notify_metadata_changes')
+    def test_add_switch_metadata(self, mock_metadata_changes):
+        """Test add_switch_metadata."""
+        dpid = "00:00:00:00:00:00:00:01"
+        mock_switch = get_switch_mock(dpid)
+        self.napp.controller.switches = {dpid: mock_switch}
+        api = get_test_client(self.napp.controller, self.napp)
+        payload = {"data": "A"}
+
+        url = f'{self.server_name_url}/v3/switches/{dpid}/metadata'
+        response = api.post(url, data=json.dumps(payload),
+                            content_type='application/json')
+        self.assertEqual(response.status_code, 201, response.data)
+        mock_metadata_changes.assert_called()
+
+        # fail case
+        dpid = "00:00:00:00:00:00:00:02"
+        url = f'{self.server_name_url}/v3/switches/{dpid}/metadata'
+        response = api.post(url, data=json.dumps(payload),
+                            content_type='application/json')
+        self.assertEqual(response.status_code, 404, response.data)
+
+    @patch('napps.kytos.topology.main.Main.notify_metadata_changes')
+    def test_delete_switch_metadata(self, mock_metadata_changes):
+        """Test delete_switch_metadata."""
+        dpid = "00:00:00:00:00:00:00:01"
+        mock_switch = get_switch_mock(dpid)
+        self.napp.controller.switches = {dpid: mock_switch}
+        api = get_test_client(self.napp.controller, self.napp)
+
+        key = "A"
+        url = f'{self.server_name_url}/v3/switches/{dpid}/metadata/{key}'
+        response = api.delete(url)
+        mock_metadata_changes.assert_called()
+        self.assertEqual(response.status_code, 200, response.data)
+
+        # fail case
+        key = "A"
+        dpid = "00:00:00:00:00:00:00:02"
+        url = f'{self.server_name_url}/v3/switches/{dpid}/metadata/{key}'
+        response = api.delete(url)
+        mock_metadata_changes.assert_called()
+        self.assertEqual(response.status_code, 404, response.data)
+
     def test_enable_interfaces(self):
         """Test enable_interfaces."""
         mock_switch = create_autospec(Switch)
@@ -100,7 +212,7 @@ class TestMain(TestCase):
         mock_switch.interfaces = {1: mock_interface_1, 2: mock_interface_2}
         self.napp.controller.switches = {'00:00:00:00:00:00:00:01':
                                          mock_switch}
-        api = get_app_test_client(self.napp)
+        api = get_test_client(self.napp.controller, self.napp)
         expected_success = 'Operation successful'
 
         interface_id = '00:00:00:00:00:00:00:01:1'
@@ -152,7 +264,7 @@ class TestMain(TestCase):
         mock_switch.interfaces = {1: mock_interface_1, 2: mock_interface_2}
         self.napp.controller.switches = {'00:00:00:00:00:00:00:01':
                                          mock_switch}
-        api = get_app_test_client(self.napp)
+        api = get_test_client(self.napp.controller, self.napp)
 
         url = f'{self.server_name_url}/v3/interfaces/{interface_id}/disable'
         response = api.post(url)
