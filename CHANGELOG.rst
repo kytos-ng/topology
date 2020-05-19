@@ -6,6 +6,7 @@ All notable changes to the ``topology`` project will be documented in this file.
 
 [UNRELEASED] - Under development
 ********************************
+
 Added
 =====
 
@@ -21,8 +22,24 @@ Removed
 Fixed
 =====
 
-Security
-========
+
+[3.6] - 2020-05-19
+******************
+
+Added
+=====
+- Added persistence for switches and interfaces administrative
+  status (enabled/disabled).
+- Added method to enable/disable all interfaces from a switch.
+- Added support for automated tests and CI with Travis.
+- Added integration tests and unit tests (from 39% to 57%).
+- Added listeners to Maintenance NApp events
+
+Fixed
+=====
+- Avoid using flapping links: now a link is considered up only
+  after a specific amount of time (default: 10 seconds).
+- Fixed switches coordinates on the map (fix kytos#923)
 
 
 [3.5.1] - 2020-03-11
@@ -120,7 +137,7 @@ Removed
 Fixed
 =====
 - Fixed topology event and link serialization.
-- Fixed somes typo. 
+- Fixed somes typo.
 
 [2.0.0] - 2017-10-23
 ******************************************
