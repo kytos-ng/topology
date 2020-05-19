@@ -8,6 +8,9 @@ All notable changes to the ``topology`` project will be documented in this file.
 ********************************
 Added
 =====
+- Added method to enable/disable all interfaces from a switch.
+- Added support for automated tests and CI with Travis.
+- Added integration tests and unit tests.
 
 Changed
 =======
@@ -120,7 +123,7 @@ Removed
 Fixed
 =====
 - Fixed topology event and link serialization.
-- Fixed somes typo. 
+- Fixed somes typo.
 
 [2.0.0] - 2017-10-23
 ******************************************
