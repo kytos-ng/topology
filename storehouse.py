@@ -103,7 +103,7 @@ class StoreHouse:
         log.debug(f'Box {self.box.box_id} was loaded from storehouse.')
 
     def save_status(self, status):
-        """Save a status network using the storehouse."""
+        """Save the network administrative status using storehouse."""
         self.box.data[status.get('id')] = status
 
         content = {'namespace': self.namespace,

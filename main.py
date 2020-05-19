@@ -75,7 +75,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         return None
 
     def _restore_status(self, switches_status, interfaces_status):
-        """Restore the network administrative status."""
+        """Restore the network administrative status saved in StoreHouse."""
         # restore Switches
         for switch_id, state in switches_status.items():
             try:
@@ -137,7 +137,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     @rest('v3/restore')
     def restore_network_status(self):
-        """Restore the network administratively status saved in StoreHouse."""
+        """Restore the network administrative status saved in StoreHouse."""
         try:
             switches_status, interfaces_status = self._load_network_status()
             self._restore_status(switches_status, interfaces_status)
@@ -516,7 +516,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     #        self.topology.add_link(host.id, interface.id)
 
     def save_status_on_storehouse(self):
-        """Save network status in storehouse."""
+        """Save the network administrative status using storehouse."""
         status = self._get_switches_dict()
         status['id'] = 0
         self.storehouse.save_status(status)
