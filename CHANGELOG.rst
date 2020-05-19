@@ -33,7 +33,7 @@ Added
 - Added method to enable/disable all interfaces from a switch.
 - Added support for automated tests and CI with Travis.
 - Added integration tests and unit tests (from 39% to 57%).
-- Added listeners to Maintenance NApp events
+- Added listeners for events from the Maintenance NApp.
 
 Fixed
 =====
