@@ -155,41 +155,61 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         return jsonify({'interfaces': interfaces})
 
-    @rest('v3/interfaces/<interface_id>/enable', methods=['POST'])
-    def enable_interface(self, interface_id):
-        """Administratively enable an interface in the topology."""
-        switch_id = ":".join(interface_id.split(":")[:-1])
-        interface_number = int(interface_id.split(":")[-1])
-
+    @rest('v3/interfaces/switch/<dpid>/enable', methods=['POST'])
+    @rest('v3/interfaces/<interface_enable_id>/enable', methods=['POST'])
+    def enable_interface(self, interface_enable_id=None, dpid=None):
+        """Administratively enable interfaces in the topology."""
+        error_list = []  # List of interfaces that were not activated.
+        msg_error = "Some interfaces couldn't be found and activated: "
+        if dpid is None:
+            dpid = ":".join(interface_enable_id.split(":")[:-1])
         try:
-            switch = self.controller.switches[switch_id]
-        except KeyError:
-            return jsonify("Switch not found"), 404
+            switch = self.controller.switches[dpid]
+        except KeyError as exc:
+            return jsonify(f"Switch not found: {exc}"), 404
 
+        if interface_enable_id:
+            interface_number = int(interface_enable_id.split(":")[-1])
+
+            try:
+                switch.interfaces[interface_number].enable()
+            except KeyError as exc:
+                error_list.append(f"Switch {dpid} Interface {exc}")
+        else:
+            for interface in switch.interfaces.values():
+                interface.enable()
+        if not error_list:
+            return jsonify("Operation successful"), 200
+        return jsonify({msg_error:
+                        error_list}), 409
+
+    @rest('v3/interfaces/switch/<dpid>/disable', methods=['POST'])
+    @rest('v3/interfaces/<interface_disable_id>/disable', methods=['POST'])
+    def disable_interface(self, interface_disable_id=None, dpid=None):
+        """Administratively disable interfaces in the topology."""
+        error_list = []  # List of interfaces that were not deactivated.
+        msg_error = "Some interfaces couldn't be found and deactivated: "
+        if dpid is None:
+            dpid = ":".join(interface_disable_id.split(":")[:-1])
         try:
-            switch.interfaces[interface_number].enable()
-        except KeyError:
-            return jsonify("Interface not found"), 404
+            switch = self.controller.switches[dpid]
+        except KeyError as exc:
+            return jsonify(f"Switch not found: {exc}"), 404
 
-        return jsonify("Operation successful"), 201
+        if interface_disable_id:
+            interface_number = int(interface_disable_id.split(":")[-1])
 
-    @rest('v3/interfaces/<interface_id>/disable', methods=['POST'])
-    def disable_interface(self, interface_id):
-        """Administratively disable an interface in the topology."""
-        switch_id = ":".join(interface_id.split(":")[:-1])
-        interface_number = int(interface_id.split(":")[-1])
-
-        try:
-            switch = self.controller.switches[switch_id]
-        except KeyError:
-            return jsonify("Switch not found"), 404
-
-        try:
-            switch.interfaces[interface_number].disable()
-        except KeyError:
-            return jsonify("Interface not found"), 404
-
-        return jsonify("Operation successful"), 201
+            try:
+                switch.interfaces[interface_number].disable()
+            except KeyError as exc:
+                error_list.append(f"Switch {dpid} Interface {exc}")
+        else:
+            for interface in switch.interfaces.values():
+                interface.disable()
+        if not error_list:
+            return jsonify("Operation successful"), 200
+        return jsonify({msg_error:
+                        error_list}), 409
 
     @rest('v3/interfaces/<interface_id>/metadata')
     def get_interface_metadata(self, interface_id):
@@ -488,7 +508,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     @listen_to('.*.switch.port.created')
     def notify_port_created(self, original_event):
         """Notify when a port is created."""
-        name = f'kytos/topology.port.created'
+        name = 'kytos/topology.port.created'
         event = KytosEvent(name=name, content=original_event.content)
         self.controller.buffers.app.put(event)
 

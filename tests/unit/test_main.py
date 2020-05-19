@@ -1,5 +1,7 @@
 """Module to test the main napp file."""
 import time
+import json
+
 from unittest import TestCase
 from unittest.mock import MagicMock, create_autospec, patch
 
@@ -8,7 +10,8 @@ from kytos.core.interface import Interface
 from kytos.core.link import Link
 
 
-from tests.unit.helpers import (get_controller_mock, get_napp_urls)
+from tests.unit.helpers import (get_controller_mock, get_napp_urls,
+                                get_app_test_client)
 
 
 class TestMain(TestCase):
@@ -50,6 +53,10 @@ class TestMain(TestCase):
          ({}, {'GET', 'OPTIONS', 'HEAD'}, '/api/kytos/topology/v3/switches'),
          ({}, {'GET', 'OPTIONS', 'HEAD'}, '/api/kytos/topology/v3/links'),
          ({}, {'GET', 'OPTIONS', 'HEAD'}, '/api/kytos/topology/v3/'),
+         ({'dpid': '[dpid]'}, {'POST', 'OPTIONS'},
+          '/api/kytos/topology/v3/interfaces/switch/<dpid>/disable'),
+         ({'dpid': '[dpid]'}, {'POST', 'OPTIONS'},
+          '/api/kytos/topology/v3/interfaces/switch/<dpid>/enable'),
          ({'key': '[key]', 'interface_id': '[interface_id]'},
           {'OPTIONS', 'DELETE'},
           '/api/kytos/topology/v3/interfaces/<interface_id>/metadata/<key>'),
@@ -57,10 +64,12 @@ class TestMain(TestCase):
           '/api/kytos/topology/v3/interfaces/<interface_id>/metadata'),
          ({'interface_id': '[interface_id]'}, {'GET', 'OPTIONS', 'HEAD'},
           '/api/kytos/topology/v3/interfaces/<interface_id>/metadata'),
-         ({'interface_id': '[interface_id]'}, {'POST', 'OPTIONS'},
-          '/api/kytos/topology/v3/interfaces/<interface_id>/disable'),
-         ({'interface_id': '[interface_id]'}, {'POST', 'OPTIONS'},
-          '/api/kytos/topology/v3/interfaces/<interface_id>/enable'),
+         ({'interface_disable_id': '[interface_disable_id]'},
+          {'POST', 'OPTIONS'},
+          '/api/kytos/topology/v3/interfaces/<interface_disable_id>/disable'),
+         ({'interface_enable_id': '[interface_enable_id]'},
+          {'POST', 'OPTIONS'},
+          '/api/kytos/topology/v3/interfaces/<interface_enable_id>/enable'),
          ({'dpid': '[dpid]', 'key': '[key]'}, {'OPTIONS', 'DELETE'},
           '/api/kytos/topology/v3/switches/<dpid>/metadata/<key>'),
          ({'dpid': '[dpid]'}, {'POST', 'OPTIONS'},
@@ -84,6 +93,104 @@ class TestMain(TestCase):
 
         urls = get_napp_urls(self.napp)
         self.assertEqual(expected_urls, urls)
+
+    def test_enable_interfaces(self):
+        """Test enable_interfaces."""
+        mock_switch = create_autospec(Switch)
+        mock_interface_1 = create_autospec(Interface)
+        mock_interface_2 = create_autospec(Interface)
+        mock_switch.interfaces = {1: mock_interface_1, 2: mock_interface_2}
+        self.napp.controller.switches = {'00:00:00:00:00:00:00:01':
+                                         mock_switch}
+        api = get_app_test_client(self.napp)
+        expected_success = 'Operation successful'
+
+        interface_id = '00:00:00:00:00:00:00:01:1'
+        url = f'{self.server_name_url}/v3/interfaces/{interface_id}/enable'
+        response = api.post(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(expected_success, json.loads(response.data))
+        self.assertEqual(mock_interface_1.enable.call_count, 1)
+        self.assertEqual(mock_interface_2.enable.call_count, 0)
+
+        dpid = '00:00:00:00:00:00:00:01'
+        mock_interface_1.enable.call_count = 0
+        mock_interface_2.enable.call_count = 0
+        url = f'{self.server_name_url}/v3/interfaces/switch/{dpid}/enable'
+        response = api.post(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(expected_success, json.loads(response.data))
+        self.assertEqual(mock_interface_1.enable.call_count, 1)
+        self.assertEqual(mock_interface_2.enable.call_count, 1)
+
+        # test interface not found
+        interface_id = '00:00:00:00:00:00:00:01:3'
+        mock_interface_1.enable.call_count = 0
+        mock_interface_2.enable.call_count = 0
+        url = f'{self.server_name_url}/v3/interfaces/{interface_id}/enable'
+        response = api.post(url)
+        self.assertEqual(response.status_code, 409, response.data)
+        self.assertEqual(mock_interface_1.enable.call_count, 0)
+        self.assertEqual(mock_interface_2.enable.call_count, 0)
+
+        # test switch not found
+        dpid = '00:00:00:00:00:00:00:02'
+        expected_fail = f"Switch not found: '{dpid}'"
+        url = f'{self.server_name_url}/v3/interfaces/switch/{dpid}/enable'
+        response = api.post(url)
+        self.assertEqual(response.status_code, 404, response.data)
+        self.assertEqual(expected_fail, json.loads(response.data))
+        self.assertEqual(mock_interface_1.enable.call_count, 0)
+        self.assertEqual(mock_interface_2.enable.call_count, 0)
+
+    def test_disable_interfaces(self):
+        """Test disable_interfaces."""
+        interface_id = '00:00:00:00:00:00:00:01:1'
+        dpid = '00:00:00:00:00:00:00:01'
+        expected = 'Operation successful'
+        mock_switch = create_autospec(Switch)
+        mock_interface_1 = create_autospec(Interface)
+        mock_interface_2 = create_autospec(Interface)
+        mock_switch.interfaces = {1: mock_interface_1, 2: mock_interface_2}
+        self.napp.controller.switches = {'00:00:00:00:00:00:00:01':
+                                         mock_switch}
+        api = get_app_test_client(self.napp)
+
+        url = f'{self.server_name_url}/v3/interfaces/{interface_id}/disable'
+        response = api.post(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(expected, json.loads(response.data))
+        self.assertEqual(mock_interface_1.disable.call_count, 1)
+        self.assertEqual(mock_interface_2.disable.call_count, 0)
+
+        mock_interface_1.disable.call_count = 0
+        mock_interface_2.disable.call_count = 0
+        url = f'{self.server_name_url}/v3/interfaces/switch/{dpid}/disable'
+        response = api.post(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(expected, json.loads(response.data))
+        self.assertEqual(mock_interface_1.disable.call_count, 1)
+        self.assertEqual(mock_interface_2.disable.call_count, 1)
+
+        # test interface not found
+        interface_id = '00:00:00:00:00:00:00:01:3'
+        mock_interface_1.disable.call_count = 0
+        mock_interface_2.disable.call_count = 0
+        url = f'{self.server_name_url}/v3/interfaces/{interface_id}/disable'
+        response = api.post(url)
+        self.assertEqual(response.status_code, 409, response.data)
+        self.assertEqual(mock_interface_1.disable.call_count, 0)
+        self.assertEqual(mock_interface_2.disable.call_count, 0)
+
+        # test switch not found
+        dpid = '00:00:00:00:00:00:00:02'
+        expected_fail = f"Switch not found: '{dpid}'"
+        url = f'{self.server_name_url}/v3/interfaces/switch/{dpid}/disable'
+        response = api.post(url)
+        self.assertEqual(response.status_code, 404, response.data)
+        self.assertEqual(expected_fail, json.loads(response.data))
+        self.assertEqual(mock_interface_1.disable.call_count, 0)
+        self.assertEqual(mock_interface_2.disable.call_count, 0)
 
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.update_instance_metadata')
