@@ -57,7 +57,7 @@ class TestMain(TestCase):
         expected_urls = [
          ({}, {'GET', 'OPTIONS', 'HEAD'}, '/api/kytos/topology/v3/interfaces'),
          ({}, {'GET', 'OPTIONS', 'HEAD'}, '/api/kytos/topology/v3/switches'),
-         ({}, {'POST', 'OPTIONS'}, '/api/kytos/topology/v3/restore'),
+         ({}, {'GET', 'OPTIONS', 'HEAD'}, '/api/kytos/topology/v3/restore'),
          ({}, {'GET', 'OPTIONS', 'HEAD'}, '/api/kytos/topology/v3/links'),
          ({}, {'GET', 'OPTIONS', 'HEAD'}, '/api/kytos/topology/v3/'),
          ({'dpid': '[dpid]'}, {'POST', 'OPTIONS'},
@@ -101,7 +101,8 @@ class TestMain(TestCase):
         urls = get_napp_urls(self.napp)
         self.assertEqual(expected_urls, urls)
 
-    def test_enable_switch(self):
+    @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
+    def test_enable_switch(self, mock_save_status):
         """Test enable_swicth."""
         dpid = "00:00:00:00:00:00:00:01"
         mock_switch = get_switch_mock(dpid)
@@ -116,6 +117,7 @@ class TestMain(TestCase):
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(msg_success, json.loads(response.data))
         self.assertEqual(mock_switch.enable.call_count, 1)
+        mock_save_status.assert_called()
 
         # fail case
         mock_switch.enable.call_count = 0
@@ -126,7 +128,8 @@ class TestMain(TestCase):
         self.assertEqual(msg_fail, json.loads(response.data))
         self.assertEqual(mock_switch.enable.call_count, 0)
 
-    def test_disable_switch(self):
+    @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
+    def test_disable_switch(self, mock_save_status):
         """Test disable_swicth."""
         dpid = "00:00:00:00:00:00:00:01"
         mock_switch = get_switch_mock(dpid)
@@ -140,6 +143,7 @@ class TestMain(TestCase):
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(msg_success, json.loads(response.data))
         self.assertEqual(mock_switch.disable.call_count, 1)
+        mock_save_status.assert_called()
 
         # fail case
         mock_switch.disable.call_count = 0
@@ -212,7 +216,8 @@ class TestMain(TestCase):
         mock_metadata_changes.assert_called()
         self.assertEqual(response.status_code, 404, response.data)
 
-    def test_enable_interfaces(self):
+    @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
+    def test_enable_interfaces(self, mock_save_status):
         """Test enable_interfaces."""
         mock_switch = create_autospec(Switch)
         mock_interface_1 = create_autospec(Interface)
@@ -230,6 +235,7 @@ class TestMain(TestCase):
         self.assertEqual(expected_success, json.loads(response.data))
         self.assertEqual(mock_interface_1.enable.call_count, 1)
         self.assertEqual(mock_interface_2.enable.call_count, 0)
+        mock_save_status.assert_called()
 
         dpid = '00:00:00:00:00:00:00:01'
         mock_interface_1.enable.call_count = 0
@@ -261,7 +267,8 @@ class TestMain(TestCase):
         self.assertEqual(mock_interface_1.enable.call_count, 0)
         self.assertEqual(mock_interface_2.enable.call_count, 0)
 
-    def test_disable_interfaces(self):
+    @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
+    def test_disable_interfaces(self, mock_save_status):
         """Test disable_interfaces."""
         interface_id = '00:00:00:00:00:00:00:01:1'
         dpid = '00:00:00:00:00:00:00:01'
@@ -280,6 +287,7 @@ class TestMain(TestCase):
         self.assertEqual(expected, json.loads(response.data))
         self.assertEqual(mock_interface_1.disable.call_count, 1)
         self.assertEqual(mock_interface_2.disable.call_count, 0)
+        mock_save_status.assert_called()
 
         mock_interface_1.disable.call_count = 0
         mock_interface_2.disable.call_count = 0
