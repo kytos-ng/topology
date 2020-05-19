@@ -16,6 +16,7 @@ from tests.unit.helpers import (get_controller_mock, get_napp_urls,
 
 class TestMain(TestCase):
     """Test the Main class."""
+    # pylint: disable=too-many-public-methods
 
     def setUp(self):
         """Execute steps before each tests.
@@ -34,6 +35,10 @@ class TestMain(TestCase):
         """Verify all event listeners registered."""
         expected_events = ['kytos/core.shutdown',
                            'kytos/core.shutdown.kytos/topology',
+                           'kytos/maintenance.start_link',
+                           'kytos/maintenance.end_link',
+                           'kytos/maintenance.start_switch',
+                           'kytos/maintenance.end_switch',
                            '.*.interface.is.nni',
                            '.*.connection.lost',
                            '.*.switch.interface.created',
@@ -44,7 +49,7 @@ class TestMain(TestCase):
                            '.*.switch.port.created',
                            'kytos/topology.*.metadata.*']
         actual_events = self.napp.listeners()
-        self.assertEqual(expected_events, actual_events)
+        self.assertCountEqual(expected_events, actual_events)
 
     def test_verify_api_urls(self):
         """Verify all APIs registered."""
@@ -362,3 +367,81 @@ class TestMain(TestCase):
         self.napp.verify_storehouse(mock_entities)
         mock_buffers_put.assert_called()
         mock_kytos_event.assert_called()
+
+    @patch('napps.kytos.topology.main.Main.notify_link_status_change')
+    def test_handle_link_maintenance_start(self, status_change_mock):
+        """Test handle_link_maintenance_start."""
+        link1 = MagicMock()
+        link1.id = 2
+        link2 = MagicMock()
+        link2.id = 3
+        link3 = MagicMock()
+        link3.id = 4
+        content = {'links': [link1, link2]}
+        event = MagicMock()
+        event.content = content
+        self.napp.links = {2: link1, 4: link3}
+        self.napp.handle_link_maintenance_start(event)
+        status_change_mock.assert_called_once_with(link1)
+
+    @patch('napps.kytos.topology.main.Main.notify_link_status_change')
+    def test_handle_link_maintenance_end(self, status_change_mock):
+        """Test handle_link_maintenance_end."""
+        link1 = MagicMock()
+        link1.id = 2
+        link2 = MagicMock()
+        link2.id = 3
+        link3 = MagicMock()
+        link3.id = 4
+        content = {'links': [link1, link2]}
+        event = MagicMock()
+        event.content = content
+        self.napp.links = {2: link1, 4: link3}
+        self.napp.handle_link_maintenance_end(event)
+        status_change_mock.assert_called_once_with(link1)
+
+    @patch('napps.kytos.topology.main.Main.handle_link_down')
+    def test_handle_switch_maintenance_start(self, handle_link_down_mock):
+        """Test handle_switch_maintenance_start."""
+        switch1 = MagicMock()
+        interface1 = MagicMock()
+        interface1.is_active.return_value = True
+        interface2 = MagicMock()
+        interface2.is_active.return_value = False
+        interface3 = MagicMock()
+        interface3.is_active.return_value = True
+        switch1.interfaces = {1: interface1, 2: interface2, 3: interface3}
+        switch2 = MagicMock()
+        interface4 = MagicMock()
+        interface4.is_active.return_value = False
+        interface5 = MagicMock()
+        interface5.is_active.return_value = True
+        switch2.interfaces = {1: interface4, 2: interface5}
+        content = {'switches': [switch1, switch2]}
+        event = MagicMock()
+        event.content = content
+        self.napp.handle_switch_maintenance_start(event)
+        self.assertEqual(handle_link_down_mock.call_count, 3)
+
+    @patch('napps.kytos.topology.main.Main.handle_link_up')
+    def test_handle_switch_maintenance_end(self, handle_link_up_mock):
+        """Test handle_switch_maintenance_end."""
+        switch1 = MagicMock()
+        interface1 = MagicMock()
+        interface1.is_active.return_value = True
+        interface2 = MagicMock()
+        interface2.is_active.return_value = False
+        interface3 = MagicMock()
+        interface3.is_active.return_value = True
+        switch1.interfaces = {1: interface1, 2: interface2, 3: interface3}
+        switch2 = MagicMock()
+        interface4 = MagicMock()
+        interface4.is_active.return_value = False
+        interface5 = MagicMock()
+        interface5.is_active.return_value = True
+        switch2.interfaces = {1: interface4, 2: interface5}
+        content = {'switches': [switch1, switch2]}
+        event = MagicMock()
+        event.content = content
+        self.napp.handle_switch_maintenance_end(event)
+        self.assertEqual(handle_link_up_mock.call_count, 5)
