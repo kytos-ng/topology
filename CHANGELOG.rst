@@ -22,6 +22,12 @@ Removed
 Fixed
 =====
 
+[3.6.1] - 2020-05-20
+********************
+
+Added
+=====
+- Added persistence endpoint to openapi.yml.
 
 [3.6] - 2020-05-19
 ******************
