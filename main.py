@@ -124,7 +124,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interfaces_status = {}
         status = self.storehouse.get_data()
         if status:
-            switches = status.get(0)['switches']
+            switches = status.get('network.status')['switches']
             for switch, switch_attributes in switches.items():
                 # get status the switches
                 switches_status[switch] = switch_attributes.get('enabled')
@@ -583,7 +583,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def save_status_on_storehouse(self):
         """Save the network administrative status using storehouse."""
         status = self._get_switches_dict()
-        status['id'] = 0
+        status['id'] = 'network.status'
         self.storehouse.save_status(status)
 
     def notify_topology_update(self):
