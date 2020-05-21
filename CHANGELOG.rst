@@ -22,12 +22,17 @@ Removed
 Fixed
 =====
 
-[3.6.1] - 2020-05-20
+[3.6.1] - 2020-05-21
 ********************
 
 Added
 =====
 - Added persistence endpoint to openapi.yml.
+
+Changed
+=======
+- [persistence] Changed storehouse key to `network_status` instead of `0`.
+
 
 [3.6] - 2020-05-19
 ******************
@@ -62,6 +67,7 @@ Fixed
 
 [3.5.0] - 2019-03-15
 ********************
+
 Added
 =====
 - Added method to trigger an event when a link goes up/down.
