@@ -43,6 +43,24 @@ class TestStoreHouse(TestCase):
         mock_event.assert_called()
         mock_buffers_put.assert_called()
 
+    # pylint: disable = protected-access
+    @patch('napps.kytos.topology.storehouse.StoreHouse.get_stored_box')
+    @patch('napps.kytos.topology.storehouse.StoreHouse.create_box')
+    def test_get_or_create_a_box_from_list_of_boxes(self, *args):
+        """Test create_box."""
+        (mock_create_box, mock_get_stored_box) = args
+        mock_event = MagicMock()
+        mock_data = MagicMock()
+        mock_error = MagicMock()
+        self.napp._get_or_create_a_box_from_list_of_boxes(mock_event,
+                                                          mock_data,
+                                                          mock_error)
+        mock_get_stored_box.assert_called()
+        self.napp._get_or_create_a_box_from_list_of_boxes(mock_event,
+                                                          None,
+                                                          mock_error)
+        mock_create_box.assert_called()
+
     @patch('napps.kytos.topology.storehouse.KytosEvent')
     @patch('kytos.core.buffers.KytosEventBuffer.put')
     def test_get_stored_box(self, *args):
