@@ -36,9 +36,3 @@ def get_napp_urls(napp):
             urls.append((options, rule.methods, f'{str(rule)}'))
 
     return urls
-
-
-def get_app_test_client(napp):
-    """Return a flask api test client."""
-    napp.controller.api_server.register_napp_endpoints(napp)
-    return napp.controller.api_server.app.test_client()
