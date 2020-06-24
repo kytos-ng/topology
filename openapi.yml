@@ -30,7 +30,8 @@ paths:
   /api/kytos/topology/v3/restore:
     get:
       summary: Restore the network administrative status saved in StoreHouse
-      description: Restore the administrative status of the interfaces and switches saved in the StoreHouse.
+      description: Restore the administrative status of the interfaces and
+        switches saved in the StoreHouse.
       responses:
         200:
           description: Administrative status restored.
@@ -48,7 +49,7 @@ paths:
   /api/kytos/topology/v3/switches:
     get:
       summary: Return a json with all the switches in the topology.
-      description: TODO write/remove the description
+      description: Return all the switches in the topology.
       responses:
         200:
           description: The request has succeeded.
@@ -64,7 +65,8 @@ paths:
   /api/kytos/topology/v3/switches/{dpid}/enable:
     post:
       summary: Administratively enable a switch in the topology.
-      description: TODO write/remove the description
+      description: Administratively enable a switch in the topology. The dpid
+        is required.
       parameters:
         - name: dpid
           in: path
@@ -91,7 +93,8 @@ paths:
   /api/kytos/topology/v3/switches/{dpid}/disable:
     post:
       summary: Administratively disable a switch in the topology.
-      description: TODO write/remove the description
+      description: Administratively disable a switch in the topology. The dpid
+        is required.
       parameters:
         - name: dpid
           schema:
@@ -118,7 +121,7 @@ paths:
   /api/kytos/topology/v3/switches/{dpid}/metadata:
     get:
       summary: Get metadata from a switch.
-      description: TODO write/remove the description
+      description: Return a metadata from a switch. The dpid is required.
       parameters:
         - name: dpid
           schema:
@@ -143,7 +146,7 @@ paths:
                 example: Switch not found
     post:
       summary: Add metadata to a switch.
-      description: TODO write/remove the description
+      description: Add metadata to switch. The dpid is required.
       parameters:
         - name: dpid
           schema:
@@ -175,7 +178,8 @@ paths:
   /api/kytos/topology/v3/switches/{dpid}/metadata/{key}:
     delete:
       summary: Delete metadata from a switch.
-      description: TODO write/remove the description
+      description: Delete a metadata from a switch. The dpid and metadata key
+        are required.
       parameters:
         - name: dpid
           schema:
@@ -209,7 +213,7 @@ paths:
   /api/kytos/topology/v3/interfaces:
     get:
       summary: Return a json with all the interfaces in the topology.
-      description: TODO write/remove the description
+      description: Return all interfaces in the topology.
       responses:
         200:
           description: The request has succeeded.
@@ -226,7 +230,8 @@ paths:
   /api/kytos/topology/v3/interfaces/{interface_id}/enable:
     post:
       summary: Administratively enable an interface in the topology.
-      description: TODO write/remove the description
+      description: Administratively enable an interface in the topology. The
+        interface_id is required.
       parameters:
         - name: interface_id
           schema:
@@ -254,6 +259,7 @@ paths:
     post:
       summary: Administratively enable all interfaces on a switch.
       description: Administratively enable all interfaces on a switch.
+        The dpid is required.
       parameters:
         - name: dpid
           schema:
@@ -280,7 +286,8 @@ paths:
   /api/kytos/topology/v3/interfaces/{interface_id}/disable:
     post:
       summary: Administratively disable an interface in the topology.
-      description: TODO write/remove the description
+      description: Administratively disable an interface in the topology.
+        The interface_id is required.
       parameters:
         - name: interface_id
           schema:
@@ -308,6 +315,7 @@ paths:
     post:
       summary: Administratively disable all interfaces on a switch.
       description: Administratively disable all interfaces on a switch.
+        The dpid is required.
       parameters:
         - name: dpid
           schema:
@@ -334,7 +342,8 @@ paths:
   /api/kytos/topology/v3/interfaces/{interface_id}/metadata:
     get:
       summary: Get metadata from an interface.
-      description: TODO write/remove the description
+      description: Return metadata from an interface. The interface_id is
+        required.
       parameters:
         - name: interface_id
           schema:
@@ -358,7 +367,7 @@ paths:
                 example: Switch not found
     post:
       summary: Add metadata to an interface.
-      description: TODO write/remove the description
+      description: Add metada to an interface. The interface_id is required.
       parameters:
         - name: interface_id
           schema:
@@ -389,7 +398,8 @@ paths:
   /api/kytos/topology/v3/interfaces/{interface_id}/metadata/{key}:
     delete:
       summary: Delete metadata from an interface.
-      description: TODO write/remove the description
+      description: Delete metadata from an interface. The interface_id and
+        metadata key are required.
       parameters:
         - name: interface_id
           schema:
@@ -437,7 +447,8 @@ paths:
   /api/kytos/topology/v3/links/{link_id}/enable:
     post:
       summary: Administratively enable a link in the topology.
-      description: TODO write/remove the description
+      description: Administratively enable a link in the topology. The link_id
+        is required.
       parameters:
         - name: link_id
           schema:
@@ -463,7 +474,8 @@ paths:
   /api/kytos/topology/v3/links/{link_id}/disable:
     post:
       summary: Administratively disable a link in the topology.
-      description: TODO write/remove the description
+      description: Administratively disable a link in the topology.
+        The link_id is required.
       parameters:
         - name: link_id
           schema:
@@ -489,7 +501,7 @@ paths:
   /api/kytos/topology/v3/links/{link_id}/metadata:
     get:
       summary: Get metadata from a link.
-      description: TODO write/remove the description
+      description: Get metadata from a link. The link_id is required.
       parameters:
         - name: link_id
           schema:
@@ -513,7 +525,7 @@ paths:
                 example: Link not found
     post:
       summary: Add metadata to a link.
-      description: TODO write/remove the description
+      description: Add metadata to a link. The link_id is required.
       parameters:
         - name: link_id
           schema:
@@ -544,7 +556,8 @@ paths:
   /api/kytos/topology/v3/links/{link_id}/metadata/{key}:
     delete:
       summary: Delete metadata from a link.
-      description: TODO write/remove the description
+      description: Delete metadata from a link. The link_id and metadata key
+        are required.
       parameters:
         - name: link_id
           schema:
