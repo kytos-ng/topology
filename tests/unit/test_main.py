@@ -192,13 +192,19 @@ class TestMain(TestCase):
     def test_restore_network_status(self, mock_storehouse):
         """Test restore_network_status."""
         dpid = '00:00:00:00:00:00:00:01'
+        dpid_b = '00:00:00:00:00:00:00:02'
         mock_switch = get_switch_mock(dpid)
+        mock_switch_b = get_switch_mock(dpid_b)
         mock_interface = get_interface_mock('s1-eth1', 1, mock_switch)
+        mock_interface_b = get_interface_mock('s2-eth1', 1, mock_switch_b)
+        mock_link = get_link_mock(mock_interface, mock_interface_b)
         mock_switch.interfaces = {1: mock_interface}
         self.napp.controller.switches = {dpid: mock_switch}
+        self.napp.links = {'4d42dc08522': mock_link}
         status = {
             'network_status': {
                 'id': 'network_status',
+                'links': {'4d42dc08522': {'enabled': True}},
                 'switches': {
                     '00:00:00:00:00:00:00:01': {
                         'dpid': '00:00:00:00:00:00:00:01',
@@ -218,6 +224,7 @@ class TestMain(TestCase):
         status_disable = {
             'network_status': {
                 'id': 'network_status',
+                'links': {'4d42dc08522': {'enabled': False}},
                 'switches': {
                     '00:00:00:00:00:00:00:01': {
                         'dpid': '00:00:00:00:00:00:00:01',
@@ -250,6 +257,7 @@ class TestMain(TestCase):
         self.assertEqual(mock_switch.enable.call_count, 1)
         self.assertEqual(mock_interface.enable.call_count, 1)
         self.assertEqual(mock_interface.lldp, True)
+        self.assertEqual(mock_link.enable.call_count, 1)
 
         # disable
         url = f'{self.server_name_url}/v3/restore'
@@ -258,6 +266,7 @@ class TestMain(TestCase):
         self.assertEqual(mock_switch.disable.call_count, 1)
         self.assertEqual(mock_interface.disable.call_count, 1)
         self.assertEqual(mock_interface.lldp, False)
+        self.assertEqual(mock_link.disable.call_count, 1)
 
     @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
     def test_enable_switch(self, mock_save_status):
@@ -555,11 +564,13 @@ class TestMain(TestCase):
         response = api.delete(url)
         self.assertEqual(response.status_code, 404, response.data)
 
-    def test_enable_link(self):
+    @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
+    def test_enable_link(self, mock_save_status):
         """Test enable_link."""
         mock_link = MagicMock(Link)
         self.napp.links = {'1': mock_link}
         api = get_test_client(self.napp.controller, self.napp)
+        mock_save_status.return_value = True
 
         link_id = 1
         url = f'{self.server_name_url}/v3/links/{link_id}/enable'
@@ -573,11 +584,13 @@ class TestMain(TestCase):
         response = api.post(url)
         self.assertEqual(response.status_code, 404, response.data)
 
-    def test_disable_link(self):
+    @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
+    def test_disable_link(self, mock_save_status):
         """Test disable_link."""
         mock_link = MagicMock(Link)
         self.napp.links = {'1': mock_link}
         api = get_test_client(self.napp.controller, self.napp)
+        mock_save_status.return_value = True
 
         link_id = 1
         url = f'{self.server_name_url}/v3/links/{link_id}/disable'
