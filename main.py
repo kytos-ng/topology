@@ -137,19 +137,19 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Load network status saved in storehouse."""
         status = self.storehouse.get_data()
         if status:
-            switches = status.get('network_status')['switches']
-            links = status.get('network_status')['links']
+            switches = status['network_status']['switches']
+            links = status['network_status']['links']
             # get link status
             for link, link_attributes in links.items():
-                self.links_state[link] = link_attributes.get('enabled')
+                self.links_state[link] = link_attributes['enabled']
 
             for switch, switch_attributes in switches.items():
                 # get swicthes status
-                self.switches_state[switch] = switch_attributes.get('enabled')
+                self.switches_state[switch] = switch_attributes['enabled']
                 interfaces = switch_attributes['interfaces']
                 # get interface status
                 for interface, interface_attributes in interfaces.items():
-                    enabled_value = interface_attributes.get('enabled')
+                    enabled_value = interface_attributes['enabled']
                     lldp_value = interface_attributes['lldp']
                     self.interfaces_state[interface] = (enabled_value,
                                                         lldp_value)
