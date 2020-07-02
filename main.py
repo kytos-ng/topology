@@ -130,15 +130,15 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             log.info(error)
             raise FileNotFoundError(error)
 
-        switches = status.get('network_status')['switches']
+        switches = status['network_status']['switches']
         for switch, switch_attributes in switches.items():
             # get status the switches
-            switches_status[switch] = switch_attributes.get('enabled')
+            switches_status[switch] = switch_attributes['enabled']
             interfaces = switch_attributes['interfaces']
             # get status the interfaces and lldp
             for interface, interface_attributes in interfaces.items():
-                enabled_value = interface_attributes.get('enabled')
-                lldp_value = interface_attributes.get('lldp')
+                enabled_value = interface_attributes['enabled']
+                lldp_value = interface_attributes['lldp']
                 interfaces_status[interface] = (enabled_value, lldp_value)
 
         return switches_status, interfaces_status
