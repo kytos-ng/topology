@@ -9,7 +9,7 @@ from kytos.core.switch import Switch
 from kytos.core.interface import Interface
 from kytos.core.link import Link
 from kytos.lib.helpers import (get_switch_mock, get_interface_mock,
-                               get_test_client)
+                               get_test_client, get_link_mock)
 
 
 from tests.unit.helpers import get_controller_mock, get_napp_urls
@@ -18,7 +18,7 @@ from tests.unit.helpers import get_controller_mock, get_napp_urls
 # pylint: disable=too-many-public-methods
 class TestMain(TestCase):
     """Test the Main class."""
-    # pylint: disable=too-many-public-methods
+    # pylint: disable=too-many-public-methods, protected-access
 
     def setUp(self):
         """Execute steps before each tests.
@@ -101,6 +101,92 @@ class TestMain(TestCase):
 
         urls = get_napp_urls(self.napp)
         self.assertEqual(expected_urls, urls)
+
+    def test_get_link_or_create(self):
+        """Test _get_link_or_create."""
+        dpid_a = "00:00:00:00:00:00:00:01"
+        dpid_b = "00:00:00:00:00:00:00:02"
+        mock_switch_a = get_switch_mock(dpid_a, 0x04)
+        mock_switch_b = get_switch_mock(dpid_b, 0x04)
+        mock_interface_a = get_interface_mock('s1-eth1', 1, mock_switch_a)
+        mock_interface_b = get_interface_mock('s2-eth1', 1, mock_switch_b)
+        mock_interface_a.id = dpid_a
+        mock_interface_b.id = dpid_b
+
+        link = self.napp._get_link_or_create(mock_interface_a,
+                                             mock_interface_b)
+        self.assertEqual(link.endpoint_a.id, dpid_a)
+        self.assertEqual(link.endpoint_b.id, dpid_b)
+        print(self.napp.links)
+
+    def test_get_link_from_interface(self):
+        """Test _get_link_from_interface."""
+        mock_switch_a = get_switch_mock("00:00:00:00:00:00:00:01", 0x04)
+        mock_switch_b = get_switch_mock("00:00:00:00:00:00:00:02", 0x04)
+        mock_interface_a = get_interface_mock('s1-eth1', 1, mock_switch_a)
+        mock_interface_b = get_interface_mock('s2-eth1', 1, mock_switch_b)
+        mock_interface_c = get_interface_mock('s2-eth1', 2, mock_switch_b)
+        mock_link = get_link_mock(mock_interface_a, mock_interface_b)
+        self.napp.links = {'0e2b5d7bc858b9f38db11b69': mock_link}
+        response = self.napp._get_link_from_interface(mock_interface_a)
+        self.assertEqual(response, mock_link)
+
+        response = self.napp._get_link_from_interface(mock_interface_c)
+        self.assertEqual(response, None)
+
+    def test_get_topology(self):
+        """Test get_topology."""
+        dpid_a = "00:00:00:00:00:00:00:01"
+        dpid_b = "00:00:00:00:00:00:00:02"
+        expected = {
+                      "topology": {
+                        "switches": {
+                          "00:00:00:00:00:00:00:01": {
+                            "metadata": {
+                              "lat": "0.0",
+                              "lng": "-30.0"
+                            }
+                          },
+                          "00:00:00:00:00:00:00:02": {
+                            "metadata": {
+                              "lat": "0.0",
+                              "lng": "-30.0"
+                            }
+                          }
+                        },
+                        "links": {
+                          "cf0f4071be4": {
+                            "id": "cf0f4071be4"
+                          }
+                        }
+                      }
+                    }
+
+        mock_switch_a = get_switch_mock(dpid_a, 0x04)
+        mock_switch_b = get_switch_mock(dpid_b, 0x04)
+        mock_interface_a = get_interface_mock('s1-eth1', 1, mock_switch_a)
+        mock_interface_b = get_interface_mock('s2-eth1', 1, mock_switch_b)
+
+        mock_link = get_link_mock(mock_interface_a, mock_interface_b)
+        mock_link.id = 'cf0f4071be4'
+        mock_switch_a.id = dpid_a
+        mock_switch_a.as_dict.return_value = {'metadata': {'lat': '0.0',
+                                              'lng': '-30.0'}}
+        mock_switch_b.id = dpid_b
+        mock_switch_b.as_dict.return_value = {'metadata': {'lat': '0.0',
+                                              'lng': '-30.0'}}
+
+        self.napp.controller.switches = {dpid_a: mock_switch_a,
+                                         dpid_b: mock_switch_b}
+
+        self.napp.links = {"cf0f4071be4": mock_link}
+        mock_link.as_dict.return_value = {"id": "cf0f4071be4"}
+        api = get_test_client(self.napp.controller, self.napp)
+
+        url = f'{self.server_name_url}/v3/'
+        response = api.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json.loads(response.data), expected)
 
     @patch('napps.kytos.topology.main.StoreHouse.get_data')
     def test_restore_network_status(self, mock_storehouse):
