@@ -117,7 +117,6 @@ class TestMain(TestCase):
                                              mock_interface_b)
         self.assertEqual(link.endpoint_a.id, dpid_a)
         self.assertEqual(link.endpoint_b.id, dpid_b)
-        print(self.napp.links)
 
     def test_get_link_from_interface(self):
         """Test _get_link_from_interface."""
