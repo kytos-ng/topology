@@ -588,6 +588,12 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Save the network administrative status using storehouse."""
         status = self._get_switches_dict()
         status['id'] = 'network_status'
+        if event:
+            content = event.content
+            log.info(f"Storing the administrative state of the"
+                     f" {content['attribute']} attribute to"
+                     f" {content['state']} in the interfaces"
+                     f" {content['interface_ids']}")
         self.storehouse.save_status(status)
 
     def notify_topology_update(self):
