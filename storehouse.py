@@ -17,74 +17,54 @@ class StoreHouse:
         return instance
 
     def __init__(self, controller):
-        """Create a storehouse instance."""
+        """Create a storehouse client instance."""
         self.controller = controller
         self.namespace = 'kytos.topology.status'
         self.list_stored_boxes()
         if 'box' not in self.__dict__:
             self.box = None
 
-    # @listen('kytos/core.shutdown')
-    # def delete_data_store(self):
-    #     """delete status stored"""
-    #     content = {'namespace': self.namespace,
-    #                'box_id' : self.box.box_id,
-    #                'callback': self._delete_box_callback,
-    #                'data': {}}
-    #     event = KytosEvent(name='kytos.storehouse.delete', content=content)
-    #     self.controller.buffers.app.put(event)
-    #     log.info('Delete Status box from storehouse.')
-
-    # def _delete_box_callback(self, _event, data, error):
-    #     """Execute the callback to handle delete_box."""
-    #     if error:
-    #         log.error(f'Can\'t delete box with namespace {self.namespace}')
-    #
-    #     log.info('Status box has been deleted.')
-
     def get_data(self):
-        """Return the box data."""
+        """Return the persistence box data."""
         if not self.box:
             return {}
         self.get_stored_box(self.box.box_id)
         return self.box.data
 
     def create_box(self):
-        """Create a new box."""
+        """Create a persistence box to store administrative changes."""
         content = {'namespace': self.namespace,
                    'callback': self._create_box_callback,
                    'data': {}}
         event = KytosEvent(name='kytos.storehouse.create', content=content)
         self.controller.buffers.app.put(event)
-        log.info('Create box from storehouse.')
 
     def _create_box_callback(self, _event, data, error):
         """Execute the callback to handle create_box."""
         if error:
-            log.error(f'Can\'t create box with namespace {self.namespace}')
+            log.error(f'Can\'t create persistence'
+                      f'box with namespace {self.namespace}')
 
         self.box = data
-        log.info(f'Box {self.box.box_id} was created in {self.namespace}.')
 
     def list_stored_boxes(self):
-        """List all boxes using the current namespace."""
+        """List all persistence box stored in storehouse."""
         name = 'kytos.storehouse.list'
         content = {'namespace': self.namespace,
                    'callback': self._get_or_create_a_box_from_list_of_boxes}
 
         event = KytosEvent(name=name, content=content)
         self.controller.buffers.app.put(event)
-        log.debug(f'Bootstrapping storehouse box for {self.namespace}.')
 
     def _get_or_create_a_box_from_list_of_boxes(self, _event, data, _error):
-        """Create a new box or retrieve the stored box."""
+        """Create a persistence box or retrieve the stored box."""
         if data:
             self.get_stored_box(data[0])
         else:
             self.create_box()
 
     def get_stored_box(self, box_id):
-        """Get box from storehouse."""
+        """Get persistence box from storehouse."""
         content = {'namespace': self.namespace,
                    'callback': self._get_box_callback,
                    'box_id': box_id,
@@ -92,15 +72,13 @@ class StoreHouse:
         name = 'kytos.storehouse.retrieve'
         event = KytosEvent(name=name, content=content)
         self.controller.buffers.app.put(event)
-        log.debug(f'Retrieve box with {box_id} from {self.namespace}.')
 
     def _get_box_callback(self, _event, data, error):
         """Handle get_box method saving the box or logging with the error."""
         if error:
-            log.error(f'Box {data.box_id} not found in {self.namespace}.')
+            log.error('Persistence box not found.')
 
         self.box = data
-        log.debug(f'Box {self.box.box_id} was loaded from storehouse.')
 
     def save_status(self, status):
         """Save the network administrative status using storehouse."""
@@ -117,6 +95,7 @@ class StoreHouse:
     def _save_status_callback(self, _event, data, error):
         """Display the saved network status in the log."""
         if error:
-            log.error(f'Can\'t update box {self.box.box_id}')
+            log.error(f'Can\'t update persistence box {data.box_id}.')
 
-        log.info(f'Box {data.box_id} was updated.')
+        log.info('Network administrative status saved in '
+                 f'{self.namespace}.{data.box_id}')

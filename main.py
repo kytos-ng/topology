@@ -173,6 +173,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Administratively enable a switch in the topology."""
         try:
             self.controller.switches[dpid].enable()
+            log.info(f"Storing administrative state from switch {dpid}"
+                     " to enabled.")
             self.save_status_on_storehouse()
             return jsonify("Operation successful"), 201
         except KeyError:
@@ -183,6 +185,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Administratively disable a switch in the topology."""
         try:
             self.controller.switches[dpid].disable()
+            log.info(f"Storing administrative state from switch {dpid}"
+                     " to disabled.")
             self.save_status_on_storehouse()
             return jsonify("Operation successful"), 201
         except KeyError:
@@ -258,6 +262,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             for interface in switch.interfaces.values():
                 interface.enable()
         if not error_list:
+            log.info(f"Storing administrative state for enabled interfaces.")
             self.save_status_on_storehouse()
             return jsonify("Operation successful"), 200
         return jsonify({msg_error:
@@ -287,6 +292,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             for interface in switch.interfaces.values():
                 interface.disable()
         if not error_list:
+            log.info(f"Storing administrative state for disabled interfaces.")
             self.save_status_on_storehouse()
             return jsonify("Operation successful"), 200
         return jsonify({msg_error:
