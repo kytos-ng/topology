@@ -105,12 +105,14 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         for interface_id, state in interfaces_status.items():
             switch_id = ":".join(interface_id.split(":")[:-1])
             interface_number = int(interface_id.split(":")[-1])
+            interface_status, lldp_status = state
             try:
                 switch = self.controller.switches[switch_id]
-                if state:
+                if interface_status:
                     switch.interfaces[interface_number].enable()
                 else:
                     switch.interfaces[interface_number].disable()
+                switch.interfaces[interface_number].lldp = lldp_status
             except KeyError:
                 error = ('Error while restoring interface status. The '
                          f'interface {interface_id} does not exist.')
@@ -123,21 +125,21 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         switches_status = {}
         interfaces_status = {}
         status = self.storehouse.get_data()
-        if status:
-            switches = status.get('network_status')['switches']
-            for switch, switch_attributes in switches.items():
-                # get status the switches
-                switches_status[switch] = switch_attributes.get('enabled')
-                interfaces = switch_attributes['interfaces']
-                # get status the interfaces
-                for interface, interface_attributes in interfaces.items():
-                    enabled_value = interface_attributes.get('enabled')
-                    interfaces_status[interface] = enabled_value
-
-        else:
+        if not status:
             error = 'There is no status saved to restore.'
             log.info(error)
             raise FileNotFoundError(error)
+
+        switches = status['network_status']['switches']
+        for switch, switch_attributes in switches.items():
+            # get status the switches
+            switches_status[switch] = switch_attributes['enabled']
+            interfaces = switch_attributes['interfaces']
+            # get status the interfaces and lldp
+            for interface, interface_attributes in interfaces.items():
+                enabled_value = interface_attributes['enabled']
+                lldp_value = interface_attributes['lldp']
+                interfaces_status[interface] = (enabled_value, lldp_value)
 
         return switches_status, interfaces_status
 
@@ -580,10 +582,18 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     #    if settings.DISPLAY_FULL_DUPLEX_LINKS:
     #        self.topology.add_link(host.id, interface.id)
 
-    def save_status_on_storehouse(self):
+    # pylint: disable=unused-argument
+    @listen_to('.*.network_status.updated')
+    def save_status_on_storehouse(self, event=None):
         """Save the network administrative status using storehouse."""
         status = self._get_switches_dict()
         status['id'] = 'network_status'
+        if event:
+            content = event.content
+            log.info(f"Storing the administrative state of the"
+                     f" {content['attribute']} attribute to"
+                     f" {content['state']} in the interfaces"
+                     f" {content['interface_ids']}")
         self.storehouse.save_status(status)
 
     def notify_topology_update(self):

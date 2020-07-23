@@ -41,6 +41,7 @@ class TestMain(TestCase):
                            'kytos/maintenance.end_link',
                            'kytos/maintenance.start_switch',
                            'kytos/maintenance.end_switch',
+                           '.*.network_status.updated',
                            '.*.interface.is.nni',
                            '.*.connection.lost',
                            '.*.switch.interface.created',
@@ -206,6 +207,7 @@ class TestMain(TestCase):
                         'interfaces': {
                             '00:00:00:00:00:00:00:01:1': {
                                 'enabled': True,
+                                'lldp': True,
                                 'id': '00:00:00:00:00:00:00:01:1',
                             }
                         }
@@ -224,6 +226,7 @@ class TestMain(TestCase):
                         'interfaces': {
                             '00:00:00:00:00:00:00:01:1': {
                                 'enabled': False,
+                                'lldp': False,
                                 'id': '00:00:00:00:00:00:00:01:1',
                             }
                         }
@@ -246,6 +249,7 @@ class TestMain(TestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(mock_switch.enable.call_count, 1)
         self.assertEqual(mock_interface.enable.call_count, 1)
+        self.assertEqual(mock_interface.lldp, True)
 
         # disable
         url = f'{self.server_name_url}/v3/restore'
@@ -253,6 +257,7 @@ class TestMain(TestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(mock_switch.disable.call_count, 1)
         self.assertEqual(mock_interface.disable.call_count, 1)
+        self.assertEqual(mock_interface.lldp, False)
 
     @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
     def test_enable_switch(self, mock_save_status):
