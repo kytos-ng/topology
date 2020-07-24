@@ -91,6 +91,41 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 return link
         return None
 
+    def _restore_links(self):
+        """Restore link saved in StoreHouse."""
+        for link_id, state, in self.links_state.items():
+            dpid_a = state['endpoint_a']['switch']
+            iface_id_a = int(state['endpoint_a']['id'][-1])
+            dpid_b = state['endpoint_b']['switch']
+            iface_id_b = int(state['endpoint_b']['id'][-1])
+            try:
+                endpoint_a = self.controller.switches[dpid_a].interfaces[
+                    iface_id_a]
+                endpoint_b = self.controller.switches[dpid_b].interfaces[
+                    iface_id_b]
+            except KeyError as error:
+                error_msg = (f"Error restoring link endpoint: {error}")
+                raise KeyError(error_msg)
+
+            link = self._get_link_or_create(endpoint_a, endpoint_b)
+            endpoint_a.update_link(link)
+            endpoint_b.update_link(link)
+
+            endpoint_a.nni = True
+            endpoint_b.nni = True
+
+            self.notify_topology_update()
+
+            try:
+                if state['enabled']:
+                    self.links[link_id].enable()
+                else:
+                    self.links[link_id].disable()
+            except KeyError:
+                error = ('Error restoring link status.'
+                         f'The link {link} does not exist.')
+                raise KeyError(error)
+
     def _restore_status(self):
         """Restore the network administrative status saved in StoreHouse."""
         # restore Switches
@@ -120,28 +155,16 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 error = ('Error while restoring interface status. The '
                          f'interface {interface_id} does not exist.')
                 raise KeyError(error)
-        # links
-        for link, state, in self.links_state.items():
-            try:
-                if state:
-                    self.links[link].enable()
-                else:
-                    self.links[link].disable()
-            except KeyError:
-                error = ('Error restoring link status.'
-                         f'The link {link} does not exist.')
-                raise KeyError(error)
-        log.info('Network status restored.')
+        # restore links
+        self._restore_links()
 
+    # pylint: disable=attribute-defined-outside-init
     def _load_network_status(self):
         """Load network status saved in storehouse."""
         status = self.storehouse.get_data()
         if status:
             switches = status['network_status']['switches']
-            links = status['network_status']['links']
-            # get link status
-            for link, link_attributes in links.items():
-                self.links_state[link] = link_attributes['enabled']
+            self.links_state = status['network_status']['links']
 
             for switch, switch_attributes in switches.items():
                 # get swicthes status
@@ -175,7 +198,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             self._restore_status()
         except (KeyError, FileNotFoundError) as exc:
             return jsonify(f'{str(exc)}'), 404
-
+        log.info('Network status restored.')
         return jsonify('Administrative status restored.'), 200
 
     # Switch related methods
