@@ -25,12 +25,12 @@ Security
 ========
 
 
-[3.6.2] - 2020-07-23
+[3.6.2] - 2020-07-24
 ********************
 
 Added
 =====
-- Added persistence for Link and LLDP administrative changes.
+- Added persistence for Link and LLDP administrative status.
 - Added unit tests, increasing coverage to 85%.
 - Added tags decorator to run tests by type and size.
 
