@@ -7,6 +7,7 @@ import time
 from flask import jsonify, request
 
 from kytos.core import KytosEvent, KytosNApp, log, rest
+from kytos.core.exceptions import KytosLinkCreationError
 from kytos.core.helpers import listen_to
 from kytos.core.interface import Interface
 from kytos.core.link import Link
@@ -601,7 +602,12 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface_a = event.content['interface_a']
         interface_b = event.content['interface_b']
 
-        link = self._get_link_or_create(interface_a, interface_b)
+        try:
+            link = self._get_link_or_create(interface_a, interface_b)
+        except KytosLinkCreationError as err:
+            log.error(f'Error creating link: {err}.')
+            return
+
         interface_a.update_link(link)
         interface_b.update_link(link)
 
