@@ -191,8 +191,10 @@ class TestMain(TestCase):
 
     # pylint: disable=too-many-locals
     @patch('napps.kytos.topology.main.StoreHouse.get_data')
-    def test_restore_network_status(self, mock_storehouse):
+    @patch('napps.kytos.topology.main.Main._get_link_or_create')
+    def test_restore_network_status(self, *args):
         """Test restore_network_status."""
+        mock_get_link_or_create, mock_storehouse = args
         dpid = '00:00:00:00:00:00:00:01'
         dpid_b = '00:00:00:00:00:00:00:02'
         mock_switch_a = get_switch_mock(dpid)
@@ -202,6 +204,7 @@ class TestMain(TestCase):
         mock_interface_b_1 = get_interface_mock('s2-eth1', 1, mock_switch_b)
         mock_interface_b_2 = get_interface_mock('s2-eth2', 2, mock_switch_b)
         mock_link = get_link_mock(mock_interface_a_1, mock_interface_b_1)
+        mock_get_link_or_create.return_value = mock_link
         mock_switch_a.interfaces = {1: mock_interface_a_1,
                                     2: mock_interface_a_2}
         mock_switch_b.interfaces = {1: mock_interface_b_1,

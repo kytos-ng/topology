@@ -94,7 +94,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def _restore_links(self):
         """Restore link saved in StoreHouse."""
-        for link_id, state, in self.links_state.items():
+        for _, state, in self.links_state.items():
             dpid_a = state['endpoint_a']['switch']
             iface_id_a = int(state['endpoint_a']['id'][-1])
             dpid_b = state['endpoint_b']['switch']
@@ -115,17 +115,14 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             endpoint_a.nni = True
             endpoint_b.nni = True
 
-            self.notify_topology_update()
+            if state['enabled']:
+                link.enable()
+            else:
+                link.disable()
 
-            try:
-                if state['enabled']:
-                    self.links[link_id].enable()
-                else:
-                    self.links[link_id].disable()
-            except KeyError:
-                error = ('Error restoring link status.'
-                         f'The link {link} does not exist.')
-                raise KeyError(error)
+            self.notify_topology_update()
+            self.update_instance_metadata(link)
+            log.info(f"Link {link.id} retrieved.")
 
     def _restore_status(self):
         """Restore the network administrative status saved in StoreHouse."""
