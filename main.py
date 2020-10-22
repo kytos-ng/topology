@@ -144,11 +144,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             interface_status, lldp_status = state
             try:
                 switch = self.controller.switches[switch_id]
+                interface = switch.interfaces[interface_number]
                 if interface_status:
-                    switch.interfaces[interface_number].enable()
+                    interface.enable()
                 else:
-                    switch.interfaces[interface_number].disable()
-                switch.interfaces[interface_number].lldp = lldp_status
+                    interface.disable()
+                interface.lldp = lldp_status
+                self.update_instance_metadata(interface)
             except KeyError:
                 error = ('Error while restoring interface status. The '
                          f'interface {interface_id} does not exist.')
@@ -698,7 +700,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         elif 'interface' in event.content:
             store = self.store_items.get('interfaces')
             obj = event.content.get('interface')
-            namespace = 'kytos.topology.iterfaces.metadata'
+            namespace = 'kytos.topology.interfaces.metadata'
         elif 'link' in event.content:
             store = self.store_items.get('links')
             obj = event.content.get('link')
@@ -744,7 +746,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         else:
             name = 'kytos.storehouse.retrieve'
             content['box_id'] = data[0]
-            msg = 'Retrieve data from storeohouse.'
+            msg = 'Retrieve data from storehouse.'
 
         event = KytosEvent(name=name, content=content)
         self.controller.buffers.app.put(event)
