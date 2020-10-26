@@ -25,6 +25,20 @@ Security
 ========
 
 
+[3.6.3] - 2020-10-26
+********************
+
+Changed
+=======
+- Changed setup.py to alert when Travis fails.
+
+Fixed
+=====
+- Fixed ``Link`` metadata persistence.
+- Fixed ``Interface`` metadata persistence.
+- Fixed integration tests.
+
+
 [3.6.2] - 2020-07-24
 ********************
 
