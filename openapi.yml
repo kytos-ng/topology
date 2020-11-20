@@ -27,25 +27,6 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/Switch"
-  /api/kytos/topology/v3/restore:
-    get:
-      summary: Restore the network administrative status saved in StoreHouse
-      description: Restore the administrative status of the interfaces and
-        switches saved in the StoreHouse.
-      responses:
-        200:
-          description: Administrative status restored.
-          content:
-            application/json:
-              schema:
-                example: Administrative status restored.
-        404:
-            description: Error restoring administrative status
-            content:
-              application/json:
-                schema:
-                  type: string
-                  example: Error restoring administrative status
   /api/kytos/topology/v3/switches:
     get:
       summary: Return a json with all the switches in the topology.

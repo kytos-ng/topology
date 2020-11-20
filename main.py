@@ -13,10 +13,13 @@ from kytos.core.interface import Interface
 from kytos.core.link import Link
 from kytos.core.switch import Switch
 from napps.kytos.topology import settings
+from napps.kytos.topology.exceptions import RestoreError
 from napps.kytos.topology.models import Topology
 from napps.kytos.topology.storehouse import StoreHouse
 
 DEFAULT_LINK_UP_TIMER = 10
+DEFAULT_INTERFACE_RESTORE_TIMER = 2
+RESTORE_INTERFACE_ATTEMPTS = 20
 
 
 class Main(KytosNApp):  # pylint: disable=too-many-public-methods
@@ -32,8 +35,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.switches_state = {}
         self.interfaces_state = {}
         self.links_state = {}
+        self._verified_links = []
         self.link_up_timer = getattr(settings, 'LINK_UP_TIMER',
                                      DEFAULT_LINK_UP_TIMER)
+        self.interface_restore = getattr(settings, 'INTERFACE_RESTORE_TIMER',
+                                         DEFAULT_INTERFACE_RESTORE_TIMER)
 
         self.verify_storehouse('switches')
         self.verify_storehouse('interfaces')
@@ -42,7 +48,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.storehouse = StoreHouse(self.controller)
 
     def execute(self):
-        """Do nothing."""
+        """Execute once when the napp is running."""
+        self._load_network_status()
 
     def shutdown(self):
         """Do nothing."""
@@ -92,95 +99,118 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 return link
         return None
 
-    def _restore_links(self):
-        """Restore link saved in StoreHouse."""
-        for _, state, in self.links_state.items():
-            dpid_a = state['endpoint_a']['switch']
-            iface_id_a = int(state['endpoint_a']['id'][-1])
-            dpid_b = state['endpoint_b']['switch']
-            iface_id_b = int(state['endpoint_b']['id'][-1])
-            try:
-                endpoint_a = self.controller.switches[dpid_a].interfaces[
-                    iface_id_a]
-                endpoint_b = self.controller.switches[dpid_b].interfaces[
-                    iface_id_b]
-            except KeyError as error:
-                error_msg = (f"Error restoring link endpoint: {error}")
-                raise KeyError(error_msg)
+    def _restore_link(self, link_id):
+        """Restore link's administrative state from storehouse."""
+        try:
+            state = self.links_state[link_id]
+        except KeyError:
+            error = (f'The link {link_id} has no stored '
+                     'administrative state to be restored.')
+            raise RestoreError(error)
 
-            link = self._get_link_or_create(endpoint_a, endpoint_b)
-            endpoint_a.update_link(link)
-            endpoint_b.update_link(link)
-
-            endpoint_a.nni = True
-            endpoint_b.nni = True
-
+        try:
+            link = self.links[link_id]
             if state['enabled']:
                 link.enable()
             else:
                 link.disable()
+        except KeyError:
+            error = ('Error restoring link status.'
+                     f'The link {link_id} does not exist.')
+            raise RestoreError(error)
+        log.info(f'The state of link {link.id} has been restored.')
+        self.notify_topology_update()
+        self.update_instance_metadata(link)
 
-            self.notify_topology_update()
-            self.update_instance_metadata(link)
-            log.info(f"Link {link.id} retrieved.")
+    def _restore_switch(self, switch_id):
+        """Restore switch's administrative state from storehouse."""
+        try:
+            state = self.switches_state[switch_id]
+        except KeyError:
+            error = (f'The switch {switch_id} has no stored'
+                     ' administrative state to be restored.')
+            raise RestoreError(error)
 
-    def _restore_status(self):
-        """Restore the network administrative status saved in StoreHouse."""
-        # restore Switches
-        for switch_id, state in self.switches_state.items():
-            try:
-                if state:
-                    self.controller.switches[switch_id].enable()
-                else:
-                    self.controller.switches[switch_id].disable()
-            except KeyError:
-                error = ('Error while restoring switches status. The '
-                         f'{switch_id} does not exist.')
-                raise KeyError(error)
+        try:
+            switch = self.controller.switches[switch_id]
+        except KeyError:
+            # Maybe we should remove the switch from switches_state here
+            error = ('Error while restoring switches status. The '
+                     f'switch {switch_id} does not exist.')
+            raise RestoreError(error)
+
+        if state:
+            switch.enable()
+        else:
+            switch.disable()
+
+        log.debug('Waiting to restore administrative state of switch '
+                  f'{switch_id} interfaces.')
+        i = 0
+        # wait to restore interfaces
+        while not switch.interfaces and i < RESTORE_INTERFACE_ATTEMPTS:
+            time.sleep(self.interface_restore)
+            i += 1
+        if not switch.interfaces:
+            error = ('Error restoring administrative state of switch '
+                     f'{switch_id} interfaces.')
+            raise RestoreError(error)
+
         # restore interfaces
-        for interface_id, state in self.interfaces_state.items():
-            switch_id = ":".join(interface_id.split(":")[:-1])
-            interface_number = int(interface_id.split(":")[-1])
-            interface_status, lldp_status = state
+        for interface_id in switch.interfaces:
+            iface_id = ":".join([switch_id, str(interface_id)])
+            # restore only the administrative state of saved interfaces
+            if iface_id not in self.interfaces_state:
+                error = ("The stored topology is different from the current "
+                         f"topology. The interface {iface_id} hasn't been "
+                         "stored.")
+                log.info(error)
+                continue
+            state = self.interfaces_state[iface_id]
+            iface_number = int(interface_id)
+            iface_status, lldp_status = state
             try:
-                switch = self.controller.switches[switch_id]
-                interface = switch.interfaces[interface_number]
-                if interface_status:
-                    interface.enable()
-                else:
-                    interface.disable()
-                interface.lldp = lldp_status
-                self.update_instance_metadata(interface)
+                interface = switch.interfaces[iface_number]
             except KeyError:
-                error = ('Error while restoring interface status. The '
-                         f'interface {interface_id} does not exist.')
-                raise KeyError(error)
-        # restore links
-        self._restore_links()
+                log.error('Error restoring interface status: '
+                          '%s does not exist.', iface_id)
+                continue
+
+            if iface_status:
+                interface.enable()
+            else:
+                interface.disable()
+            interface.lldp = lldp_status
+            self.update_instance_metadata(interface)
+
+        log.info(f'The state of switch {switch_id} has been restored.')
 
     # pylint: disable=attribute-defined-outside-init
     def _load_network_status(self):
         """Load network status saved in storehouse."""
-        status = self.storehouse.get_data()
+        try:
+            status = self.storehouse.get_data()
+        except FileNotFoundError as error:
+            log.info(error)
+            return
         if status:
             switches = status['network_status']['switches']
             self.links_state = status['network_status']['links']
 
-            for switch, switch_attributes in switches.items():
-                # get swicthes status
-                self.switches_state[switch] = switch_attributes['enabled']
-                interfaces = switch_attributes['interfaces']
+            for switch_id, switch_att in switches.items():
+                # get switches status
+                self.switches_state[switch_id] = switch_att['enabled']
+                iface = switch_att['interfaces']
                 # get interface status
-                for interface, interface_attributes in interfaces.items():
-                    enabled_value = interface_attributes['enabled']
-                    lldp_value = interface_attributes['lldp']
-                    self.interfaces_state[interface] = (enabled_value,
-                                                        lldp_value)
+                for iface_id, iface_att in iface.items():
+                    enabled_value = iface_att['enabled']
+                    lldp_value = iface_att['lldp']
+                    self.interfaces_state[iface_id] = (enabled_value,
+                                                       lldp_value)
 
         else:
             error = 'There is no status saved to restore.'
             log.info(error)
-            raise FileNotFoundError(error)
 
     @rest('v3/')
     def get_topology(self):
@@ -190,16 +220,17 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """
         return jsonify(self._get_topology_dict())
 
-    @rest('v3/restore')
-    def restore_network_status(self):
-        """Restore the network administrative status saved in StoreHouse."""
+    def restore_network_status(self, obj):
+        """Restore the network administrative status saved in storehouse."""
         try:
-            self._load_network_status()
-            self._restore_status()
-        except (KeyError, FileNotFoundError) as exc:
-            return jsonify(f'{str(exc)}'), 404
-        log.info('Network status restored.')
-        return jsonify('Administrative status restored.'), 200
+            if isinstance(obj, Switch):
+                self._restore_switch(obj.id)
+            elif isinstance(obj, Link):
+                if obj.id not in self._verified_links:
+                    self._verified_links.append(obj.id)
+                    self._restore_link(obj.id)
+        except RestoreError as exc:
+            log.debug(exc)
 
     # Switch related methods
     @rest('v3/switches')
@@ -212,24 +243,26 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Administratively enable a switch in the topology."""
         try:
             self.controller.switches[dpid].enable()
-            log.info(f"Storing administrative state from switch {dpid}"
-                     " to enabled.")
-            self.save_status_on_storehouse()
-            return jsonify("Operation successful"), 201
         except KeyError:
             return jsonify("Switch not found"), 404
+
+        log.info(f"Storing administrative state from switch {dpid}"
+                 " to enabled.")
+        self.save_status_on_storehouse()
+        return jsonify("Operation successful"), 201
 
     @rest('v3/switches/<dpid>/disable', methods=['POST'])
     def disable_switch(self, dpid):
         """Administratively disable a switch in the topology."""
         try:
             self.controller.switches[dpid].disable()
-            log.info(f"Storing administrative state from switch {dpid}"
-                     " to disabled.")
-            self.save_status_on_storehouse()
-            return jsonify("Operation successful"), 201
         except KeyError:
             return jsonify("Switch not found"), 404
+
+        log.info(f"Storing administrative state from switch {dpid}"
+                 " to disabled.")
+        self.save_status_on_storehouse()
+        return jsonify("Operation successful"), 201
 
     @rest('v3/switches/<dpid>/metadata')
     def get_switch_metadata(self, dpid):
@@ -473,6 +506,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         log.debug('Switch %s added to the Topology.', switch.id)
         self.notify_topology_update()
         self.update_instance_metadata(switch)
+        self.restore_network_status(switch)
 
     @listen_to('.*.connection.lost')
     def handle_connection_lost(self, event):
@@ -614,6 +648,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface_b.nni = True
 
         self.notify_topology_update()
+        self.restore_network_status(link)
 
     # def add_host(self, event):
     #    """Update the topology with a new Host."""

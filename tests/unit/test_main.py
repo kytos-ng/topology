@@ -13,6 +13,7 @@ from kytos.lib.helpers import (get_switch_mock, get_interface_mock,
 
 
 from tests.unit.helpers import get_controller_mock, get_napp_urls
+from napps.kytos.topology.exceptions import RestoreError
 
 
 # pylint: disable=too-many-public-methods
@@ -60,7 +61,6 @@ class TestMain(TestCase):
         expected_urls = [
          ({}, {'GET', 'OPTIONS', 'HEAD'}, '/api/kytos/topology/v3/interfaces'),
          ({}, {'GET', 'OPTIONS', 'HEAD'}, '/api/kytos/topology/v3/switches'),
-         ({}, {'GET', 'OPTIONS', 'HEAD'}, '/api/kytos/topology/v3/restore'),
          ({}, {'GET', 'OPTIONS', 'HEAD'}, '/api/kytos/topology/v3/links'),
          ({}, {'GET', 'OPTIONS', 'HEAD'}, '/api/kytos/topology/v3/'),
          ({'dpid': '[dpid]'}, {'POST', 'OPTIONS'},
@@ -189,29 +189,9 @@ class TestMain(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(json.loads(response.data), expected)
 
-    # pylint: disable=too-many-locals
     @patch('napps.kytos.topology.main.StoreHouse.get_data')
-    @patch('napps.kytos.topology.main.Main._get_link_or_create')
-    def test_restore_network_status(self, *args):
-        """Test restore_network_status."""
-        mock_get_link_or_create, mock_storehouse = args
-        dpid = '00:00:00:00:00:00:00:01'
-        dpid_b = '00:00:00:00:00:00:00:02'
-        mock_switch_a = get_switch_mock(dpid)
-        mock_switch_b = get_switch_mock(dpid_b)
-        mock_interface_a_1 = get_interface_mock('s1-eth1', 1, mock_switch_a)
-        mock_interface_a_2 = get_interface_mock('s1-eth2', 2, mock_switch_b)
-        mock_interface_b_1 = get_interface_mock('s2-eth1', 1, mock_switch_b)
-        mock_interface_b_2 = get_interface_mock('s2-eth2', 2, mock_switch_b)
-        mock_link = get_link_mock(mock_interface_a_1, mock_interface_b_1)
-        mock_get_link_or_create.return_value = mock_link
-        mock_switch_a.interfaces = {1: mock_interface_a_1,
-                                    2: mock_interface_a_2}
-        mock_switch_b.interfaces = {1: mock_interface_b_1,
-                                    2: mock_interface_b_2}
-        self.napp.controller.switches = {dpid: mock_switch_a,
-                                         dpid_b: mock_switch_b}
-        self.napp.links = {'4d42dc08522': mock_link}
+    def test_load_network_status(self, mock_storehouse_get_data):
+        """Test _load_network_status."""
         status = {
             'network_status': {
                 'id': 'network_status',
@@ -244,64 +224,106 @@ class TestMain(TestCase):
                 }
             }
         }
-        status_disable = {
-            'network_status': {
-                'id': 'network_status',
-                'links': {
-                    '4d42dc08522': {
-                        'enabled': False,
-                        'endpoint_a': {
-                            'switch': '00:00:00:00:00:00:00:01',
-                            'id': '00:00:00:00:00:00:00:00:1'
-                        },
-                        'endpoint_b': {
-                            'switch': '00:00:00:00:00:00:00:01',
-                            'id': '00:00:00:00:00:00:00:00:2'
-                        }
-                    }
-                },
-                'switches': {
-                    '00:00:00:00:00:00:00:01': {
-                        'dpid': '00:00:00:00:00:00:00:01',
-                        'enabled': False,
-                        'id': '00:00:00:00:00:00:00:01',
-                        'interfaces': {
-                            '00:00:00:00:00:00:00:01:1': {
-                                'enabled': False,
-                                'lldp': False,
-                                'id': '00:00:00:00:00:00:00:01:1',
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        switches_expected = {'00:00:00:00:00:00:00:01': True}
+        interfaces_expected = {'00:00:00:00:00:00:00:01:1': (True, True)}
+        mock_storehouse_get_data.return_value = status
+        self.napp._load_network_status()
+        self.assertDictEqual(switches_expected, self.napp.switches_state)
+        self.assertDictEqual(interfaces_expected, self.napp.interfaces_state)
+        self.assertDictEqual(status['network_status']['links'],
+                             self.napp.links_state)
 
-        api = get_test_client(self.napp.controller, self.napp)
-        mock_storehouse.side_effect = [{}, status, status_disable]
-
-        # fail case
-        url = f'{self.server_name_url}/v3/restore'
-        response = api.get(url)
-        self.assertEqual(response.status_code, 404, response.data)
+    # pylint: disable=too-many-locals
+    def test_restore_network_status(self):
+        """Test restore_network_status."""
+        dpid = '00:00:00:00:00:00:00:01'
+        mock_switch = get_switch_mock(dpid)
+        mock_switch.id = dpid
+        mock_interface = get_interface_mock('s1-eth1', 1, mock_switch)
+        mock_switch.interfaces = {1: mock_interface}
+        self.napp.controller.switches = {dpid: mock_switch}
+        self.napp.switches_state = {dpid: True}
+        self.napp.interfaces_state = {'00:00:00:00:00:00:00:01:1': (True,
+                                                                    True)}
 
         # enable
-        url = f'{self.server_name_url}/v3/restore'
-        response = api.get(url)
-        self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(mock_switch_a.enable.call_count, 1)
-        self.assertEqual(mock_interface_a_1.enable.call_count, 1)
-        self.assertEqual(mock_interface_a_1.lldp, True)
-        self.assertEqual(mock_link.enable.call_count, 1)
+        self.napp.restore_network_status(mock_switch)
+        self.assertEqual(mock_switch.enable.call_count, 1)
+        self.assertEqual(mock_interface.enable.call_count, 1)
+        self.assertEqual(mock_interface.lldp, True)
 
         # disable
-        url = f'{self.server_name_url}/v3/restore'
-        response = api.get(url)
-        self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(mock_switch_a.disable.call_count, 1)
-        self.assertEqual(mock_interface_a_1.disable.call_count, 1)
-        self.assertEqual(mock_interface_a_1.lldp, False)
+        self.napp.switches_state = {dpid: False}
+        self.napp.interfaces_state = {'00:00:00:00:00:00:00:01:1': (False,
+                                                                    False)}
+        self.napp.restore_network_status(mock_switch)
+        self.assertEqual(mock_switch.disable.call_count, 1)
+        self.assertEqual(mock_interface.disable.call_count, 1)
+        self.assertEqual(mock_interface.lldp, False)
+
+    def test_restore_links(self):
+        """Test restore_link."""
+        dpid = '00:00:00:00:00:00:00:01'
+        dpid_b = '00:00:00:00:00:00:00:02'
+        link_id = '4d42dc08522'
+        mock_switch_a = get_switch_mock(dpid)
+        mock_switch_b = get_switch_mock(dpid_b)
+        mock_interface_a_1 = get_interface_mock('s1-eth1', 1, mock_switch_a)
+        mock_interface_b_1 = get_interface_mock('s2-eth1', 1, mock_switch_b)
+        mock_link = get_link_mock(mock_interface_a_1, mock_interface_b_1)
+        mock_link.id = link_id
+        self.napp.links = {link_id: mock_link}
+        self.napp.links_state = {link_id: {'enabled': True}}
+        # enable link
+        self.napp.restore_network_status(mock_link)
+        self.assertEqual(mock_link.enable.call_count, 1)
+
+        # disable link
+        self.napp.links_state = {link_id: {"enabled": False}}
+        self.napp._verified_links = []
+        self.napp.restore_network_status(mock_link)
         self.assertEqual(mock_link.disable.call_count, 1)
+
+    def test_fail_restore_link(self):
+        """Test fail restore_link."""
+        dpid = '00:00:00:00:00:00:00:01'
+        dpid_b = '00:00:00:00:00:00:00:02'
+        link_id = '4d42dc08522'
+        link_id_fail = '4cd52'
+        mock_switch_a = get_switch_mock(dpid)
+        mock_switch_b = get_switch_mock(dpid_b)
+        mock_interface_a_1 = get_interface_mock('s1-eth1', 1, mock_switch_a)
+        mock_interface_b_1 = get_interface_mock('s2-eth1', 1, mock_switch_b)
+        mock_link = get_link_mock(mock_interface_a_1, mock_interface_b_1)
+        mock_link.id = link_id
+        self.napp.links = {link_id: mock_link}
+        self.napp.links_state = {link_id: {"enabled": True}}
+        with self.assertRaises(RestoreError):
+            self.napp._restore_link(link_id_fail)
+
+        self.napp.links_state = {link_id_fail: {"enabled": True}}
+        with self.assertRaises(RestoreError):
+            self.napp._restore_link(link_id_fail)
+
+    def test_fail_restore_switch(self):
+        """Test fail restore_switch."""
+        dpid = '00:00:00:00:00:00:00:01'
+        dpid_fail = '00:00:00:00:00:00:00:06'
+        mock_switch = get_switch_mock(dpid)
+        mock_switch.id = dpid
+        mock_interface = get_interface_mock('s1-eth1', 1, mock_switch)
+        mock_switch.interfaces = {1: mock_interface}
+        self.napp.controller.switche = {dpid: mock_switch}
+        self.napp.switches_state = {dpid: True}
+        self.napp.interfaces_state = {'00:00:00:00:00:00:00:01:1': (True,
+                                                                    True)}
+
+        with self.assertRaises(RestoreError):
+            self.napp._restore_switch(dpid_fail)
+
+        self.napp.switches_state = {dpid_fail: True}
+        with self.assertRaises(RestoreError):
+            self.napp._restore_switch(dpid_fail)
 
     @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
     def test_enable_switch(self, mock_save_status):

@@ -1,6 +1,6 @@
 """Module to test the storehouse client."""
 from unittest import TestCase
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, PropertyMock
 
 from tests.unit.helpers import get_controller_mock
 
@@ -27,12 +27,16 @@ class TestStoreHouse(TestCase):
     def test_get_data(self, mock_get_stored_box):
         """Test get_data."""
         mock_box = MagicMock()
-        response = self.napp.get_data()
-        self.assertEqual(response, {})
-
+        box_data = MagicMock()
+        mock_get_stored_box.return_value = True
+        type(box_data).data = PropertyMock(side_effect=[{}, "box"])
+        type(mock_box).data = PropertyMock(return_value=box_data)
         self.napp.box = mock_box
-        self.napp.get_data()
-        mock_get_stored_box.assert_called()
+        response = self.napp.get_data()
+        self.assertEqual(response.data, {})
+
+        response = self.napp.get_data()
+        self.assertEqual(response.data, "box")
 
     @patch('napps.kytos.topology.storehouse.KytosEvent')
     @patch('kytos.core.buffers.KytosEventBuffer.put')
