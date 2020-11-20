@@ -24,6 +24,12 @@ Fixed
 Security
 ========
 
+[3.7.0] - 2020-11-20
+********************
+
+Changed
+=======
+- Restore of administrative statuses is now automatic.
 
 [3.6.3] - 2020-10-26
 ********************
