@@ -862,6 +862,26 @@ class TestMain(TestCase):
 
     @patch('napps.kytos.topology.main.KytosEvent')
     @patch('kytos.core.buffers.KytosEventBuffer.put')
+    def test_notify_switch_enabled(self, *args):
+        """Test notify switch enabled."""
+        dpid = "00:00:00:00:00:00:00:01"
+        (mock_buffers_put, mock_event) = args
+        self.napp.notify_switch_enabled(dpid)
+        mock_event.assert_called()
+        mock_buffers_put.assert_called()
+
+    @patch('napps.kytos.topology.main.KytosEvent')
+    @patch('kytos.core.buffers.KytosEventBuffer.put')
+    def test_notify_switch_disabled(self, *args):
+        """Test notify switch disabled."""
+        dpid = "00:00:00:00:00:00:00:01"
+        (mock_buffers_put, mock_event) = args
+        self.napp.notify_switch_disabled(dpid)
+        mock_event.assert_called()
+        mock_buffers_put.assert_called()
+
+    @patch('napps.kytos.topology.main.KytosEvent')
+    @patch('kytos.core.buffers.KytosEventBuffer.put')
     def test_notify_topology_update(self, *args):
         """Test notify_topology_update."""
         (mock_buffers_put, mock_event) = args
