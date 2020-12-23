@@ -1,19 +1,16 @@
 """Module to test the main napp file."""
-import time
 import json
-
+import time
 from unittest import TestCase
 from unittest.mock import MagicMock, create_autospec, patch
 
-from kytos.core.switch import Switch
 from kytos.core.interface import Interface
 from kytos.core.link import Link
-from kytos.lib.helpers import (get_switch_mock, get_interface_mock,
-                               get_test_client, get_link_mock)
-
-
-from tests.unit.helpers import get_controller_mock, get_napp_urls
+from kytos.core.switch import Switch
+from kytos.lib.helpers import (get_interface_mock, get_link_mock,
+                               get_switch_mock, get_test_client)
 from napps.kytos.topology.exceptions import RestoreError
+from tests.unit.helpers import get_controller_mock, get_napp_urls
 
 
 # pylint: disable=too-many-public-methods
@@ -30,6 +27,7 @@ class TestMain(TestCase):
         self.server_name_url = 'http://localhost:8181/api/kytos/topology'
 
         patch('kytos.core.helpers.run_on_thread', lambda x: x).start()
+        # pylint: disable=import-outside-toplevel
         from napps.kytos.topology.main import Main
         self.addCleanup(patch.stopall)
 
@@ -859,6 +857,26 @@ class TestMain(TestCase):
         self.napp.save_status_on_storehouse()
         mock_get_switches_dict.assert_called()
         mock_save_status.assert_called()
+
+    @patch('napps.kytos.topology.main.KytosEvent')
+    @patch('kytos.core.buffers.KytosEventBuffer.put')
+    def test_notify_switch_enabled(self, *args):
+        """Test notify switch enabled."""
+        dpid = "00:00:00:00:00:00:00:01"
+        (mock_buffers_put, mock_event) = args
+        self.napp.notify_switch_enabled(dpid)
+        mock_event.assert_called()
+        mock_buffers_put.assert_called()
+
+    @patch('napps.kytos.topology.main.KytosEvent')
+    @patch('kytos.core.buffers.KytosEventBuffer.put')
+    def test_notify_switch_disabled(self, *args):
+        """Test notify switch disabled."""
+        dpid = "00:00:00:00:00:00:00:01"
+        (mock_buffers_put, mock_event) = args
+        self.napp.notify_switch_disabled(dpid)
+        mock_event.assert_called()
+        mock_buffers_put.assert_called()
 
     @patch('napps.kytos.topology.main.KytosEvent')
     @patch('kytos.core.buffers.KytosEventBuffer.put')

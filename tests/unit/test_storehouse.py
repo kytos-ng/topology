@@ -1,6 +1,6 @@
 """Module to test the storehouse client."""
 from unittest import TestCase
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, PropertyMock, patch
 
 from tests.unit.helpers import get_controller_mock
 
@@ -18,6 +18,7 @@ class TestStoreHouse(TestCase):
         self.server_name_url = 'http://localhost:8181/api/kytos/topology'
 
         patch('kytos.core.helpers.run_on_thread', lambda x: x).start()
+        # pylint: disable=import-outside-toplevel
         from napps.kytos.topology.storehouse import StoreHouse
         self.addCleanup(patch.stopall)
 

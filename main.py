@@ -141,8 +141,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         if state:
             switch.enable()
+            self.notify_switch_enabled(switch_id)
         else:
             switch.disable()
+            self.notify_switch_disabled(switch_id)
 
         log.debug('Waiting to restore administrative state of switch '
                   f'{switch_id} interfaces.')
@@ -249,6 +251,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         log.info(f"Storing administrative state from switch {dpid}"
                  " to enabled.")
         self.save_status_on_storehouse()
+        self.notify_switch_enabled(dpid)
         return jsonify("Operation successful"), 201
 
     @rest('v3/switches/<dpid>/disable', methods=['POST'])
@@ -262,6 +265,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         log.info(f"Storing administrative state from switch {dpid}"
                  " to disabled.")
         self.save_status_on_storehouse()
+        self.notify_switch_disabled(dpid)
         return jsonify("Operation successful"), 201
 
     @rest('v3/switches/<dpid>/metadata')
@@ -681,6 +685,18 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                      f" {content['interface_ids']}")
         status.update(self._get_links_dict())
         self.storehouse.save_status(status)
+
+    def notify_switch_enabled(self, dpid):
+        """Send an event to notify that a switch is enabled."""
+        name = 'kytos/topology.switch.enabled'
+        event = KytosEvent(name=name, content={'dpid': dpid})
+        self.controller.buffers.app.put(event)
+
+    def notify_switch_disabled(self, dpid):
+        """Send an event to notify that a switch is disabled."""
+        name = 'kytos/topology.switch.disabled'
+        event = KytosEvent(name=name, content={'dpid': dpid})
+        self.controller.buffers.app.put(event)
 
     def notify_topology_update(self):
         """Send an event to notify about updates on the topology."""

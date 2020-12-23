@@ -104,7 +104,7 @@ class FakeBox:
         self.owner = None
 
 
-# pylint: disable=bad-option-value
+# pylint: disable=import-outside-toplevel
 class TestMain(TestCase):
     """Test the Main class."""
 
