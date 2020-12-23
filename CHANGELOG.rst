@@ -24,6 +24,14 @@ Fixed
 Security
 ========
 
+[3.7.1] - 2020-11-23
+********************
+
+Added
+=====
+- Added events to notify when a switch has been administratively
+  enabled/disabled.
+
 [3.7.0] - 2020-11-20
 ********************
 
