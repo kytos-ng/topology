@@ -170,6 +170,32 @@ Content
      'topology': <Topology object>
    }
 
+kytos/topology.switch.enabled
+=============================
+Event reporting that the switch was enabled. It contains the switch id.
+
+Content
+-------
+
+.. code-block:: python3
+
+   {
+     'dpid': <switch.id>
+   }
+
+kytos/topology.switch.disabled
+==============================
+Event reporting that the switch was disabled. It contains the switch id.
+
+Content
+-------
+
+.. code-block:: python3
+
+   {
+     'dpid': <switch.id>
+   }
+
 ########
 Rest API
 ########
