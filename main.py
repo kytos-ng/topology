@@ -121,6 +121,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         log.info(f'The state of link {link.id} has been restored.')
         self.notify_topology_update()
         self.update_instance_metadata(link)
+        self.notify_link_status_change(link)
 
     def _restore_switch(self, switch_id):
         """Restore switch's administrative state from storehouse."""
@@ -451,6 +452,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         except KeyError:
             return jsonify("Link not found"), 404
         self.save_status_on_storehouse()
+        self.notify_link_status_change(self.links[link_id])
         return jsonify("Operation successful"), 201
 
     @rest('v3/links/<link_id>/disable', methods=['POST'])
@@ -461,6 +463,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         except KeyError:
             return jsonify("Link not found"), 404
         self.save_status_on_storehouse()
+        self.notify_link_status_change(self.links[link_id])
         return jsonify("Operation successful"), 201
 
     @rest('v3/links/<link_id>/metadata')
@@ -710,7 +713,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def notify_link_status_change(self, link):
         """Send an event to notify about a status change on a link."""
         name = 'kytos/topology.'
-        if link.is_active():
+        if link.is_active() and link.is_enabled():
             status = 'link_up'
         else:
             status = 'link_down'
