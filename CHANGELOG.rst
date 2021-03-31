@@ -24,6 +24,18 @@ Fixed
 Security
 ========
 
+
+[3.7.2] - 2021-04-01
+********************
+
+Added
+=====
+- Added event to notify if the switch is enabled at startup.
+- Added event to notify when link is enabled or disabled.
+- Added new switch/link events to README.
+- New input validation to metadata sent through the REST API.
+
+
 [3.7.1] - 2020-11-23
 ********************
 
@@ -31,6 +43,7 @@ Added
 =====
 - Added events to notify when a switch has been administratively
   enabled/disabled.
+
 
 [3.7.0] - 2020-11-20
 ********************
