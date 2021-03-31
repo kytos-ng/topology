@@ -407,6 +407,21 @@ class TestMain(TestCase):
                             content_type='application/json')
         self.assertEqual(response.status_code, 404, response.data)
 
+    def test_add_switch_metadata_wrong_format(self):
+        """Test add_switch_metadata_wrong_format."""
+        dpid = "00:00:00:00:00:00:00:01"
+        api = get_test_client(self.napp.controller, self.napp)
+        payload = 'A'
+
+        url = f'{self.server_name_url}/v3/switches/{dpid}/metadata'
+        response = api.post(url, data=payload, content_type='application/json')
+        self.assertEqual(response.status_code, 400, response.data)
+
+        payload = None
+        response = api.post(url, data=json.dumps(payload),
+                            content_type='application/json')
+        self.assertEqual(response.status_code, 415, response.data)
+
     @patch('napps.kytos.topology.main.Main.notify_metadata_changes')
     def test_delete_switch_metadata(self, mock_metadata_changes):
         """Test delete_switch_metadata."""
@@ -579,6 +594,21 @@ class TestMain(TestCase):
                             content_type='application/json')
         self.assertEqual(response.status_code, 404, response.data)
 
+    def test_add_interface_metadata_wrong_format(self):
+        """Test add_interface_metadata_wrong_format."""
+        dpid = "00:00:00:00:00:00:00:01:1"
+        api = get_test_client(self.napp.controller, self.napp)
+        payload = 'A'
+
+        url = f'{self.server_name_url}/v3/interfaces/{dpid}/metadata'
+        response = api.post(url, data=payload, content_type='application/json')
+        self.assertEqual(response.status_code, 400, response.data)
+
+        payload = None
+        response = api.post(url, data=json.dumps(payload),
+                            content_type='application/json')
+        self.assertEqual(response.status_code, 415, response.data)
+
     def test_delete_interface_metadata(self):
         """Test delete_interface_metadata."""
         interface_id = '00:00:00:00:00:00:00:01:1'
@@ -701,6 +731,22 @@ class TestMain(TestCase):
         response = api.post(url, data=json.dumps(payload),
                             content_type='application/json')
         self.assertEqual(response.status_code, 404, response.data)
+
+    def test_add_link_metadata_wrong_format(self):
+        """Test add_link_metadata_wrong_format."""
+        link_id = 'cf0f4071be426b3f745027f5d22'
+        api = get_test_client(self.napp.controller, self.napp)
+        payload = "A"
+
+        url = f'{self.server_name_url}/v3/links/{link_id}/metadata'
+        response = api.post(url, data=payload,
+                            content_type='application/json')
+        self.assertEqual(response.status_code, 400, response.data)
+
+        payload = None
+        response = api.post(url, data=json.dumps(payload),
+                            content_type='application/json')
+        self.assertEqual(response.status_code, 415, response.data)
 
     @patch('napps.kytos.topology.main.Main.notify_metadata_changes')
     def test_delete_link_metadata(self, mock_metadata_changes):
