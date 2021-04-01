@@ -196,6 +196,32 @@ Content
      'dpid': <switch.id>
    }
 
+kytos/topology.link.up
+======================
+Event reporting that the link was changed to 'up'. It contains the link instance.
+
+Content
+-------
+
+.. code-block:: python3
+
+   {
+     'link': <Link object>
+   }
+
+kytos/topology.link.down
+========================
+Event reporting that the link was changed to 'down'. It contains the link instance.
+
+Content
+-------
+
+.. code-block:: python3
+
+   {
+     'link': <Link object>
+   }
+
 ########
 Rest API
 ########
