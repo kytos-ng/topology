@@ -2,6 +2,14 @@
 Overview
 ########
 
+**WARNING: As previously announced on our communication channels, the Kytos
+project will enter the "shutdown" phase on May 31, 2021. After this date,
+only critical patches (security and core bug fixes) will be accepted, and the
+project will be in "critical-only" mode for another six months (until November
+30, 2021). For more information visit the FAQ at <https://kytos.io/faq>. We'll
+have eternal gratitude to the entire community of developers and users that made
+the project so far.**
+
 |License| |Build| |Coverage| |Quality|
 
 .. attention::
@@ -241,3 +249,5 @@ You can find a list of the available endpoints and example input/output in the
 .. |Quality| image:: https://scrutinizer-ci.com/g/kytos/topology/badges/quality-score.png?b=master
   :alt: Code-quality score
   :target: https://scrutinizer-ci.com/g/kytos/topology/?branch=master
+.. |FAQ| replace:: *FAQ*
+.. _FAQ: http://#
