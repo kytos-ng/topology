@@ -320,8 +320,11 @@ class TestMain(TestCase):
         error = 'Error loading link: xpto'
         mock_log.error.assert_called_with(error)
 
-    def test_load_switch(self):
+    @patch('napps.kytos.topology.main.KytosEvent')
+    @patch('kytos.core.buffers.KytosEventBuffer.put')
+    def test_load_switch(self, *args):
         """Test _load_switch."""
+        (mock_buffers_put, mock_event) = args
         dpid_a = "00:00:00:00:00:00:00:01"
         dpid_x = "00:00:00:00:00:00:00:XX"
         iface_a = f'{dpid_a}:1'
@@ -355,6 +358,9 @@ class TestMain(TestCase):
         self.assertEqual(len(switch.interfaces), 1)
         self.assertIn(1, switch.interfaces)
         self.assertNotIn(2, switch.interfaces)
+        mock_event.assert_called()
+        mock_buffers_put.assert_called()
+
         interface = switch.interfaces[1]
         self.assertEqual(interface.id, iface_a)
         self.assertEqual(interface.switch.id, dpid_a)
@@ -992,9 +998,12 @@ class TestMain(TestCase):
 
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.update_instance_metadata')
+    @patch('napps.kytos.topology.main.StoreHouse.save_status')
     def test_handle_new_switch(self, *args):
         """Test handle_new_switch."""
-        (mock_instance_metadata, mock_notify_topology_update) = args
+        (mock_instance_metadata, mock_notify_topology_update,
+         mock_save_status) = args
+        mock_save_status.return_value = True
         mock_event = MagicMock()
         mock_switch = create_autospec(Switch)
         mock_event.content['switch'] = mock_switch
@@ -1025,8 +1034,11 @@ class TestMain(TestCase):
         mock_instance_metadata.assert_called()
 
     @patch('napps.kytos.topology.main.Main.handle_interface_up')
-    def test_handle_interface_created(self, mock_handle_interface_up):
+    @patch('napps.kytos.topology.main.StoreHouse.save_status')
+    def test_handle_interface_created(self, *args):
         """Test handle interface created."""
+        (mock_handle_interface_up, mock_save_status) = args
+        mock_save_status.return_value = True
         mock_event = MagicMock()
         self.napp.handle_interface_created(mock_event)
         mock_handle_interface_up.assert_called()
@@ -1099,9 +1111,12 @@ class TestMain(TestCase):
 
     @patch('napps.kytos.topology.main.Main._get_link_or_create')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
+    @patch('napps.kytos.topology.main.StoreHouse.save_status')
     def test_add_links(self, *args):
         """Test add_links."""
-        (mock_notify_topology_update, mock_get_link_or_create) = args
+        (mock_notify_topology_update, mock_get_link_or_create,
+         mock_save_status) = args
+        mock_save_status.return_value = True
         mock_event = MagicMock()
         self.napp.add_links(mock_event)
         mock_get_link_or_create.assert_called()
