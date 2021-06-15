@@ -28,4 +28,5 @@ jobs:
           source_file: 'openapi.yml'
           destination_repo: 'kytos-ng/kytos-ng.github.io'
           destination_folder: 'topology'
+          destination_branch: 'master'
           commit_message: 'Pushing topology openapi.yml'
