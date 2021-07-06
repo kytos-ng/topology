@@ -651,10 +651,16 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface_b = event.content['interface_b']
 
         try:
-            link = self._get_link_or_create(interface_a, interface_b)
+            link = Link(interface_a, interface_b)
         except KytosLinkCreationError as err:
             log.error(f'Error creating link: {err}.')
             return
+
+        if link.id in self.links:
+            log.debug(f'Already existing link id={link.id}')
+            return
+
+        self.links[link.id] = link
 
         interface_a.update_link(link)
         interface_b.update_link(link)
