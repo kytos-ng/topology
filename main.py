@@ -44,9 +44,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         self._lock = Lock()
 
+    @listen_to('kytos/storehouse.loaded')
     def execute(self):
         """Execute once when the napp is running."""
-        self._load_network_status()
+        with self._lock:
+            self._load_network_status()
 
     def shutdown(self):
         """Do nothing."""
