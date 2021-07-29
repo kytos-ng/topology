@@ -854,7 +854,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     @listen_to('kytos/maintenance.start_link')
     def handle_link_maintenance_start(self, event):
-        """Deals with the start of links maintenance."""
+        """Deal with the start of links maintenance."""
         notify_links = []
         maintenance_links = event.content['links']
         for maintenance_link in maintenance_links:
@@ -874,7 +874,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     @listen_to('kytos/maintenance.end_link')
     def handle_link_maintenance_end(self, event):
-        """Deals with the end of links maintenance."""
+        """Deal with the end of links maintenance."""
         notify_links = []
         maintenance_links = event.content['links']
         for maintenance_link in maintenance_links:
@@ -891,3 +891,22 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             link.endpoint_a.enable()
             link.endpoint_b.enable()
             self.notify_link_status_change(link, reason='maintenance')
+
+    @listen_to('kytos/maintenance.start_uni')
+    def handle_uni_maintenance_start(self, event):
+        """Deal with the start of UNIs maintenance."""
+        maintenance_unis = event.content['unis']
+        for maintenance_uni in maintenance_unis:
+            maintenance_uni.interface.disable()
+            if maintenance_uni.interface.is_active():
+                self.handle_link_down(maintenance_uni.interface)
+        self.notify_topology_update()
+
+    @listen_to('kytos/maintenance.end_uni')
+    def handle_uni_maintenance_end(self, event):
+        """Deal with the end of links maintenance."""
+        maintenance_unis = event.content['unis']
+        for maintenance_uni in maintenance_unis:
+            maintenance_uni.interface.enable()
+            self.handle_link_up(maintenance_uni.interface)
+        self.notify_topology_update()

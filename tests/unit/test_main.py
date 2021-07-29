@@ -42,6 +42,8 @@ class TestMain(TestCase):
                            'kytos/maintenance.start_switch',
                            'kytos/maintenance.end_switch',
                            'kytos/storehouse.loaded',
+                           'kytos/maintenance.start_uni',
+                           'kytos/maintenance.end_uni',
                            '.*.network_status.updated',
                            '.*.interface.is.nni',
                            '.*.connection.lost',
@@ -1317,4 +1319,42 @@ class TestMain(TestCase):
         event = MagicMock()
         event.content = content
         self.napp.handle_switch_maintenance_end(event)
+        self.assertEqual(handle_link_up_mock.call_count, 5)
+
+    @patch('napps.kytos.topology.main.Main.handle_link_down')
+    def test_handle_uni_maintenance_start(self, handle_link_down_mock):
+        """Test handle_uni_maintenance_start."""
+        uni1 = MagicMock()
+        uni1.interface.is_active.return_value = True
+        uni2 = MagicMock()
+        uni2.interface.is_active.return_value = False
+        uni3 = MagicMock()
+        uni3.interface.is_active.return_value = True
+        uni4 = MagicMock()
+        uni4.interface.is_active.return_value = False
+        uni5 = MagicMock()
+        uni5.interface.is_active.return_value = True
+        content = {'unis': [uni1, uni2, uni3, uni4, uni5]}
+        event = MagicMock()
+        event.content = content
+        self.napp.handle_uni_maintenance_start(event)
+        self.assertEqual(handle_link_down_mock.call_count, 3)
+
+    @patch('napps.kytos.topology.main.Main.handle_link_up')
+    def test_handle_uni_maintenance_end(self, handle_link_up_mock):
+        """Test handle_uni_maintenance_end."""
+        uni1 = MagicMock()
+        uni1.interface.is_active.return_value = True
+        uni2 = MagicMock()
+        uni2.interface.is_active.return_value = False
+        uni3 = MagicMock()
+        uni3.interface.is_active.return_value = True
+        uni4 = MagicMock()
+        uni4.interface.is_active.return_value = False
+        uni5 = MagicMock()
+        uni5.interface.is_active.return_value = True
+        content = {'unis': [uni1, uni2, uni3, uni4, uni5]}
+        event = MagicMock()
+        event.content = content
+        self.napp.handle_uni_maintenance_end(event)
         self.assertEqual(handle_link_up_mock.call_count, 5)
