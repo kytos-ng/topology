@@ -510,7 +510,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         switch = event.content['switch']
         switch.activate()
         log.debug('Switch %s added to the Topology.', switch.id)
-        self.save_status_on_storehouse()
         self.notify_topology_update()
         self.update_instance_metadata(switch)
         if switch.is_enabled():
@@ -543,7 +542,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def handle_interface_created(self, event):
         """Update the topology based on a Port Create event."""
         self.handle_interface_up(event)
-        self.save_status_on_storehouse()
 
     def handle_interface_down(self, event):
         """Update the topology based on a Port Modify event.
@@ -663,7 +661,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface_b.nni = True
 
         self.notify_topology_update()
-        self.save_status_on_storehouse()
 
     # def add_host(self, event):
     #    """Update the topology with a new Host."""
