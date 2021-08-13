@@ -121,10 +121,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def _load_switch(self, switch_id, switch_att):
         log.info(f'Loading switch from storehouse dpid={switch_id}')
-        switch = Switch(dpid=switch_id)
-        self.controller.add_new_switch(switch)
-        # workaround so switch.is_active() returns False
-        switch.lastseen = datetime(1, 1, 1, 0, 0, 0, 0, timezone.utc)
+        switch = self.controller.get_switch_or_create(switch_id)
         if switch_att['enabled']:
             switch.enable()
         else:
@@ -135,20 +132,19 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         switch.description['serial'] = switch_att.get('serial', '')
         switch.description['data_path'] = switch_att.get('data_path', '')
         self.update_instance_metadata(switch)
+
         for iface_id, iface_att in switch_att.get('interfaces', {}).items():
             log.info(f'Loading interface iface_id={iface_id}')
-            interface = Interface(name=iface_att['name'],
-                                  port_number=iface_att['port_number'],
-                                  address=iface_att.get('mac', None),
-                                  speed=iface_att.get('speed', None),
-                                  switch=switch)
-            interface.deactivate()
+            interface = switch.update_or_create_interface(
+                            port_no=iface_att['port_number'],
+                            name=iface_att['name'],
+                            address=iface_att.get('mac', None),
+                            speed=iface_att.get('speed', None))
             if iface_att['enabled']:
                 interface.enable()
             else:
                 interface.disable()
             interface.lldp = iface_att['lldp']
-            switch.update_interface(interface)
             self.update_instance_metadata(interface)
             name = 'kytos/topology.port.created'
             event = KytosEvent(name=name, content={
@@ -210,21 +206,19 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         log.debug("_load_network_status switches=%s" % switches)
         for switch_id, switch_att in switches.items():
-            if switch_id not in self.controller.switches:
-                try:
-                    self._load_switch(switch_id, switch_att)
-                # pylint: disable=broad-except
-                except Exception as err:
-                    log.error(f'Error loading switch: {err}')
+            try:
+                self._load_switch(switch_id, switch_att)
+            # pylint: disable=broad-except
+            except Exception as err:
+                log.error(f'Error loading switch: {err}')
 
         log.debug("_load_network_status links=%s" % links)
         for link_id, link_att in links.items():
-            if link_id not in self.links:
-                try:
-                    self._load_link(link_att)
-                # pylint: disable=broad-except
-                except Exception as err:
-                    log.error(f'Error loading link: {err}')
+            try:
+                self._load_link(link_att)
+            # pylint: disable=broad-except
+            except Exception as err:
+                log.error(f'Error loading link: {err}')
 
     @rest('v3/')
     def get_topology(self):
