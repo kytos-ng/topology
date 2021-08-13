@@ -3,7 +3,6 @@
 Manage the network topology
 """
 import time
-from datetime import datetime, timezone
 from threading import Lock
 
 from flask import jsonify, request
@@ -218,7 +217,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 self._load_link(link_att)
             # pylint: disable=broad-except
             except Exception as err:
-                log.error(f'Error loading link: {err}')
+                log.error(f'Error loading link {link_id}: {err}')
 
     @rest('v3/')
     def get_topology(self):
