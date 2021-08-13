@@ -41,6 +41,7 @@ class TestMain(TestCase):
                            'kytos/maintenance.end_link',
                            'kytos/maintenance.start_switch',
                            'kytos/maintenance.end_switch',
+                           'kytos/storehouse.loaded',
                            '.*.network_status.updated',
                            '.*.interface.is.nni',
                            '.*.connection.lost',
