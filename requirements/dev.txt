@@ -4,9 +4,9 @@
 #
 #    pip-compile --output-file requirements/dev2.txt requirements/dev.in
 #
--e git+https://github.com/kytos/kytos.git#egg=kytos
+-e git+https://github.com/kytos-ng/kytos.git#egg=kytos
 -e .
--e git+https://github.com/kytos/python-openflow.git#egg=python-openflow
+-e git+https://github.com/kytos-ng/python-openflow.git#egg=python-openflow
 astroid==2.3.3            # via pylint
 click==7.1.1              # via pip-tools
 coverage==5.0.3
