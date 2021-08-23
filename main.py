@@ -143,7 +143,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         log.info(f'The state of link {link.id} has been restored.')
         self.notify_topology_update()
         self.update_instance_metadata(link)
-        self.notify_link_status_change(link)
+        self.notify_link_status_change(link, reason='from storehouse')
 
     def _restore_switch(self, switch_id):
         """Restore switch's administrative state from storehouse."""
@@ -474,7 +474,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         except KeyError:
             return jsonify("Link not found"), 404
         self.save_status_on_storehouse()
-        self.notify_link_status_change(self.links[link_id])
+        self.notify_link_status_change(
+            self.links[link_id],
+            reason='link enabled'
+        )
         return jsonify("Operation successful"), 201
 
     @rest('v3/links/<link_id>/disable', methods=['POST'])
@@ -485,7 +488,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         except KeyError:
             return jsonify("Link not found"), 404
         self.save_status_on_storehouse()
-        self.notify_link_status_change(self.links[link_id])
+        self.notify_link_status_change(
+            self.links[link_id],
+            reason='link disabled'
+        )
         return jsonify("Operation successful"), 201
 
     @rest('v3/links/<link_id>/metadata')
@@ -628,7 +634,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     now - last_status_change >= self.link_up_timer:
                 self.notify_topology_update()
                 self.update_instance_metadata(link)
-                self.notify_link_status_change(link)
+                self.notify_link_status_change(link, reason='link up')
 
     @listen_to('.*.switch.interface.link_down')
     def handle_interface_link_down(self, event):
@@ -658,7 +664,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             link.deactivate()
             link.update_metadata('last_status_change', time.time())
             self.notify_topology_update()
-            self.notify_link_status_change(link)
+            self.notify_link_status_change(link, reason='link down')
 
     @listen_to('.*.interface.is.nni')
     def add_links(self, event):
@@ -732,14 +738,19 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                                                self._get_topology()})
         self.controller.buffers.app.put(event)
 
-    def notify_link_status_change(self, link):
+    def notify_link_status_change(self, link, reason='not given'):
         """Send an event to notify about a status change on a link."""
         name = 'kytos/topology.'
         if link.is_active() and link.is_enabled():
             status = 'link_up'
         else:
             status = 'link_down'
-        event = KytosEvent(name=name+status, content={'link': link})
+        event = KytosEvent(
+            name=name+status,
+            content={
+                'link': link,
+                'reason': reason
+            })
         self.controller.buffers.app.put(event)
 
     def notify_metadata_changes(self, obj, action):
@@ -876,7 +887,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             link.endpoint_b.deactivate()
             link.endpoint_a.disable()
             link.endpoint_b.disable()
-            self.notify_link_status_change(link)
+            self.notify_link_status_change(link, reason='maintenance')
 
     @listen_to('kytos/maintenance.end_link')
     def handle_link_maintenance_end(self, event):
@@ -896,4 +907,4 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             link.endpoint_b.activate()
             link.endpoint_a.enable()
             link.endpoint_b.enable()
-            self.notify_link_status_change(link)
+            self.notify_link_status_change(link, reason='maintenance')
