@@ -1038,7 +1038,7 @@ class TestMain(TestCase):
         event.content = content
         self.napp.links = {2: link1, 4: link3}
         self.napp.handle_link_maintenance_start(event)
-        status_change_mock.assert_called_once_with(link1)
+        status_change_mock.assert_called_once_with(link1, reason='maintenance')
 
     @patch('napps.kytos.topology.main.Main.notify_link_status_change')
     def test_handle_link_maintenance_end(self, status_change_mock):
@@ -1054,7 +1054,7 @@ class TestMain(TestCase):
         event.content = content
         self.napp.links = {2: link1, 4: link3}
         self.napp.handle_link_maintenance_end(event)
-        status_change_mock.assert_called_once_with(link1)
+        status_change_mock.assert_called_once_with(link1, reason='maintenance')
 
     @patch('napps.kytos.topology.main.Main.handle_link_down')
     def test_handle_switch_maintenance_start(self, handle_link_down_mock):
