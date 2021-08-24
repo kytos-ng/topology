@@ -318,7 +318,7 @@ class TestMain(TestCase):
         mock_get_data.return_value = status
         mock_load_link.side_effect = Exception('xpto')
         self.napp._load_network_status()
-        error = 'Error loading link: xpto'
+        error = 'Error loading link 1: xpto'
         mock_log.error.assert_called_with(error)
 
     @patch('napps.kytos.topology.main.KytosEvent')
@@ -367,7 +367,6 @@ class TestMain(TestCase):
         self.assertEqual(interface.switch.id, dpid_a)
         self.assertEqual(interface.port_number, 1)
         self.assertTrue(interface.is_enabled())
-        self.assertFalse(interface.is_active())
         self.assertTrue(interface.lldp)
         self.assertTrue(interface.uni)
         self.assertFalse(interface.nni)
@@ -437,7 +436,6 @@ class TestMain(TestCase):
         self.assertEqual(interface.switch.id, dpid_b)
         self.assertEqual(interface.port_number, 1)
         self.assertFalse(interface.is_enabled())
-        self.assertFalse(interface.is_active())
         self.assertFalse(interface.lldp)
         self.assertTrue(interface.uni)
         self.assertFalse(interface.nni)
