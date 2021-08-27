@@ -3,6 +3,7 @@
 Manage the network topology
 """
 import time
+from threading import Lock
 
 from flask import jsonify, request
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
@@ -48,9 +49,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         self.storehouse = StoreHouse(self.controller)
 
+        self._lock = Lock()
+
+    @listen_to('kytos/storehouse.loaded')
     def execute(self):
         """Execute once when the napp is running."""
-        self._load_network_status()
+        with self._lock:
+            self._load_network_status()
 
     def shutdown(self):
         """Do nothing."""
@@ -708,16 +713,17 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     @listen_to('.*.network_status.updated')
     def save_status_on_storehouse(self, event=None):
         """Save the network administrative status using storehouse."""
-        status = self._get_switches_dict()
-        status['id'] = 'network_status'
-        if event:
-            content = event.content
-            log.info(f"Storing the administrative state of the"
-                     f" {content['attribute']} attribute to"
-                     f" {content['state']} in the interfaces"
-                     f" {content['interface_ids']}")
-        status.update(self._get_links_dict())
-        self.storehouse.save_status(status)
+        with self._lock:
+            status = self._get_switches_dict()
+            status['id'] = 'network_status'
+            if event:
+                content = event.content
+                log.info(f"Storing the administrative state of the"
+                         f" {content['attribute']} attribute to"
+                         f" {content['state']} in the interfaces"
+                         f" {content['interface_ids']}")
+            status.update(self._get_links_dict())
+            self.storehouse.save_status(status)
 
     def notify_switch_enabled(self, dpid):
         """Send an event to notify that a switch is enabled."""
