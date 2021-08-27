@@ -219,6 +219,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             except Exception as err:
                 log.error(f'Error loading link {link_id}: {err}')
 
+        name = 'kytos/topology.topology_loaded'
+        event = KytosEvent(name=name, content={'topology':
+                                               self._get_topology()})
+        self.controller.buffers.app.put(event)
+
     @rest('v3/')
     def get_topology(self):
         """Return the latest known topology.
