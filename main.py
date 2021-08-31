@@ -203,25 +203,34 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         switches = status['network_status']['switches']
         links = status['network_status']['links']
 
+        failed_switches = {}
         log.debug("_load_network_status switches=%s" % switches)
         for switch_id, switch_att in switches.items():
             try:
                 self._load_switch(switch_id, switch_att)
             # pylint: disable=broad-except
             except Exception as err:
+                failed_switches[switch_id] = err
                 log.error(f'Error loading switch: {err}')
 
+        failed_links = {}
         log.debug("_load_network_status links=%s" % links)
         for link_id, link_att in links.items():
             try:
                 self._load_link(link_att)
             # pylint: disable=broad-except
             except Exception as err:
+                failed_links[link_id] = err
                 log.error(f'Error loading link {link_id}: {err}')
 
         name = 'kytos/topology.topology_loaded'
-        event = KytosEvent(name=name, content={'topology':
-                                               self._get_topology()})
+        event = KytosEvent(
+            name=name,
+            content={
+                'topology': self._get_topology(),
+                'failed_switches': failed_switches,
+                'failed_links': failed_links
+            })
         self.controller.buffers.app.put(event)
 
     @rest('v3/')

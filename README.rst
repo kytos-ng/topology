@@ -175,7 +175,9 @@ Content
 .. code-block:: python3
 
    {
-     'topology': <Topology object>
+     'topology': <Topology object>,
+     'failed_switches': {<description of failed switches>},
+     'failed_links': {<description of failed links>}
    }
 
 kytos/topology.updated
