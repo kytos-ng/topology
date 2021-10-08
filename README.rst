@@ -164,6 +164,22 @@ Content
 Generated
 *********
 
+kytos/topology.topology_loaded
+==============================
+Event reporting that the topology was loaded from storehouse. It contains the
+most updated topology.
+
+Content
+-------
+
+.. code-block:: python3
+
+   {
+     'topology': <Topology object>,
+     'failed_switches': {<description of failed switches>},
+     'failed_links': {<description of failed links>}
+   }
+
 kytos/topology.updated
 ======================
 Event reporting that the topology was updated. It contains the most updated
