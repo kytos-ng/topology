@@ -1345,16 +1345,23 @@ class TestMain(TestCase):
         """Test handle_uni_maintenance_end."""
         uni1 = MagicMock()
         uni1.interface.is_active.return_value = True
+        uni1.interface.previous_state = True
         uni2 = MagicMock()
         uni2.interface.is_active.return_value = False
+        uni2.interface.previous_state = True
         uni3 = MagicMock()
         uni3.interface.is_active.return_value = True
+        uni3.interface.previous_state = True
         uni4 = MagicMock()
         uni4.interface.is_active.return_value = False
+        uni4.interface.previous_state = False
         uni5 = MagicMock()
         uni5.interface.is_active.return_value = True
+        uni5.interface.previous_state = True
         content = {'unis': [uni1, uni2, uni3, uni4, uni5]}
         event = MagicMock()
         event.content = content
         self.napp.handle_uni_maintenance_end(event)
         self.assertEqual(handle_link_up_mock.call_count, 5)
+        uni5.interface.enable.assert_called_once()
+        uni4.interface.enable.assert_not_called()

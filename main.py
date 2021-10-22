@@ -897,6 +897,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Deal with the start of UNIs maintenance."""
         maintenance_unis = event.content['unis']
         for maintenance_uni in maintenance_unis:
+            maintenance_uni.interface.previous_state =\
+                maintenance_uni.interface.is_enabled()
             maintenance_uni.interface.disable()
             if maintenance_uni.interface.is_active():
                 self.handle_link_down(maintenance_uni.interface)
@@ -907,6 +909,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Deal with the end of links maintenance."""
         maintenance_unis = event.content['unis']
         for maintenance_uni in maintenance_unis:
-            maintenance_uni.interface.enable()
+            if (
+                hasattr(maintenance_uni.interface, 'previous_state') and
+                maintenance_uni.interface.previous_state
+            ):
+                maintenance_uni.interface.enable()
             self.handle_link_up(maintenance_uni.interface)
         self.notify_topology_update()
