@@ -906,6 +906,17 @@ class TestMain(TestCase):
         response = api.post(url)
         self.assertEqual(response.status_code, 404, response.data)
 
+    @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
+    def test_handle_network_status_updated(self, mock_save_status):
+        """Test handle_link_maintenance_start."""
+        event = MagicMock()
+        event.name = 'kytos/of_lldp.network_status.updated'
+        event.content = {'attribute': 'LLDP',
+                         'state': 'enabled',
+                         'interface_ids': '00:00:00:00:00:00:00:01:1'}
+        self.napp.handle_network_status_updated(event)
+        mock_save_status.assert_called_once()
+
     def test_get_link_metadata(self):
         """Test get_link_metadata."""
         mock_link = MagicMock(Link)
