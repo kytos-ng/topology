@@ -687,19 +687,21 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     #    if settings.DISPLAY_FULL_DUPLEX_LINKS:
     #        self.topology.add_link(host.id, interface.id)
 
-    # pylint: disable=unused-argument
     @listen_to('.*.network_status.updated')
-    def save_status_on_storehouse(self, event=None):
+    def handle_network_status_updated(self, event):
+        """Handle *.network_status.updated events, specially from of_lldp."""
+        content = event.content
+        log.info(f"Storing the administrative state of the"
+                 f" {content['attribute']} attribute to"
+                 f" {content['state']} in the interfaces"
+                 f" {content['interface_ids']}")
+        self.save_status_on_storehouse()
+
+    def save_status_on_storehouse(self):
         """Save the network administrative status using storehouse."""
         with self._lock:
             status = self._get_switches_dict()
             status['id'] = 'network_status'
-            if event:
-                content = event.content
-                log.info(f"Storing the administrative state of the"
-                         f" {content['attribute']} attribute to"
-                         f" {content['state']} in the interfaces"
-                         f" {content['interface_ids']}")
             status.update(self._get_links_dict())
             self.storehouse.save_status(status)
 
