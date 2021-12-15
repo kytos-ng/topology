@@ -277,7 +277,7 @@ class TestMain(TestCase):
         interface = get_interface_mock("interface1", 7)
         stats_event = KytosEvent(name=event_name,
                                  content={'interface': interface})
-        self.napp.handle_interface_created(stats_event)
+        self.napp._handle_interface_created(stats_event)
         event_list_response = self.napp.controller.buffers.app.get()
         event_updated_response = self.napp.controller.buffers.app.get()
 

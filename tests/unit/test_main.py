@@ -1036,15 +1036,15 @@ class TestMain(TestCase):
         mock_event = MagicMock()
         mock_interface = create_autospec(Interface)
         mock_event.content['interface'] = mock_interface
-        self.napp.handle_interface_up(mock_event)
+        self.napp._handle_interface_up(mock_event)
         mock_notify_topology_update.assert_called()
         mock_instance_metadata.assert_called()
 
-    @patch('napps.kytos.topology.main.Main.handle_interface_up')
+    @patch('napps.kytos.topology.main.Main._handle_interface_up')
     def test_handle_interface_created(self, mock_handle_interface_up):
         """Test handle interface created."""
         mock_event = MagicMock()
-        self.napp.handle_interface_created(mock_event)
+        self.napp._handle_interface_created(mock_event)
         mock_handle_interface_up.assert_called()
 
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
@@ -1087,10 +1087,8 @@ class TestMain(TestCase):
         mock_link.endpoint_a = mock_interface_a
         mock_link.endpoint_b = mock_interface_b
         mock_link_from_interface.return_value = mock_link
-        content = {'interface': mock_interface_a}
-        mock_event.content = content
         self.napp.link_up_timer = 1
-        self.napp.handle_interface_link_up(mock_event)
+        self.napp._handle_interface_link_up(mock_interface_a)
         mock_topology_update.assert_called()
         mock_instance_metadata.assert_called()
         mock_status_change.assert_called()
