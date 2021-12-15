@@ -515,15 +515,15 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         return jsonify("Operation successful"), 200
 
     @listen_to('.*.switch.(new|reconnected)')
-    def handle_new_switch(self, event):
+    def on_new_switch(self, event):
         """Create a new Device on the Topology.
 
         Handle the event of a new created switch and update the topology with
         this new device. Also notify if the switch is enabled.
         """
-        self._handle_new_switch(event)
+        self.handle_new_switch(event)
 
-    def _handle_new_switch(self, event):
+    def handle_new_switch(self, event):
         """Create a new Device on the Topology."""
         switch = event.content['switch']
         switch.activate()
@@ -534,15 +534,15 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             self.notify_switch_enabled(switch.id)
 
     @listen_to('.*.connection.lost')
-    def handle_connection_lost(self, event):
+    def on_connection_lost(self, event):
         """Remove a Device from the topology.
 
         Remove the disconnected Device and every link that has one of its
         interfaces.
         """
-        self._handle_connection_lost(event)
+        self.handle_connection_lost(event)
 
-    def _handle_connection_lost(self, event):
+    def handle_connection_lost(self, event):
         """Remove a Device from the topology."""
         switch = event.content['source'].switch
         if switch:
@@ -555,21 +555,17 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         The event notifies that an interface was changed to 'up'.
         """
-        self._handle_interface_up(event)
-
-    def _handle_interface_up(self, event):
-        """Update the topology based on a Port Modify event."""
         interface = event.content['interface']
         interface.activate()
         self.notify_topology_update()
         self.update_instance_metadata(interface)
 
     @listen_to('.*.switch.interface.created')
-    def handle_interface_created(self, event):
+    def on_interface_created(self, event):
         """Update the topology based on a Port Create event."""
-        self._handle_interface_created(event)
+        self.handle_interface_created(event)
 
-    def _handle_interface_created(self, event):
+    def handle_interface_created(self, event):
         """Update the topology based on a Port Create event."""
         self.handle_interface_up(event)
 
@@ -584,33 +580,33 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.notify_topology_update()
 
     @listen_to('.*.switch.interface.deleted')
-    def handle_interface_deleted(self, event):
+    def on_interface_deleted(self, event):
         """Update the topology based on a Port Delete event."""
-        self._handle_interface_deleted(event)
+        self.handle_interface_deleted(event)
 
-    def _handle_interface_deleted(self, event):
+    def handle_interface_deleted(self, event):
         """Update the topology based on a Port Delete event."""
         self.handle_interface_down(event)
 
     @listen_to('.*.switch.interface.link_up')
-    def handle_interface_link_up(self, event):
+    def on_interface_link_up(self, event):
         """Update the topology based on a Port Modify event.
 
         The event notifies that an interface's link was changed to 'up'.
         """
         interface = event.content['interface']
-        self._handle_interface_link_up(interface)
+        self.handle_interface_link_up(interface)
 
-    def _handle_interface_link_up(self, interface):
+    def handle_interface_link_up(self, interface):
         """Update the topology based on a Port Modify event."""
         self.handle_link_up(interface)
 
     @listen_to('kytos/maintenance.end_switch')
-    def handle_switch_maintenance_end(self, event):
+    def on_switch_maintenance_end(self, event):
         """Handle the end of the maintenance of a switch."""
-        self._handle_switch_maintenance_end(event)
+        self.handle_switch_maintenance_end(event)
 
-    def _handle_switch_maintenance_end(self, event):
+    def handle_switch_maintenance_end(self, event):
         """Handle the end of the maintenance of a switch."""
         switches = event.content['switches']
         for switch in switches:
@@ -649,24 +645,24 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 self.notify_link_status_change(link, reason='link up')
 
     @listen_to('.*.switch.interface.link_down')
-    def handle_interface_link_down(self, event):
+    def on_interface_link_down(self, event):
         """Update the topology based on a Port Modify event.
 
         The event notifies that an interface's link was changed to 'down'.
         """
         interface = event.content['interface']
-        self._handle_interface_link_down(interface)
+        self.handle_interface_link_down(interface)
 
-    def _handle_interface_link_down(self, interface):
+    def handle_interface_link_down(self, interface):
         """Update the topology based on an interface."""
         self.handle_link_down(interface)
 
     @listen_to('kytos/maintenance.start_switch')
-    def handle_switch_maintenance_start(self, event):
+    def on_switch_maintenance_start(self, event):
         """Handle the start of the maintenance of a switch."""
-        self._handle_switch_maintenance_start(event)
+        self.handle_switch_maintenance_start(event)
 
-    def _handle_switch_maintenance_start(self, event):
+    def handle_switch_maintenance_start(self, event):
         """Handle the start of the maintenance of a switch."""
         switches = event.content['switches']
         for switch in switches:
@@ -687,11 +683,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             self.notify_link_status_change(link, reason='link down')
 
     @listen_to('.*.interface.is.nni')
-    def add_links(self, event):
+    def on_add_links(self, event):
         """Update the topology with links related to the NNI interfaces."""
-        self._add_links(event)
+        self.add_links(event)
 
-    def _add_links(self, event):
+    def add_links(self, event):
         """Update the topology with links related to the NNI interfaces."""
         interface_a = event.content['interface_a']
         interface_b = event.content['interface_b']
@@ -728,16 +724,16 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     #        self.topology.add_link(host.id, interface.id)
 
     @listen_to('.*.network_status.updated')
-    def handle_network_status_updated(self, event):
+    def on_network_status_updated(self, event):
         """Handle *.network_status.updated events, specially from of_lldp."""
         content = event.content
         log.info(f"Storing the administrative state of the"
                  f" {content['attribute']} attribute to"
                  f" {content['state']} in the interfaces"
                  f" {content['interface_ids']}")
-        self._handle_network_status_updated()
+        self.handle_network_status_updated()
 
-    def _handle_network_status_updated(self) -> None:
+    def handle_network_status_updated(self) -> None:
         """Handle *.network_status.updated events, specially from of_lldp."""
         self.save_status_on_storehouse()
 
@@ -802,22 +798,22 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         log.debug(f'Metadata from {obj.id} was {action}.')
 
     @listen_to('.*.switch.port.created')
-    def notify_port_created(self, event):
+    def on_notify_port_created(self, event):
         """Notify when a port is created."""
-        self._notify_port_created(event)
+        self.notify_port_created(event)
 
-    def _notify_port_created(self, event):
+    def notify_port_created(self, event):
         """Notify when a port is created."""
         name = 'kytos/topology.port.created'
         event = KytosEvent(name=name, content=event.content)
         self.controller.buffers.app.put(event)
 
     @listen_to('kytos/topology.*.metadata.*')
-    def save_metadata_on_store(self, event):
+    def on_save_metadata_on_store(self, event):
         """Send to storehouse the data updated."""
-        self._save_metadata_on_store(event)
+        self.save_metadata_on_store(event)
 
-    def _save_metadata_on_store(self, event):
+    def save_metadata_on_store(self, event):
         """Send to storehouse the data updated."""
         name = 'kytos.storehouse.update'
         if 'switch' in event.content:
@@ -908,11 +904,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             log.debug(f'Metadata to {obj.id} was updated')
 
     @listen_to('kytos/maintenance.start_link')
-    def handle_link_maintenance_start(self, event):
+    def on_link_maintenance_start(self, event):
         """Deals with the start of links maintenance."""
-        self._handle_link_maintenance_start(event)
+        self.handle_link_maintenance_start(event)
 
-    def _handle_link_maintenance_start(self, event):
+    def handle_link_maintenance_start(self, event):
         """Deals with the start of links maintenance."""
         notify_links = []
         maintenance_links = event.content['links']
@@ -932,11 +928,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             self.notify_link_status_change(link, reason='maintenance')
 
     @listen_to('kytos/maintenance.end_link')
-    def handle_link_maintenance_end(self, event):
+    def on_link_maintenance_end(self, event):
         """Deals with the end of links maintenance."""
-        self._handle_link_maintenance_end(event)
+        self.handle_link_maintenance_end(event)
 
-    def _handle_link_maintenance_end(self, event):
+    def handle_link_maintenance_end(self, event):
         """Deals with the end of links maintenance."""
         notify_links = []
         maintenance_links = event.content['links']

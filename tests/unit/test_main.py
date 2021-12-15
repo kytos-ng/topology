@@ -909,7 +909,7 @@ class TestMain(TestCase):
     @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
     def test_handle_network_status_updated(self, mock_save_status):
         """Test handle_link_maintenance_start."""
-        self.napp._handle_network_status_updated()
+        self.napp.handle_network_status_updated()
         mock_save_status.assert_called_once()
 
     def test_get_link_metadata(self):
@@ -1009,7 +1009,7 @@ class TestMain(TestCase):
         mock_event = MagicMock()
         mock_switch = create_autospec(Switch)
         mock_event.content['switch'] = mock_switch
-        self.napp._handle_new_switch(mock_event)
+        self.napp.handle_new_switch(mock_event)
         mock_notify_topology_update.assert_called()
         mock_instance_metadata.assert_called()
 
@@ -1020,7 +1020,7 @@ class TestMain(TestCase):
         mock_switch = create_autospec(Switch)
         mock_switch.return_value = True
         mock_event.content['source'] = mock_switch
-        self.napp._handle_connection_lost(mock_event)
+        self.napp.handle_connection_lost(mock_event)
         mock_notify_topology_update.assert_called()
 
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
@@ -1031,15 +1031,15 @@ class TestMain(TestCase):
         mock_event = MagicMock()
         mock_interface = create_autospec(Interface)
         mock_event.content['interface'] = mock_interface
-        self.napp._handle_interface_up(mock_event)
+        self.napp.handle_interface_up(mock_event)
         mock_notify_topology_update.assert_called()
         mock_instance_metadata.assert_called()
 
-    @patch('napps.kytos.topology.main.Main._handle_interface_up')
+    @patch('napps.kytos.topology.main.Main.handle_interface_up')
     def test_handle_interface_created(self, mock_handle_interface_up):
         """Test handle interface created."""
         mock_event = MagicMock()
-        self.napp._handle_interface_created(mock_event)
+        self.napp.handle_interface_created(mock_event)
         mock_handle_interface_up.assert_called()
 
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
@@ -1058,7 +1058,7 @@ class TestMain(TestCase):
     def test_interface_deleted(self, mock_handle_interface_link_down):
         """Test interface deleted."""
         mock_event = MagicMock()
-        self.napp._handle_interface_deleted(mock_event)
+        self.napp.handle_interface_deleted(mock_event)
         mock_handle_interface_link_down.assert_called()
 
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
@@ -1082,7 +1082,7 @@ class TestMain(TestCase):
         mock_link.endpoint_b = mock_interface_b
         mock_link_from_interface.return_value = mock_link
         self.napp.link_up_timer = 1
-        self.napp._handle_interface_link_up(mock_interface_a)
+        self.napp.handle_interface_link_up(mock_interface_a)
         mock_topology_update.assert_called()
         mock_instance_metadata.assert_called()
         mock_status_change.assert_called()
@@ -1101,7 +1101,7 @@ class TestMain(TestCase):
         mock_link.is_active.return_value = True
         mock_link_from_interface.return_value = mock_link
         mock_event.content['interface'] = mock_interface
-        self.napp._handle_interface_link_down(mock_event)
+        self.napp.handle_interface_link_down(mock_event)
         mock_topology_update.assert_called()
         mock_status_change.assert_called()
 
@@ -1111,7 +1111,7 @@ class TestMain(TestCase):
         """Test add_links."""
         (mock_notify_topology_update, mock_get_link_or_create) = args
         mock_event = MagicMock()
-        self.napp._add_links(mock_event)
+        self.napp.add_links(mock_event)
         mock_get_link_or_create.assert_called()
         mock_notify_topology_update.assert_called()
 
@@ -1183,7 +1183,7 @@ class TestMain(TestCase):
         """Test notify port created."""
         (mock_buffers_put, mock_kytos_event) = args
         mock_event = MagicMock()
-        self.napp._notify_port_created(mock_event)
+        self.napp.notify_port_created(mock_event)
         mock_kytos_event.assert_called()
         mock_buffers_put.assert_called()
 
@@ -1201,19 +1201,19 @@ class TestMain(TestCase):
                                  'links': mock_link}
         # test switches
         mock_event.content = {'switch': mock_switch}
-        self.napp._save_metadata_on_store(mock_event)
+        self.napp.save_metadata_on_store(mock_event)
         mock_kytos_event.assert_called()
         mock_buffers_put.assert_called()
 
         # test interfaces
         mock_event.content = {'interface': mock_interface}
-        self.napp._save_metadata_on_store(mock_event)
+        self.napp.save_metadata_on_store(mock_event)
         mock_kytos_event.assert_called()
         mock_buffers_put.assert_called()
 
         # test link
         mock_event.content = {'link': mock_link}
-        self.napp._save_metadata_on_store(mock_event)
+        self.napp.save_metadata_on_store(mock_event)
         mock_kytos_event.assert_called()
         mock_buffers_put.assert_called()
 
@@ -1257,7 +1257,7 @@ class TestMain(TestCase):
         event = MagicMock()
         event.content = content
         self.napp.links = {2: link1, 4: link3}
-        self.napp._handle_link_maintenance_start(event)
+        self.napp.handle_link_maintenance_start(event)
         status_change_mock.assert_called_once_with(link1, reason='maintenance')
 
     @patch('napps.kytos.topology.main.Main.notify_link_status_change')
@@ -1273,7 +1273,7 @@ class TestMain(TestCase):
         event = MagicMock()
         event.content = content
         self.napp.links = {2: link1, 4: link3}
-        self.napp._handle_link_maintenance_end(event)
+        self.napp.handle_link_maintenance_end(event)
         status_change_mock.assert_called_once_with(link1, reason='maintenance')
 
     @patch('napps.kytos.topology.main.Main.handle_link_down')
@@ -1296,7 +1296,7 @@ class TestMain(TestCase):
         content = {'switches': [switch1, switch2]}
         event = MagicMock()
         event.content = content
-        self.napp._handle_switch_maintenance_start(event)
+        self.napp.handle_switch_maintenance_start(event)
         self.assertEqual(handle_link_down_mock.call_count, 3)
 
     @patch('napps.kytos.topology.main.Main.handle_link_up')
@@ -1319,5 +1319,5 @@ class TestMain(TestCase):
         content = {'switches': [switch1, switch2]}
         event = MagicMock()
         event.content = content
-        self.napp._handle_switch_maintenance_end(event)
+        self.napp.handle_switch_maintenance_end(event)
         self.assertEqual(handle_link_up_mock.call_count, 5)

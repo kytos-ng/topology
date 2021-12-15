@@ -248,7 +248,7 @@ class TestMain(TestCase):
         switch = get_switch_mock(0x04)
         event = KytosEvent(name=event_name,
                            content={'switch': switch})
-        self.napp._save_metadata_on_store(event)
+        self.napp.save_metadata_on_store(event)
         event_list_response = self.napp.controller.buffers.app.get()
         event_updated_response = self.napp.controller.buffers.app.get()
 
@@ -263,7 +263,7 @@ class TestMain(TestCase):
         switch = get_switch_mock(0x04)
         event = KytosEvent(name=event_name,
                            content={'switch': switch})
-        self.napp._handle_new_switch(event)
+        self.napp.handle_new_switch(event)
         event_list_response = self.napp.controller.buffers.app.get()
         event_response = self.napp.controller.buffers.app.get()
 
@@ -278,7 +278,7 @@ class TestMain(TestCase):
         interface = get_interface_mock("interface1", 7)
         stats_event = KytosEvent(name=event_name,
                                  content={'interface': interface})
-        self.napp._handle_interface_created(stats_event)
+        self.napp.handle_interface_created(stats_event)
         event_list_response = self.napp.controller.buffers.app.get()
         event_updated_response = self.napp.controller.buffers.app.get()
 
@@ -293,7 +293,7 @@ class TestMain(TestCase):
         interface = get_interface_mock("interface1", 7)
         stats_event = KytosEvent(name=event_name,
                                  content={'interface': interface})
-        self.napp._handle_interface_deleted(stats_event)
+        self.napp.handle_interface_deleted(stats_event)
         event_list_response = self.napp.controller.buffers.app.get()
         event_updated_response = self.napp.controller.buffers.app.get()
         self.assertEqual(event_list_response.name,
@@ -307,7 +307,7 @@ class TestMain(TestCase):
         source = Mock()
         stats_event = KytosEvent(name=event_name,
                                  content={'source': source})
-        self.napp._handle_connection_lost(stats_event)
+        self.napp.handle_connection_lost(stats_event)
         event_list_response = self.napp.controller.buffers.app.get()
         event_updated_response = self.napp.controller.buffers.app.get()
         self.assertEqual(event_list_response.name,
