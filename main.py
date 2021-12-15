@@ -521,6 +521,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         Handle the event of a new created switch and update the topology with
         this new device. Also notify if the switch is enabled.
         """
+        self._handle_new_switch(event)
+
+    def _handle_new_switch(self, event):
+        """Create a new Device on the Topology."""
         switch = event.content['switch']
         switch.activate()
         log.debug('Switch %s added to the Topology.', switch.id)
@@ -536,6 +540,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         Remove the disconnected Device and every link that has one of its
         interfaces.
         """
+        self._handle_connection_lost(event)
+
+    def _handle_connection_lost(self, event):
+        """Remove a Device from the topology."""
         switch = event.content['source'].switch
         if switch:
             switch.deactivate()

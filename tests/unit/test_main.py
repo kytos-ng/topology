@@ -1014,7 +1014,7 @@ class TestMain(TestCase):
         mock_event = MagicMock()
         mock_switch = create_autospec(Switch)
         mock_event.content['switch'] = mock_switch
-        self.napp.handle_new_switch(mock_event)
+        self.napp._handle_new_switch(mock_event)
         mock_notify_topology_update.assert_called()
         mock_instance_metadata.assert_called()
 
@@ -1025,7 +1025,7 @@ class TestMain(TestCase):
         mock_switch = create_autospec(Switch)
         mock_switch.return_value = True
         mock_event.content['source'] = mock_switch
-        self.napp.handle_connection_lost(mock_event)
+        self.napp._handle_connection_lost(mock_event)
         mock_notify_topology_update.assert_called()
 
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
