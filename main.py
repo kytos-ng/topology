@@ -655,7 +655,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         The event notifies that an interface's link was changed to 'down'.
         """
         interface = event.content['interface']
-        self._handle_link_down(interface)
+        self._handle_interface_link_down(interface)
 
     def _handle_interface_link_down(self, interface):
         """Update the topology based on an interface."""
