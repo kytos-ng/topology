@@ -586,6 +586,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     @listen_to('.*.switch.interface.deleted')
     def handle_interface_deleted(self, event):
         """Update the topology based on a Port Delete event."""
+        self._handle_interface_deleted(event)
+
+    def _handle_interface_deleted(self, event):
+        """Update the topology based on a Port Delete event."""
         self.handle_interface_down(event)
 
     @listen_to('.*.switch.interface.link_up')
@@ -603,6 +607,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     @listen_to('kytos/maintenance.end_switch')
     def handle_switch_maintenance_end(self, event):
+        """Handle the end of the maintenance of a switch."""
+        self._handle_switch_maintenance_end(event)
+
+    def _handle_switch_maintenance_end(self, event):
         """Handle the end of the maintenance of a switch."""
         switches = event.content['switches']
         for switch in switches:
@@ -647,10 +655,18 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         The event notifies that an interface's link was changed to 'down'.
         """
         interface = event.content['interface']
+        self._handle_link_down(interface)
+
+    def _handle_interface_link_down(self, interface):
+        """Update the topology based on an interface."""
         self.handle_link_down(interface)
 
     @listen_to('kytos/maintenance.start_switch')
     def handle_switch_maintenance_start(self, event):
+        """Handle the start of the maintenance of a switch."""
+        self._handle_switch_maintenance_start(event)
+
+    def _handle_switch_maintenance_start(self, event):
         """Handle the start of the maintenance of a switch."""
         switches = event.content['switches']
         for switch in switches:
@@ -672,6 +688,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     @listen_to('.*.interface.is.nni')
     def add_links(self, event):
+        """Update the topology with links related to the NNI interfaces."""
+        self._add_links(event)
+
+    def _add_links(self, event):
         """Update the topology with links related to the NNI interfaces."""
         interface_a = event.content['interface_a']
         interface_b = event.content['interface_b']
@@ -782,14 +802,22 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         log.debug(f'Metadata from {obj.id} was {action}.')
 
     @listen_to('.*.switch.port.created')
-    def notify_port_created(self, original_event):
+    def notify_port_created(self, event):
+        """Notify when a port is created."""
+        self._notify_port_created(event)
+
+    def _notify_port_created(self, event):
         """Notify when a port is created."""
         name = 'kytos/topology.port.created'
-        event = KytosEvent(name=name, content=original_event.content)
+        event = KytosEvent(name=name, content=event.content)
         self.controller.buffers.app.put(event)
 
     @listen_to('kytos/topology.*.metadata.*')
     def save_metadata_on_store(self, event):
+        """Send to storehouse the data updated."""
+        self._save_metadata_on_store(event)
+
+    def _save_metadata_on_store(self, event):
         """Send to storehouse the data updated."""
         name = 'kytos.storehouse.update'
         if 'switch' in event.content:
@@ -882,6 +910,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     @listen_to('kytos/maintenance.start_link')
     def handle_link_maintenance_start(self, event):
         """Deals with the start of links maintenance."""
+        self._handle_link_maintenance_start(event)
+
+    def _handle_link_maintenance_start(self, event):
+        """Deals with the start of links maintenance."""
         notify_links = []
         maintenance_links = event.content['links']
         for maintenance_link in maintenance_links:
@@ -901,6 +933,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     @listen_to('kytos/maintenance.end_link')
     def handle_link_maintenance_end(self, event):
+        """Deals with the end of links maintenance."""
+        self._handle_link_maintenance_end(event)
+
+    def _handle_link_maintenance_end(self, event):
         """Deals with the end of links maintenance."""
         notify_links = []
         maintenance_links = event.content['links']

@@ -248,7 +248,7 @@ class TestMain(TestCase):
         switch = get_switch_mock(0x04)
         event = KytosEvent(name=event_name,
                            content={'switch': switch})
-        self.napp.save_metadata_on_store(event)
+        self.napp._save_metadata_on_store(event)
         event_list_response = self.napp.controller.buffers.app.get()
         event_updated_response = self.napp.controller.buffers.app.get()
 
@@ -293,7 +293,7 @@ class TestMain(TestCase):
         interface = get_interface_mock("interface1", 7)
         stats_event = KytosEvent(name=event_name,
                                  content={'interface': interface})
-        self.napp.handle_interface_deleted(stats_event)
+        self.napp._handle_interface_deleted(stats_event)
         event_list_response = self.napp.controller.buffers.app.get()
         event_updated_response = self.napp.controller.buffers.app.get()
         self.assertEqual(event_list_response.name,
