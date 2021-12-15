@@ -715,6 +715,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                  f" {content['attribute']} attribute to"
                  f" {content['state']} in the interfaces"
                  f" {content['interface_ids']}")
+        self._handle_network_status_updated()
+
+    def _handle_network_status_updated(self) -> None:
+        """Handle *.network_status.updated events, specially from of_lldp."""
         self.save_status_on_storehouse()
 
     def save_status_on_storehouse(self):
