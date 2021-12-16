@@ -50,8 +50,7 @@ class TestMain(TestCase):
                            '.*.switch.interface.link_down',
                            '.*.switch.interface.link_up',
                            '.*.switch.(new|reconnected)',
-                           '.*.switch.port.created',
-                           'kytos/topology.*.metadata.*']
+                           '.*.switch.port.created']
         actual_events = self.napp.listeners()
         self.assertCountEqual(expected_events, actual_events)
 
@@ -602,8 +601,8 @@ class TestMain(TestCase):
         response = api.get(url)
         self.assertEqual(response.status_code, 404, response.data)
 
-    @patch('napps.kytos.topology.main.Main.notify_metadata_changes')
-    def test_add_switch_metadata(self, mock_metadata_changes):
+    @patch('napps.kytos.topology.main.Main.save_metadata_on_store')
+    def test_add_switch_metadata(self, mock_save_metadata):
         """Test add_switch_metadata."""
         dpid = "00:00:00:00:00:00:00:01"
         mock_switch = get_switch_mock(dpid)
@@ -615,7 +614,7 @@ class TestMain(TestCase):
         response = api.post(url, data=json.dumps(payload),
                             content_type='application/json')
         self.assertEqual(response.status_code, 201, response.data)
-        mock_metadata_changes.assert_called()
+        mock_save_metadata.assert_called()
 
         # fail case
         dpid = "00:00:00:00:00:00:00:02"
@@ -639,18 +638,19 @@ class TestMain(TestCase):
                             content_type='application/json')
         self.assertEqual(response.status_code, 415, response.data)
 
-    @patch('napps.kytos.topology.main.Main.notify_metadata_changes')
-    def test_delete_switch_metadata(self, mock_metadata_changes):
+    @patch('napps.kytos.topology.main.Main.save_metadata_on_store')
+    def test_delete_switch_metadata(self, mock_save_metadata):
         """Test delete_switch_metadata."""
         dpid = "00:00:00:00:00:00:00:01"
         mock_switch = get_switch_mock(dpid)
         self.napp.controller.switches = {dpid: mock_switch}
+        self.napp.store_items = {'switches': MagicMock()}
         api = get_test_client(self.napp.controller, self.napp)
 
         key = "A"
         url = f'{self.server_name_url}/v3/switches/{dpid}/metadata/{key}'
         response = api.delete(url)
-        mock_metadata_changes.assert_called()
+        self.assertEqual(mock_save_metadata.call_count, 1)
         self.assertEqual(response.status_code, 200, response.data)
 
         # fail case
@@ -658,7 +658,7 @@ class TestMain(TestCase):
         dpid = "00:00:00:00:00:00:00:02"
         url = f'{self.server_name_url}/v3/switches/{dpid}/metadata/{key}'
         response = api.delete(url)
-        mock_metadata_changes.assert_called()
+        self.assertEqual(mock_save_metadata.call_count, 1)  # remains 1 call
         self.assertEqual(response.status_code, 404, response.data)
 
     @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
@@ -760,6 +760,7 @@ class TestMain(TestCase):
         mock_interface.metadata = {"metada": "A"}
         mock_switch.interfaces = {1: mock_interface}
         self.napp.controller.switches = {dpid: mock_switch}
+        self.napp.store_items = {'interfaces': MagicMock()}
         api = get_test_client(self.napp.controller, self.napp)
 
         url = f'{self.server_name_url}/v3/interfaces/{interface_id}/metadata'
@@ -778,8 +779,8 @@ class TestMain(TestCase):
         response = api.get(url)
         self.assertEqual(response.status_code, 404, response.data)
 
-    @patch('napps.kytos.topology.main.Main.notify_metadata_changes')
-    def test_add_interface_metadata(self, mock_metadata_changes):
+    @patch('napps.kytos.topology.main.Main.save_metadata_on_store')
+    def test_add_interface_metadata(self, mock_save_metadata):
         """Test add_interface_metadata."""
         interface_id = '00:00:00:00:00:00:00:01:1'
         dpid = '00:00:00:00:00:00:00:01'
@@ -788,6 +789,7 @@ class TestMain(TestCase):
         mock_interface.metadata = {"metada": "A"}
         mock_switch.interfaces = {1: mock_interface}
         self.napp.controller.switches = {dpid: mock_switch}
+        self.napp.store_items = {'interfaces': MagicMock()}
         api = get_test_client(self.napp.controller, self.napp)
 
         url = f'{self.server_name_url}/v3/interfaces/{interface_id}/metadata'
@@ -795,7 +797,7 @@ class TestMain(TestCase):
         response = api.post(url, data=json.dumps(payload),
                             content_type='application/json')
         self.assertEqual(response.status_code, 201, response.data)
-        mock_metadata_changes.assert_called()
+        mock_save_metadata.assert_called()
 
         # fail case switch not found
         interface_id = '00:00:00:00:00:00:00:02:1'
@@ -836,6 +838,7 @@ class TestMain(TestCase):
         mock_interface.remove_metadata.side_effect = [True, False]
         mock_interface.metadata = {"metada": "A"}
         mock_switch.interfaces = {1: mock_interface}
+        self.napp.store_items = {'interfaces': MagicMock()}
         self.napp.controller.switches = {'00:00:00:00:00:00:00:01':
                                          mock_switch}
         api = get_test_client(self.napp.controller, self.napp)
@@ -917,6 +920,7 @@ class TestMain(TestCase):
         mock_link = MagicMock(Link)
         mock_link.metadata = "A"
         self.napp.links = {'1': mock_link}
+        self.napp.store_items = {'links': MagicMock()}
         msg_success = {"metadata": "A"}
         api = get_test_client(self.napp.controller, self.napp)
 
@@ -932,12 +936,13 @@ class TestMain(TestCase):
         response = api.get(url)
         self.assertEqual(response.status_code, 404, response.data)
 
-    @patch('napps.kytos.topology.main.Main.notify_metadata_changes')
-    def test_add_link_metadata(self, mock_metadata_changes):
+    @patch('napps.kytos.topology.main.Main.save_metadata_on_store')
+    def test_add_link_metadata(self, mock_save_metadata):
         """Test add_link_metadata."""
         mock_link = MagicMock(Link)
         mock_link.metadata = "A"
         self.napp.links = {'1': mock_link}
+        self.napp.store_items = {'links': MagicMock()}
         payload = {"metadata": "A"}
         api = get_test_client(self.napp.controller, self.napp)
 
@@ -946,7 +951,7 @@ class TestMain(TestCase):
         response = api.post(url, data=json.dumps(payload),
                             content_type='application/json')
         self.assertEqual(response.status_code, 201, response.data)
-        mock_metadata_changes.assert_called()
+        mock_save_metadata.assert_called()
 
         # fail case
         link_id = 2
@@ -971,13 +976,14 @@ class TestMain(TestCase):
                             content_type='application/json')
         self.assertEqual(response.status_code, 415, response.data)
 
-    @patch('napps.kytos.topology.main.Main.notify_metadata_changes')
-    def test_delete_link_metadata(self, mock_metadata_changes):
+    @patch('napps.kytos.topology.main.Main.save_metadata_on_store')
+    def test_delete_link_metadata(self, mock_save_metadata):
         """Test delete_link_metadata."""
         mock_link = MagicMock(Link)
         mock_link.metadata = "A"
         mock_link.remove_metadata.side_effect = [True, False]
         self.napp.links = {'1': mock_link}
+        self.napp.store_items = {'links': MagicMock()}
         api = get_test_client(self.napp.controller, self.napp)
 
         link_id = 1
@@ -985,7 +991,7 @@ class TestMain(TestCase):
         url = f'{self.server_name_url}/v3/links/{link_id}/metadata/{key}'
         response = api.delete(url)
         self.assertEqual(response.status_code, 200, response.data)
-        mock_metadata_changes.assert_called()
+        mock_save_metadata.assert_called()
 
         # fail case link not found
         link_id = 2
@@ -1165,20 +1171,6 @@ class TestMain(TestCase):
 
     @patch('napps.kytos.topology.main.KytosEvent')
     @patch('kytos.core.buffers.KytosEventBuffer.put')
-    @patch('napps.kytos.topology.main.isinstance')
-    def test_notify_metadata_changes(self, *args):
-        """Test notify metadata changes."""
-        (mock_isinstance, mock_buffers_put, mock_event) = args
-        mock_isinstance.return_value = True
-        mock_obj = MagicMock()
-        mock_action = create_autospec(Switch)
-        self.napp.notify_metadata_changes(mock_obj, mock_action)
-        mock_event.assert_called()
-        mock_isinstance.assert_called()
-        mock_buffers_put.assert_called()
-
-    @patch('napps.kytos.topology.main.KytosEvent')
-    @patch('kytos.core.buffers.KytosEventBuffer.put')
     def test_notify_port_created(self, *args):
         """Test notify port created."""
         (mock_buffers_put, mock_kytos_event) = args
@@ -1192,28 +1184,28 @@ class TestMain(TestCase):
     def test_save_metadata_on_store(self, *args):
         """Test test_save_metadata_on_store."""
         (mock_buffers_put, mock_kytos_event) = args
-        mock_event = MagicMock()
-        mock_switch = MagicMock()
-        mock_interface = MagicMock()
-        mock_link = MagicMock()
-        self.napp.store_items = {'switches': mock_switch,
-                                 'interfaces': mock_interface,
-                                 'links': mock_link}
+        mock_store = MagicMock()
+        mock_switch = MagicMock(spec=Switch)
+        mock_switch.metadata = {}
+        mock_interface = MagicMock(spec=Interface)
+        mock_interface.metadata = {}
+        mock_link = MagicMock(spec=Link)
+        mock_link.metadata = {}
+        self.napp.store_items = {'switches': mock_store,
+                                 'interfaces': mock_store,
+                                 'links': mock_store}
         # test switches
-        mock_event.content = {'switch': mock_switch}
-        self.napp.save_metadata_on_store(mock_event)
+        self.napp.save_metadata_on_store(mock_switch)
         mock_kytos_event.assert_called()
         mock_buffers_put.assert_called()
 
         # test interfaces
-        mock_event.content = {'interface': mock_interface}
-        self.napp.save_metadata_on_store(mock_event)
+        self.napp.save_metadata_on_store(mock_interface)
         mock_kytos_event.assert_called()
         mock_buffers_put.assert_called()
 
         # test link
-        mock_event.content = {'link': mock_link}
-        self.napp.save_metadata_on_store(mock_event)
+        self.napp.save_metadata_on_store(mock_link)
         mock_kytos_event.assert_called()
         mock_buffers_put.assert_called()
 
