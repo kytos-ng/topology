@@ -354,7 +354,7 @@ class TestMain(TestCase):
         self.assertEqual(switch.id, dpid_a)
         self.assertEqual(switch.dpid, dpid_a)
         self.assertTrue(switch.is_enabled())
-        self.assertTrue(switch.is_active())
+        self.assertFalse(switch.is_active())
 
         self.assertEqual(len(switch.interfaces), 1)
         self.assertIn(1, switch.interfaces)
@@ -419,7 +419,7 @@ class TestMain(TestCase):
         self.assertEqual(switch.id, dpid_b)
         self.assertEqual(switch.dpid, dpid_b)
         self.assertFalse(switch.is_enabled())
-        self.assertTrue(switch.is_active())
+        self.assertFalse(switch.is_active())
         self.assertEqual(switch.description['manufacturer'], 'Nicira, Inc.')
         self.assertEqual(switch.description['hardware'], 'Open vSwitch')
         self.assertEqual(switch.description['software'], '2.10.7')
