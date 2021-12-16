@@ -4,7 +4,7 @@
 #
 #    pip-compile --output-file requirements/dev2.txt requirements/dev.in
 #
--e git+https://github.com/kytos-ng/kytos.git#egg=kytos
+-e git+https://github.com/kytos-ng/kytos.git@fix/revert_switch_lastseen#egg=kytos
 -e .
 -e git+https://github.com/kytos-ng/python-openflow.git#egg=python-openflow
 astroid==2.3.3            # via pylint
