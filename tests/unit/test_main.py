@@ -410,8 +410,8 @@ class TestMain(TestCase):
             "type": "switch"
         }
 
+        self.assertEqual(len(self.napp.controller.switches), 0)
         self.napp._load_switch(dpid_b, switch_attrs)
-
         self.assertEqual(len(self.napp.controller.switches), 1)
         self.assertIn(dpid_b, self.napp.controller.switches)
 
@@ -909,12 +909,7 @@ class TestMain(TestCase):
     @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
     def test_handle_network_status_updated(self, mock_save_status):
         """Test handle_link_maintenance_start."""
-        event = MagicMock()
-        event.name = 'kytos/of_lldp.network_status.updated'
-        event.content = {'attribute': 'LLDP',
-                         'state': 'enabled',
-                         'interface_ids': '00:00:00:00:00:00:00:01:1'}
-        self.napp.handle_network_status_updated(event)
+        self.napp.handle_network_status_updated()
         mock_save_status.assert_called_once()
 
     def test_get_link_metadata(self):
@@ -1076,7 +1071,6 @@ class TestMain(TestCase):
          mock_link_from_interface) = args
 
         now = time.time()
-        mock_event = MagicMock()
         mock_interface_a = create_autospec(Interface)
         mock_interface_a.is_active.return_value = False
         mock_interface_b = create_autospec(Interface)
@@ -1087,10 +1081,8 @@ class TestMain(TestCase):
         mock_link.endpoint_a = mock_interface_a
         mock_link.endpoint_b = mock_interface_b
         mock_link_from_interface.return_value = mock_link
-        content = {'interface': mock_interface_a}
-        mock_event.content = content
         self.napp.link_up_timer = 1
-        self.napp.handle_interface_link_up(mock_event)
+        self.napp.handle_interface_link_up(mock_interface_a)
         mock_topology_update.assert_called()
         mock_instance_metadata.assert_called()
         mock_status_change.assert_called()
