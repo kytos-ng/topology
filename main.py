@@ -296,7 +296,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             return jsonify("Switch not found"), 404
 
         switch.extend_metadata(metadata)
-        self.save_metadata_on_store(switch)
+        self.notify_metadata_changes(switch, 'added')
         return jsonify("Operation successful"), 201
 
     @rest('v3/switches/<dpid>/metadata/<key>', methods=['DELETE'])
@@ -308,7 +308,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             return jsonify("Switch not found"), 404
 
         switch.remove_metadata(key)
-        self.save_metadata_on_store(switch)
+        self.notify_metadata_changes(switch, 'removed')
         return jsonify("Operation successful"), 200
 
     # Interface related methods
@@ -417,7 +417,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             return jsonify("Interface not found"), 404
 
         interface.extend_metadata(metadata)
-        self.save_metadata_on_store(interface)
+        self.notify_metadata_changes(interface, 'added')
         return jsonify("Operation successful"), 201
 
     @rest('v3/interfaces/<interface_id>/metadata/<key>', methods=['DELETE'])
@@ -439,7 +439,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if interface.remove_metadata(key) is False:
             return jsonify("Metadata not found"), 404
 
-        self.save_metadata_on_store(interface)
+        self.notify_metadata_changes(interface, 'removed')
         return jsonify("Operation successful"), 200
 
     # Link related methods
@@ -497,7 +497,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             return jsonify("Link not found"), 404
 
         link.extend_metadata(metadata)
-        self.save_metadata_on_store(link)
+        self.notify_metadata_changes(link, 'added')
         return jsonify("Operation successful"), 201
 
     @rest('v3/links/<link_id>/metadata/<key>', methods=['DELETE'])
@@ -511,7 +511,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if link.remove_metadata(key) is False:
             return jsonify("Metadata not found"), 404
 
-        self.save_metadata_on_store(link)
+        self.notify_metadata_changes(link, 'removed')
         return jsonify("Operation successful"), 200
 
     @listen_to('.*.switch.(new|reconnected)')
@@ -779,6 +779,24 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             })
         self.controller.buffers.app.put(event)
 
+    def notify_metadata_changes(self, obj, action):
+        """Send an event to notify about metadata changes."""
+        if isinstance(obj, Switch):
+            entity = 'switch'
+            entities = 'switches'
+        elif isinstance(obj, Interface):
+            entity = 'interface'
+            entities = 'interfaces'
+        elif isinstance(obj, Link):
+            entity = 'link'
+            entities = 'links'
+
+        name = f'kytos/topology.{entities}.metadata.{action}'
+        event = KytosEvent(name=name, content={entity: obj,
+                                               'metadata': obj.metadata})
+        self.controller.buffers.app.put(event)
+        log.debug(f'Metadata from {obj.id} was {action}.')
+
     @listen_to('.*.switch.port.created')
     def on_notify_port_created(self, event):
         """Notify when a port is created."""
@@ -790,17 +808,25 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         event = KytosEvent(name=name, content=event.content)
         self.controller.buffers.app.put(event)
 
-    def save_metadata_on_store(self, obj):
+    @listen_to('kytos/topology.*.metadata.*')
+    def on_save_metadata_on_store(self, event):
+        """Send to storehouse the data updated."""
+        self.save_metadata_on_store(event)
+
+    def save_metadata_on_store(self, event):
         """Send to storehouse the data updated."""
         name = 'kytos.storehouse.update'
-        if isinstance(obj, Switch):
+        if 'switch' in event.content:
             store = self.store_items.get('switches')
+            obj = event.content.get('switch')
             namespace = 'kytos.topology.switches.metadata'
-        elif isinstance(obj, Interface):
+        elif 'interface' in event.content:
             store = self.store_items.get('interfaces')
+            obj = event.content.get('interface')
             namespace = 'kytos.topology.interfaces.metadata'
-        elif isinstance(obj, Link):
+        elif 'link' in event.content:
             store = self.store_items.get('links')
+            obj = event.content.get('link')
             namespace = 'kytos.topology.links.metadata'
 
         store.data[obj.id] = obj.metadata
