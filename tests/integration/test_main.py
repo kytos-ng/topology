@@ -158,8 +158,7 @@ class TestMain(TestCase):
                            '.*.switch.interface.link_up',
                            '.*.switch.(new|reconnected)',
                            '.*.switch.port.created',
-                           'kytos/storehouse.loaded',
-                           'kytos/topology.*.metadata.*']
+                           'kytos/storehouse.loaded']
         actual_events = self.napp.listeners()
         self.assertCountEqual(expected_events, actual_events)
 
@@ -244,11 +243,8 @@ class TestMain(TestCase):
 
     def test_save_metadata_on_store(self):
         """Test save metadata on store."""
-        event_name = 'kytos.storehouse.update'
         switch = get_switch_mock(0x04)
-        event = KytosEvent(name=event_name,
-                           content={'switch': switch})
-        self.napp.save_metadata_on_store(event)
+        self.napp.save_metadata_on_store(switch, 'switches')
         event_list_response = self.napp.controller.buffers.app.get()
         event_updated_response = self.napp.controller.buffers.app.get()
 
