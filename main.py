@@ -791,6 +791,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             entity = 'link'
             entities = 'links'
 
+        self.save_metadata_on_store(obj, entities)
+
         name = f'kytos/topology.{entities}.metadata.{action}'
         event = KytosEvent(name=name, content={entity: obj,
                                                'metadata': obj.metadata})
@@ -808,26 +810,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         event = KytosEvent(name=name, content=event.content)
         self.controller.buffers.app.put(event)
 
-    @listen_to('kytos/topology.*.metadata.*')
-    def on_save_metadata_on_store(self, event):
-        """Send to storehouse the data updated."""
-        self.save_metadata_on_store(event)
-
-    def save_metadata_on_store(self, event):
+    def save_metadata_on_store(self, obj, entities):
         """Send to storehouse the data updated."""
         name = 'kytos.storehouse.update'
-        if 'switch' in event.content:
-            store = self.store_items.get('switches')
-            obj = event.content.get('switch')
-            namespace = 'kytos.topology.switches.metadata'
-        elif 'interface' in event.content:
-            store = self.store_items.get('interfaces')
-            obj = event.content.get('interface')
-            namespace = 'kytos.topology.interfaces.metadata'
-        elif 'link' in event.content:
-            store = self.store_items.get('links')
-            obj = event.content.get('link')
-            namespace = 'kytos.topology.links.metadata'
+        store = self.store_items.get(entities)
+        namespace = f'kytos.topology.{entities}.metadata'
 
         store.data[obj.id] = obj.metadata
         content = {'namespace': namespace,
