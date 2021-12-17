@@ -790,6 +790,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         elif isinstance(obj, Link):
             entity = 'link'
             entities = 'links'
+        else:
+            raise ValueError(
+                'Invalid object, supported: Switch, Interface, Link'
+            )
 
         self.save_metadata_on_store(obj, entities)
 

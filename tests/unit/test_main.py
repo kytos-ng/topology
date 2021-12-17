@@ -1178,6 +1178,8 @@ class TestMain(TestCase):
             self.assertEqual(mock_event.call_count, count+1)
             self.assertEqual(mock_buffers_put.call_count, count+1)
             count += 1
+        with self.assertRaises(ValueError):
+            self.napp.notify_metadata_changes(MagicMock(), 'added')
 
     @patch('napps.kytos.topology.main.KytosEvent')
     @patch('kytos.core.buffers.KytosEventBuffer.put')
