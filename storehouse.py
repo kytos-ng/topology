@@ -6,9 +6,6 @@ from kytos.core import log
 from kytos.core.events import KytosEvent
 from napps.kytos.topology import settings
 
-DEFAULT_BOX_RESTORE_TIMER = 0.1
-BOX_RESTORE_ATTEMPTS = 20
-
 
 class StoreHouse:
     """Class to handle storehouse."""
@@ -27,9 +24,6 @@ class StoreHouse:
         """Create a storehouse client instance."""
         self.controller = controller
         self.namespace = 'kytos.topology.status'
-        self.box_restore_timer = getattr(settings, 'BOX_RESTORE_TIMER',
-                                         DEFAULT_BOX_RESTORE_TIMER)
-
         if '_lock' not in self.__dict__:
             self._lock = threading.Lock()
         if 'box' not in self.__dict__:
@@ -40,9 +34,9 @@ class StoreHouse:
         """Return the persistence box data."""
         # Wait for box retrieve from storehouse
         i = 0
-        while not self.box and i < BOX_RESTORE_ATTEMPTS:
-            time.sleep(self.box_restore_timer)
-            i += 1
+        while not self.box and i < settings.STOREHOUSE_TIMEOUT:
+            time.sleep(settings.STOREHOUSE_WAIT_INTERVAL)
+            i += settings.STOREHOUSE_WAIT_INTERVAL
         if not self.box:
             error = 'Error retrieving persistence box from storehouse.'
             raise FileNotFoundError(error)

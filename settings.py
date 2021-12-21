@@ -5,8 +5,6 @@
 
 # Time (in seconds) to wait before setting a link as up
 LINK_UP_TIMER = 10
-# Time (in seconds) to wait retrieve box from storehouse
-BOX_RESTORE_TIMER = 0.1
 
 # Time (in seconds) to wait for a confirmation from storehouse
 # when retrieving or updating a box
