@@ -113,10 +113,15 @@ class TestMain(TestCase):
         mock_interface_a.id = dpid_a
         mock_interface_b.id = dpid_b
 
-        link = self.napp._get_link_or_create(mock_interface_a,
-                                             mock_interface_b)
+        link, created = self.napp._get_link_or_create(mock_interface_a,
+                                                      mock_interface_b)
+        self.assertTrue(created)
         self.assertEqual(link.endpoint_a.id, dpid_a)
         self.assertEqual(link.endpoint_b.id, dpid_b)
+
+        link, created = self.napp._get_link_or_create(mock_interface_a,
+                                                      mock_interface_b)
+        self.assertFalse(created)
 
     def test_get_link_from_interface(self):
         """Test _get_link_from_interface."""
@@ -484,7 +489,7 @@ class TestMain(TestCase):
         mock_link = get_link_mock(mock_interface_a, mock_interface_b)
         mock_link.id = link_id
         with patch('napps.kytos.topology.main.Main._get_link_or_create',
-                   return_value=mock_link):
+                   return_value=(mock_link, True)):
             # enable link
             link_attrs['enabled'] = True
             self.napp.links = {link_id: mock_link}
@@ -1110,6 +1115,7 @@ class TestMain(TestCase):
     def test_add_links(self, *args):
         """Test add_links."""
         (mock_notify_topology_update, mock_get_link_or_create) = args
+        mock_get_link_or_create.return_value = (MagicMock(), True)
         mock_event = MagicMock()
         self.napp.add_links(mock_event)
         mock_get_link_or_create.assert_called()
