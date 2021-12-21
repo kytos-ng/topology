@@ -28,6 +28,8 @@ class StoreHouse:
             self._lock = threading.Lock()
         if 'box' not in self.__dict__:
             self.box = None
+        self.storehouse_done = False
+        self.storehouse_error = None
         self.list_stored_boxes()
 
     def get_data(self):
@@ -93,39 +95,36 @@ class StoreHouse:
 
     def save_status(self, status):
         """Save the network administrative status using storehouse."""
-        storehouse_done = False
-        storehouse_error = None
-
-        def _storehouse_callback(event, data, error):
-            """Handle storehouse update result."""
-            # pylint: disable=unused-argument
-            nonlocal storehouse_done, storehouse_error
-            storehouse_done = True
-            storehouse_error = error
-
         with self._lock:
+            self.storehouse_done = False
+            self.storehouse_error = None
             self.box.data[status.get('id')] = status
             content = {'namespace': self.namespace,
                        'box_id': self.box.box_id,
                        'data': self.box.data,
-                       'callback': _storehouse_callback}
+                       'callback': self._save_status_callback}
             event = KytosEvent(name='kytos.storehouse.update',
                                content=content)
             self.controller.buffers.app.put(event)
 
             i = 0
-            while not storehouse_done and i < settings.STOREHOUSE_TIMEOUT:
+            while not self.storehouse_done and i < settings.STOREHOUSE_TIMEOUT:
                 time.sleep(settings.STOREHOUSE_WAIT_INTERVAL)
                 i += settings.STOREHOUSE_WAIT_INTERVAL
 
-            if not storehouse_done:
-                storehouse_error = 'Timeout while waiting for storehouse'
+            if not self.storehouse_done:
+                self.storehouse_error = 'Timeout while waiting for storehouse'
 
-            if storehouse_error:
+            if self.storehouse_error:
                 log.error('Fail to update persistence box in '
                           f'{self.namespace}.{self.box.box_id}. '
-                          f'Error: {storehouse_error}')
+                          f'Error: {self.storehouse_error}')
                 return
 
         log.info('Network administrative status saved in '
                  f'{self.namespace}.{self.box.box_id}')
+
+    def _save_status_callback(self, _event, _data, error):
+        """Handle storehouse update result."""
+        self.storehouse_done = True
+        self.storehouse_error = error
