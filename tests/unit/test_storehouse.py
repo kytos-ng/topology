@@ -24,8 +24,10 @@ class TestStoreHouse(TestCase):
 
         self.napp = StoreHouse(get_controller_mock())
 
+    @patch('time.sleep', return_value=None)
+    @patch('napps.kytos.topology.storehouse.settings')
     @patch('napps.kytos.topology.storehouse.StoreHouse.get_stored_box')
-    def test_get_data(self, mock_get_stored_box):
+    def test_get_data(self, mock_get_stored_box, mock_settings, mock_sleep):
         """Test get_data."""
         mock_box = MagicMock()
         box_data = MagicMock()
@@ -39,6 +41,14 @@ class TestStoreHouse(TestCase):
         response = self.napp.get_data()
         self.assertEqual(response.data, "box")
 
+        # test timeout
+        mock_settings.STOREHOUSE_TIMEOUT = 2
+        mock_settings.STOREHOUSE_WAIT_INTERVAL = 0.5
+        self.napp.box = None
+        with self.assertRaises(FileNotFoundError):
+            self.napp.get_data()
+        self.assertEqual(mock_sleep.call_count, 4)
+
     @patch('napps.kytos.topology.storehouse.KytosEvent')
     @patch('kytos.core.buffers.KytosEventBuffer.put')
     def test_create_box(self, *args):
@@ -47,6 +57,16 @@ class TestStoreHouse(TestCase):
         self.napp.create_box()
         mock_event.assert_called()
         mock_buffers_put.assert_called()
+
+    # pylint: disable = protected-access
+    @patch('napps.kytos.topology.storehouse.log')
+    def test_create_box_callback(self, mock_log):
+        """Test _create_box_callback."""
+        mock_data = MagicMock()
+        self.napp._create_box_callback('event', mock_data, None)
+        mock_log.error.assert_not_called()
+        self.napp._create_box_callback('event', mock_data, 'error')
+        mock_log.error.assert_called()
 
     # pylint: disable = protected-access
     @patch('napps.kytos.topology.storehouse.StoreHouse.get_stored_box')
@@ -76,12 +96,47 @@ class TestStoreHouse(TestCase):
         mock_event.assert_called()
         mock_buffers_put.assert_called()
 
-    @patch('napps.kytos.topology.storehouse.KytosEvent')
+    # pylint: disable = protected-access
+    @patch('napps.kytos.topology.storehouse.log')
+    def test_get_box_callback(self, mock_log):
+        """Test _get_box_callback."""
+        mock_data = MagicMock()
+        self.napp._get_box_callback('event', mock_data, None)
+        mock_log.error.assert_not_called()
+        self.napp._get_box_callback('event', mock_data, 'error')
+        mock_log.error.assert_called()
+
+    @patch('time.sleep', return_value=None)
+    @patch('napps.kytos.topology.storehouse.log')
     @patch('kytos.core.buffers.KytosEventBuffer.put')
     def test_save_status(self, *args):
         """Test save_status."""
-        (mock_buffers_put, mock_event) = args
+        (mock_buffers_put, mock_log, mock_sleep) = args
         mock_status = MagicMock()
+        self.napp.box = MagicMock()
+
+        # case 1: successfull return
+        def buffers_put_side_effect_1(event):
+            event.content['callback']('event', 'data', None)
+        mock_buffers_put.side_effect = buffers_put_side_effect_1
         self.napp.save_status(mock_status)
-        mock_event.assert_called()
         mock_buffers_put.assert_called()
+        mock_sleep.assert_not_called()
+        mock_log.info.assert_called()
+
+        # case 2: error from storehouse
+        def buffers_put_side_effect_2(event):
+            event.content['callback']('event', 'data', 'error')
+        mock_buffers_put.side_effect = buffers_put_side_effect_2
+        self.napp.save_status(mock_status)
+        mock_buffers_put.assert_called()
+        mock_sleep.assert_not_called()
+        mock_log.error.assert_called()
+
+        # case 3: timeout
+        mock_log.error.call_count = 0
+        mock_buffers_put.side_effect = [None]
+        self.napp.save_status(mock_status)
+        mock_buffers_put.assert_called()
+        mock_sleep.assert_called()
+        mock_log.error.assert_called()
