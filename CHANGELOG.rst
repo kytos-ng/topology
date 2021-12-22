@@ -25,6 +25,20 @@ Security
 ========
 
 
+[3.9.0] - 2021-12-22
+********************
+
+Changed
+=======
+- Changed ``on_interface_created`` to handle to try to also handle as a link up
+- Changed ``add_links`` to update the interface object reference.
+- Changed ``handle_link_up`` to first activate an interface, and used the ``_links_lock``
+
+Added
+=====
+- Added ``_links_lock`` to avoid race conditions on ``links`` dict
+
+
 [3.8.0] - 2021-12-22
 ********************
 
