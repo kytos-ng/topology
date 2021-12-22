@@ -680,13 +680,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def handle_link_down(self, interface):
         """Notify a link is down."""
-        interface.deactivate()
         link = self._get_link_from_interface(interface)
         if link and link.is_active():
             link.deactivate()
             link.update_metadata('last_status_change', time.time())
             self.notify_topology_update()
             self.notify_link_status_change(link, reason='link down')
+        interface.deactivate()
 
     @listen_to('.*.interface.is.nni')
     def on_add_links(self, event):
