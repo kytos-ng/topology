@@ -675,6 +675,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def handle_link_down(self, interface):
         """Notify a link is down."""
+        interface.deactivate()
         link = self._get_link_from_interface(interface)
         if link and link.is_active():
             link.deactivate()
