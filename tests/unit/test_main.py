@@ -1125,6 +1125,8 @@ class TestMain(TestCase):
         self.napp.handle_link_down(mock_interface)
         mock_interface.deactivate.assert_called()
         mock_link.deactivate.assert_called()
+        mock_topology_update.assert_called()
+        mock_status_change.assert_called()
 
     @patch('napps.kytos.topology.main.Main._get_link_or_create')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
