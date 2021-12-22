@@ -32,6 +32,15 @@ Changed
 =======
 - Fixed ``handle_link_down`` to also deactivate the interface
 
+[3.7.3] - 2021-12.21
+********************
+
+Changed
+=======
+- Changed ``add_links`` to only notify a topology update if a link has been created. 
+- Changed ``_get_link_or_create`` to also return whether or not a new link has been created.
+
+
 [3.7.2] - 2021-04-01
 ********************
 

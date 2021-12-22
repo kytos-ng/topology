@@ -76,14 +76,19 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         return metadata
 
     def _get_link_or_create(self, endpoint_a, endpoint_b):
+        """Get an existing link or create a new one.
+
+        Returns:
+            Tuple(Link, bool): Link and a boolean whether it has been created.
+        """
         new_link = Link(endpoint_a, endpoint_b)
 
         for link in self.links.values():
             if new_link == link:
-                return link
+                return (link, False)
 
         self.links[new_link.id] = new_link
-        return new_link
+        return (new_link, True)
 
     def _get_switches_dict(self):
         """Return a dictionary with the known switches."""
@@ -136,7 +141,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             error = f'Fail to load endpoints for link {link_str}: {err}'
             raise RestoreError(error)
 
-        link = self._get_link_or_create(interface_a, interface_b)
+        link, _ = self._get_link_or_create(interface_a, interface_b)
 
         if link_att['enabled']:
             link.enable()
@@ -694,7 +699,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface_b = event.content['interface_b']
 
         try:
-            link = self._get_link_or_create(interface_a, interface_b)
+            link, created = self._get_link_or_create(interface_a, interface_b)
         except KytosLinkCreationError as err:
             log.error(f'Error creating link: {err}.')
             return
@@ -705,7 +710,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface_a.nni = True
         interface_b.nni = True
 
-        self.notify_topology_update()
+        if created:
+            self.notify_topology_update()
 
     # def add_host(self, event):
     #    """Update the topology with a new Host."""
