@@ -462,7 +462,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def enable_link(self, link_id):
         """Administratively enable a link in the topology."""
         try:
-            self.links[link_id].enable()
+            with self._links_lock:
+                self.links[link_id].enable()
         except KeyError:
             return jsonify("Link not found"), 404
         self.save_status_on_storehouse()
@@ -476,7 +477,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def disable_link(self, link_id):
         """Administratively disable a link in the topology."""
         try:
-            self.links[link_id].disable()
+            with self._links_lock:
+                self.links[link_id].disable()
         except KeyError:
             return jsonify("Link not found"), 404
         self.save_status_on_storehouse()
@@ -911,7 +913,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     @listen_to('kytos/maintenance.start_link')
     def on_link_maintenance_start(self, event):
         """Deals with the start of links maintenance."""
-        self.handle_link_maintenance_start(event)
+        with self._links_lock:
+            self.handle_link_maintenance_start(event)
 
     def handle_link_maintenance_start(self, event):
         """Deals with the start of links maintenance."""
@@ -935,7 +938,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     @listen_to('kytos/maintenance.end_link')
     def on_link_maintenance_end(self, event):
         """Deals with the end of links maintenance."""
-        self.handle_link_maintenance_end(event)
+        with self._links_lock:
+            self.handle_link_maintenance_end(event)
 
     def handle_link_maintenance_end(self, event):
         """Deals with the end of links maintenance."""
