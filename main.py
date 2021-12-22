@@ -581,7 +581,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """
         interface = event.content['interface']
         interface.deactivate()
-        self.handle_interface_link_down(event)
+        self.handle_interface_link_down(interface)
         self.notify_topology_update()
 
     @listen_to('.*.switch.interface.deleted')
