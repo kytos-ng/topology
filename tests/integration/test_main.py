@@ -268,21 +268,6 @@ class TestMain(TestCase):
         self.assertEqual(event_response.name,
                          'kytos/topology.updated')
 
-    def test_handle_interface_created(self):
-        """Test handle interface created."""
-        event_name = '.*.switch.interface.created'
-        interface = get_interface_mock("interface1", 7)
-        stats_event = KytosEvent(name=event_name,
-                                 content={'interface': interface})
-        self.napp.handle_interface_created(stats_event)
-        event_list_response = self.napp.controller.buffers.app.get()
-        event_updated_response = self.napp.controller.buffers.app.get()
-
-        self.assertEqual(event_list_response.name,
-                         'kytos.storehouse.list')
-        self.assertEqual(event_updated_response.name,
-                         'kytos/topology.updated')
-
     def test_handle_interface_deleted(self):
         """Test handle interface deleted."""
         event_name = '.*.switch.interface.deleted'

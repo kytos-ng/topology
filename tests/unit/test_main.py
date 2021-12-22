@@ -1040,13 +1040,6 @@ class TestMain(TestCase):
         mock_notify_topology_update.assert_called()
         mock_instance_metadata.assert_called()
 
-    @patch('napps.kytos.topology.main.Main.handle_interface_up')
-    def test_handle_interface_created(self, mock_handle_interface_up):
-        """Test handle interface created."""
-        mock_event = MagicMock()
-        self.napp.handle_interface_created(mock_event)
-        mock_handle_interface_up.assert_called()
-
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.handle_interface_link_down')
     def test_handle_interface_down(self, *args):
@@ -1133,11 +1126,20 @@ class TestMain(TestCase):
     def test_add_links(self, *args):
         """Test add_links."""
         (mock_notify_topology_update, mock_get_link_or_create) = args
-        mock_get_link_or_create.return_value = (MagicMock(), True)
+        mock_link = MagicMock()
+        mock_get_link_or_create.return_value = (mock_link, True)
         mock_event = MagicMock()
+        mock_intf_a = MagicMock()
+        mock_intf_b = MagicMock()
+        mock_event.content = {"interface_a": mock_intf_a,
+                              "interface_b": mock_intf_b}
         self.napp.add_links(mock_event)
         mock_get_link_or_create.assert_called()
         mock_notify_topology_update.assert_called()
+        mock_intf_a.update_link.assert_called()
+        mock_intf_b.update_link.assert_called()
+        mock_link.endpoint_a = mock_intf_a
+        mock_link.endpoint_b = mock_intf_b
 
     @patch('napps.kytos.topology.main.Main._get_switches_dict')
     @patch('napps.kytos.topology.main.StoreHouse.save_status')
