@@ -25,6 +25,13 @@ Security
 ========
 
 
+[3.8.0] - 2021-12-22
+********************
+
+Changed
+=======
+- Fixed ``handle_link_down`` to also deactivate the interface
+
 [3.7.2] - 2021-04-01
 ********************
 
