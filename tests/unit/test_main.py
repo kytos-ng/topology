@@ -1141,35 +1141,6 @@ class TestMain(TestCase):
         mock_link.endpoint_a = mock_intf_a
         mock_link.endpoint_b = mock_intf_b
 
-    @patch('napps.kytos.topology.main.Main._get_link_or_create')
-    @patch('napps.kytos.topology.main.Main.notify_topology_update')
-    def test_add_links_sanity_activation(self, *args):
-        """Test add_links with the 2nd sanity activation attepmt.
-
-        This test is needed until `handle_link_up` have the interface
-        obj refs correctly from of_core, it's a 2nd sanity activation
-        """
-        (mock_notify_topology_update, mock_get_link_or_create) = args
-        mock_link = MagicMock()
-        mock_link.is_active.return_value = False
-        mock_get_link_or_create.return_value = (mock_link, True)
-        mock_event = MagicMock()
-        mock_intf_a = MagicMock()
-        mock_intf_a.is_active.return_value = True
-        mock_intf_b = MagicMock()
-        mock_intf_b.is_active.return_value = True
-        mock_event.content = {"interface_a": mock_intf_a,
-                              "interface_b": mock_intf_b}
-        self.napp.add_links(mock_event)
-        mock_get_link_or_create.assert_called()
-        mock_notify_topology_update.assert_called()
-        mock_intf_a.update_link.assert_called()
-        mock_intf_b.update_link.assert_called()
-        mock_link.endpoint_a = mock_intf_a
-        mock_link.endpoint_b = mock_intf_b
-        mock_link.update_metadata.assert_called()
-        mock_link.activate.assert_called()
-
     @patch('napps.kytos.topology.main.Main._get_switches_dict')
     @patch('napps.kytos.topology.main.StoreHouse.save_status')
     def test_save_status_on_store(self, *args):
