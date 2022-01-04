@@ -1121,6 +1121,43 @@ class TestMain(TestCase):
         mock_topology_update.assert_called()
         mock_status_change.assert_called()
 
+    @patch('napps.kytos.topology.main.Main._get_link_from_interface')
+    @patch('napps.kytos.topology.main.Main.notify_topology_update')
+    @patch('napps.kytos.topology.main.Main.notify_link_status_change')
+    def test_handle_link_up(self, *args):
+        """Test handle link up."""
+        (mock_status_change, mock_topology_update,
+         mock_link_from_interface) = args
+
+        mock_interface = create_autospec(Interface)
+        mock_link = MagicMock()
+        mock_link.is_active.return_value = True
+        mock_link_from_interface.return_value = mock_link
+        self.napp.handle_link_up(mock_interface)
+        mock_interface.activate.assert_called()
+        mock_topology_update.assert_called()
+        mock_status_change.assert_called()
+
+    @patch('time.sleep')
+    @patch('napps.kytos.topology.main.Main._get_link_from_interface')
+    @patch('napps.kytos.topology.main.Main.notify_topology_update')
+    @patch('napps.kytos.topology.main.Main.notify_link_status_change')
+    def test_handle_link_up_intf_down(self, *args):
+        """Test handle link up but one intf down."""
+        (mock_status_change, mock_topology_update,
+         mock_link_from_interface, _) = args
+
+        mock_interface = create_autospec(Interface)
+        mock_link = MagicMock()
+        mock_link.endpoint_a.is_active.return_value = False
+        mock_link.is_active.return_value = False
+        mock_link_from_interface.return_value = mock_link
+        self.napp.handle_link_up(mock_interface)
+        mock_interface.activate.assert_called()
+
+        mock_topology_update.assert_not_called()
+        mock_status_change.assert_not_called()
+
     @patch('napps.kytos.topology.main.Main._get_link_or_create')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     def test_add_links(self, *args):
