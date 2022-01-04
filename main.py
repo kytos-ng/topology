@@ -653,6 +653,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 self.notify_topology_update()
                 self.update_instance_metadata(link)
                 self.notify_link_status_change(link, reason='link up')
+        else:
+            link.update_metadata('last_status_change', time.time())
+            self.notify_topology_update()
+            self.update_instance_metadata(link)
+            self.notify_link_status_change(link, reason='link up')
 
     @listen_to('.*.switch.interface.link_down')
     def on_interface_link_down(self, event):
@@ -710,21 +715,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 interface_a.update_link(link)
                 interface_b.update_link(link)
 
-                """
-                this check is needed until `handle_link_up` have the interface
-                obj refs correctly from of_core, it's a 2nd sanity activation
-                """
-                if all(
-                    (
-                        not link.is_active(),
-                        interface_a.is_active(),
-                        interface_b.is_active(),
-                    )
-                ):
-                    link.update_metadata('last_status_change', time.time())
-                    link.activate()
-                    self.update_instance_metadata(link)
-                    created = True
                 link.endpoint_a = interface_a
                 link.endpoint_b = interface_b
 
