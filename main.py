@@ -654,11 +654,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 self.update_instance_metadata(link)
                 self.notify_link_status_change(link, reason='link up')
         else:
-            last_status_change = link.get_metadata('last_status_change')
-            now = time.time()
-            if now - last_status_change < self.link_up_timer:
-                return
-
             link.update_metadata('last_status_change', time.time())
             self.notify_topology_update()
             self.update_instance_metadata(link)

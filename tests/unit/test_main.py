@@ -1133,7 +1133,6 @@ class TestMain(TestCase):
         mock_link = MagicMock()
         mock_link.is_active.return_value = True
         mock_link_from_interface.return_value = mock_link
-        mock_link.get_metadata.return_value = time.time() - 1000
         self.napp.handle_link_up(mock_interface)
         mock_interface.activate.assert_called()
         mock_topology_update.assert_called()
