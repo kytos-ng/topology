@@ -2,6 +2,7 @@
 from unittest import TestCase
 from unittest.mock import MagicMock, PropertyMock, patch
 
+# pylint: disable=import-error,no-name-in-module
 from tests.unit.helpers import get_controller_mock
 
 

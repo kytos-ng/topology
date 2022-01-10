@@ -61,9 +61,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         try:
             metadata = request.get_json()
             content_type = request.content_type
-        except BadRequest:
+        except BadRequest as err:
             result = 'The request body is not a well-formed JSON.'
-            raise BadRequest(result)
+            raise BadRequest(result) from err
         if content_type is None:
             result = 'The request body is empty.'
             raise BadRequest(result)
@@ -106,7 +106,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def _get_links_dict(self):
         """Return a dictionary with the known links."""
-        return {'links': {l.id: l.as_dict() for l in
+        return {'links': {link.id: link.as_dict() for link in
                           self.links.values()}}
 
     def _get_topology_dict(self):
@@ -140,7 +140,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             interface_b = switch_b.interfaces[port_b]
         except Exception as err:
             error = f'Fail to load endpoints for link {link_str}: {err}'
-            raise RestoreError(error)
+            raise RestoreError(error) from err
 
         with self._links_lock:
             link, _ = self._get_link_or_create(interface_a, interface_b)
@@ -212,7 +212,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         links = status['network_status']['links']
 
         failed_switches = {}
-        log.debug("_load_network_status switches=%s" % switches)
+        log.debug(f"_load_network_status switches={switches}")
         for switch_id, switch_att in switches.items():
             try:
                 self._load_switch(switch_id, switch_att)
@@ -222,7 +222,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 log.error(f'Error loading switch: {err}')
 
         failed_links = {}
-        log.debug("_load_network_status links=%s" % links)
+        log.debug(f"_load_network_status links={links}")
         for link_id, link_att in links.items():
             try:
                 self._load_link(link_att)
@@ -354,7 +354,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             for interface in switch.interfaces.values():
                 interface.enable()
         if not error_list:
-            log.info(f"Storing administrative state for enabled interfaces.")
+            log.info("Storing administrative state for enabled interfaces.")
             self.save_status_on_storehouse()
             return jsonify("Operation successful"), 200
         return jsonify({msg_error:
@@ -384,7 +384,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             for interface in switch.interfaces.values():
                 interface.disable()
         if not error_list:
-            log.info(f"Storing administrative state for disabled interfaces.")
+            log.info("Storing administrative state for disabled interfaces.")
             self.save_status_on_storehouse()
             return jsonify("Operation successful"), 200
         return jsonify({msg_error:
