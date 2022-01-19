@@ -141,7 +141,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 return link
         return None
 
-    def _load_intf_available_tags(self, interface, intf_dict):
+    @staticmethod
+    def _load_intf_available_tags(interface, intf_dict):
         """Load interface available tags given its dict."""
         available_tags = intf_dict.get("available_tags", [])
         if available_tags:
@@ -820,19 +821,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def handle_network_status_updated(self) -> None:
         """Handle *.network_status.updated events, specially from of_lldp."""
         self.save_status_on_storehouse()
-
-    def _update_interface_dict(self, links_dict, interface_id, interface_dict):
-        """Update interface dict."""
-        if not interface_id or not interface_dict:
-            return
-        links = dict(links_dict)
-        for link in links["links"].values():
-            for endpoint in ("endpoint_a", "endpoint_b"):
-                if not link[endpoint]["id"] == interface_id:
-                    continue
-                for k, v in interface_dict.items():
-                    link[endpoint].update(interface_dict)
-        return links
 
     def save_status_on_storehouse(self):
         """Save the network administrative status using storehouse."""
