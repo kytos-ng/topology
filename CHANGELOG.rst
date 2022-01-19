@@ -24,6 +24,19 @@ Fixed
 Security
 ========
 
+[3.10.0] - 2022-01-19
+*********************
+
+Changed
+=======
+- Changed ``_load_link`` to try to also load interface available tags
+- Changed ``save_status_on_storehouse`` to also store interface available_tags
+
+Added
+=====
+- Subscribed to ``kytos/mef_eline.link_available_tags`` events
+- Added ``_load_intf_available_tags`` to try to load and set available_Tags
+- Added ``_get_links_dict_with_tags`` to also have interface available_tags
 
 [3.9.0] - 2021-12-22
 ********************
