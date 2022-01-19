@@ -3,6 +3,7 @@ import json
 import time
 from unittest import TestCase
 from unittest.mock import MagicMock, create_autospec, patch
+# pylint: disable=import-error,no-name-in-module
 
 from kytos.core.interface import Interface
 from kytos.core.link import Link
