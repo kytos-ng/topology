@@ -43,6 +43,7 @@ class TestMain(TestCase):
                            'kytos/maintenance.start_switch',
                            'kytos/maintenance.end_switch',
                            'kytos/storehouse.loaded',
+                           'kytos/mef_eline.link_available_tags',
                            '.*.network_status.updated',
                            '.*.interface.is.nni',
                            '.*.connection.lost',
@@ -445,7 +446,8 @@ class TestMain(TestCase):
         self.assertTrue(interface.uni)
         self.assertFalse(interface.nni)
 
-    def test_load_link(self):
+    @patch('napps.kytos.topology.main.Main._load_intf_available_tags')
+    def test_load_link(self, mock_load_tags):
         """Test _load_link."""
         dpid_a = "00:00:00:00:00:00:00:01"
         dpid_b = "00:00:00:00:00:00:00:02"
@@ -453,8 +455,10 @@ class TestMain(TestCase):
         mock_switch_b = get_switch_mock(dpid_b, 0x04)
         mock_interface_a = get_interface_mock('s1-eth1', 1, mock_switch_a)
         mock_interface_a.id = dpid_a + ':1'
+        mock_interface_a.available_tags = [1, 2, 3]
         mock_interface_b = get_interface_mock('s2-eth1', 1, mock_switch_b)
         mock_interface_b.id = dpid_b + ':1'
+        mock_interface_b.available_tags = [1, 2, 3]
         mock_switch_a.interfaces = {1: mock_interface_a}
         mock_switch_b.interfaces = {1: mock_interface_b}
         self.napp.controller.switches[dpid_a] = mock_switch_a
@@ -472,6 +476,7 @@ class TestMain(TestCase):
         }
 
         self.napp._load_link(link_attrs)
+        mock_load_tags.assert_called()
 
         self.assertEqual(len(self.napp.links), 1)
         link = list(self.napp.links.values())[0]
@@ -1389,3 +1394,16 @@ class TestMain(TestCase):
         event.content = content
         self.napp.handle_switch_maintenance_end(event)
         self.assertEqual(handle_link_up_mock.call_count, 5)
+
+    def test_load_intf_available_tags(self):
+        """Test load_intf_available_tags."""
+        intf = MagicMock()
+        intf_dict = {}
+        assert not self.napp._load_intf_available_tags(intf, intf_dict)
+
+        available_tags = [10]
+        intf_dict["available_tags"] = available_tags
+        assert (
+            self.napp._load_intf_available_tags(intf, intf_dict)
+            == available_tags
+        )
