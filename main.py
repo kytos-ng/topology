@@ -32,6 +32,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Initialize the NApp's links list."""
         self.links = {}
         self.store_items = {}
+        self.intf_available_tags = {}
         self.link_up_timer = getattr(settings, 'LINK_UP_TIMER',
                                      DEFAULT_LINK_UP_TIMER)
 
@@ -109,6 +110,21 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         return {'links': {link.id: link.as_dict() for link in
                           self.links.values()}}
 
+    def _get_links_dict_with_tags(self):
+        """Return a dict with the known links with stored available_tags."""
+        links = {}
+        for link in self.links.values():
+            link_dict = link.as_dict()
+            endpoint_a = link_dict["endpoint_a"]
+            endpoint_b = link_dict["endpoint_b"]
+            for endpoint in (endpoint_a, endpoint_b):
+                if endpoint["id"] in self.intf_available_tags:
+                    endpoint["available_tags"] = self.intf_available_tags[
+                        endpoint["id"]
+                    ]
+            links[link.id] = link_dict
+        return {"links": links}
+
     def _get_topology_dict(self):
         """Return a dictionary with the known topology."""
         return {'topology': {**self._get_switches_dict(),
@@ -124,6 +140,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             if interface in (link.endpoint_a, link.endpoint_b):
                 return link
         return None
+
+    def _load_intf_available_tags(self, interface, intf_dict):
+        """Load interface available tags given its dict."""
+        available_tags = intf_dict.get("available_tags", [])
+        if available_tags:
+            interface.set_available_tags(available_tags)
+        return available_tags
 
     def _load_link(self, link_att):
         dpid_a = link_att['endpoint_a']['switch']
@@ -154,6 +177,15 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface_b.update_link(link)
         interface_a.nni = True
         interface_b.nni = True
+        for interface, interface_dict in (
+            (interface_a, link_att["endpoint_a"]),
+            (interface_b, link_att["endpoint_b"]),
+        ):
+            if self._load_intf_available_tags(interface, interface_dict):
+                log.info(
+                    f"Loaded {len(interface.available_tags)}"
+                    f" available tags for {interface.id}"
+                )
         self.update_instance_metadata(link)
 
     def _load_switch(self, switch_id, switch_att):
@@ -523,6 +555,25 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.notify_metadata_changes(link, 'removed')
         return jsonify("Operation successful"), 200
 
+    @listen_to("kytos/mef_eline.link_available_tags")
+    def on_link_available_tags(self, event):
+        """Handle on_link_available_tags."""
+        with self._links_lock:
+            self.handle_on_link_available_tags(event.content.get("link"))
+
+    def handle_on_link_available_tags(self, link):
+        """Handle on_link_available_tags."""
+        if link.id not in self.links:
+            return
+        endpoint_a = self.links[link.id].endpoint_a
+        endpoint_b = self.links[link.id].endpoint_b
+        tags_a = [tag.value for tag in endpoint_a.available_tags]
+        tags_b = [tag.value for tag in endpoint_b.available_tags]
+        self.intf_available_tags[endpoint_a.id] = tags_a
+        self.intf_available_tags[endpoint_b.id] = tags_b
+
+        self.save_status_on_storehouse()
+
     @listen_to('.*.switch.(new|reconnected)')
     def on_new_switch(self, event):
         """Create a new Device on the Topology.
@@ -759,12 +810,25 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Handle *.network_status.updated events, specially from of_lldp."""
         self.save_status_on_storehouse()
 
+    def _update_interface_dict(self, links_dict, interface_id, interface_dict):
+        """Update interface dict."""
+        if not interface_id or not interface_dict:
+            return
+        links = dict(links_dict)
+        for link in links["links"].values():
+            for endpoint in ("endpoint_a", "endpoint_b"):
+                if not link[endpoint]["id"] == interface_id:
+                    continue
+                for k, v in interface_dict.items():
+                    link[endpoint].update(interface_dict)
+        return links
+
     def save_status_on_storehouse(self):
         """Save the network administrative status using storehouse."""
         with self._lock:
             status = self._get_switches_dict()
             status['id'] = 'network_status'
-            status.update(self._get_links_dict())
+            status.update(self._get_links_dict_with_tags())
             self.storehouse.save_status(status)
 
     def notify_switch_enabled(self, dpid):
