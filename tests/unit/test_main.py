@@ -1034,12 +1034,13 @@ class TestMain(TestCase):
         self.napp.handle_connection_lost(mock_event)
         mock_notify_topology_update.assert_called()
 
+    @patch('napps.kytos.topology.main.Main._load_intf_available_tags')
     @patch('napps.kytos.topology.main.Main.handle_interface_link_up')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.update_instance_metadata')
     def test_handle_interface_created(self, *args):
         """Test handle_interface_created."""
-        (mock_metadata, mock_notify, mock_link_up) = args
+        (mock_metadata, mock_notify, mock_link_up, mock_tags) = args
         mock_event = MagicMock()
         mock_interface = create_autospec(Interface)
         mock_event.content['interface'] = mock_interface
@@ -1047,6 +1048,7 @@ class TestMain(TestCase):
         mock_notify.assert_called()
         mock_metadata.assert_called()
         mock_link_up.assert_called()
+        mock_tags.assert_called()
 
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.handle_interface_link_down')
