@@ -620,13 +620,14 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface = event.content['interface']
 
         with self._links_lock:
-            available_tags = self.intf_available_tags.get(interface.id, [])
-            interface_dict = {"available_tags": available_tags}
-            if self._load_intf_available_tags(interface, interface_dict):
-                log.info(
-                    f"Loaded {len(interface.available_tags)}"
-                    f" available tags for {interface.id}"
-                )
+            if interface.id in self.intf_available_tags:
+                available_tags = self.intf_available_tags[interface.id]
+                interface_dict = {"available_tags": available_tags}
+                if self._load_intf_available_tags(interface, interface_dict):
+                    log.info(
+                        f"Loaded {len(interface.available_tags)}"
+                        f" available tags for {interface.id}"
+                    )
 
         self.update_instance_metadata(interface)
         self.handle_interface_link_up(interface)
