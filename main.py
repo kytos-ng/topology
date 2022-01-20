@@ -144,10 +144,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     @staticmethod
     def _load_intf_available_tags(interface, intf_dict):
         """Load interface available tags given its dict."""
-        available_tags = intf_dict.get("available_tags", [])
-        if available_tags:
-            interface.set_available_tags(available_tags)
-        return available_tags
+        has_available_tags = "available_tags" in intf_dict
+        if has_available_tags:
+            interface.set_available_tags(intf_dict["available_tags"])
+        return has_available_tags
 
     def _load_link(self, link_att):
         dpid_a = link_att['endpoint_a']['switch']

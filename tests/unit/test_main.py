@@ -1405,9 +1405,7 @@ class TestMain(TestCase):
         intf_dict = {}
         assert not self.napp._load_intf_available_tags(intf, intf_dict)
 
-        available_tags = [10]
-        intf_dict["available_tags"] = available_tags
-        assert (
-            self.napp._load_intf_available_tags(intf, intf_dict)
-            == available_tags
-        )
+        for available_tags in ([1, 10], [10], []):
+            with self.subTest(available_tags=available_tags, intf_dict={}):
+                intf_dict["available_tags"] = available_tags
+                assert self.napp._load_intf_available_tags(intf, intf_dict)
