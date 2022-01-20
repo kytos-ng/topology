@@ -1043,7 +1043,11 @@ class TestMain(TestCase):
         (mock_metadata, mock_notify, mock_link_up, mock_tags) = args
         mock_event = MagicMock()
         mock_interface = create_autospec(Interface)
-        mock_event.content['interface'] = mock_interface
+        mock_interface.id = "1"
+        available_tags = [1, 2, 3]
+        mock_interface.available_tags = []
+        mock_event.content = {'interface': mock_interface}
+        self.napp.intf_available_tags[mock_interface.id] = available_tags
         self.napp.handle_interface_created(mock_event)
         mock_notify.assert_called()
         mock_metadata.assert_called()
