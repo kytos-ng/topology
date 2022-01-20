@@ -151,7 +151,7 @@ class TestMain(TestCase):
                            'kytos/maintenance.end_link',
                            'kytos/maintenance.start_switch',
                            'kytos/maintenance.end_switch',
-                           'kytos/mef_eline.link_available_tags',
+                           'kytos/*.link_available_tags',
                            '.*.network_status.updated',
                            '.*.interface.is.nni',
                            '.*.connection.lost',

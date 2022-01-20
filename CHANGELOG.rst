@@ -34,7 +34,7 @@ Changed
 
 Added
 =====
-- Subscribed to ``kytos/mef_eline.link_available_tags`` events
+- Subscribed to ``kytos/*.link_available_tags`` events
 - Added ``_load_intf_available_tags`` to try to load and set available_Tags
 - Added ``_get_links_dict_with_tags`` to also have interface available_tags
 - Hooked ``_load_intf_available_tags`` to be called for interface_created
