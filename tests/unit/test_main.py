@@ -3,6 +3,7 @@ import json
 import time
 from unittest import TestCase
 from unittest.mock import MagicMock, create_autospec, patch
+# pylint: disable=import-error,no-name-in-module
 
 from kytos.core.interface import Interface
 from kytos.core.link import Link
@@ -1028,24 +1029,19 @@ class TestMain(TestCase):
         self.napp.handle_connection_lost(mock_event)
         mock_notify_topology_update.assert_called()
 
+    @patch('napps.kytos.topology.main.Main.handle_interface_link_up')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.update_instance_metadata')
-    def test_handle_interface_up(self, *args):
-        """Test handle_interface_up."""
-        (mock_instance_metadata, mock_notify_topology_update) = args
+    def test_handle_interface_created(self, *args):
+        """Test handle_interface_created."""
+        (mock_metadata, mock_notify, mock_link_up) = args
         mock_event = MagicMock()
         mock_interface = create_autospec(Interface)
         mock_event.content['interface'] = mock_interface
-        self.napp.handle_interface_up(mock_event)
-        mock_notify_topology_update.assert_called()
-        mock_instance_metadata.assert_called()
-
-    @patch('napps.kytos.topology.main.Main.handle_interface_up')
-    def test_handle_interface_created(self, mock_handle_interface_up):
-        """Test handle interface created."""
-        mock_event = MagicMock()
         self.napp.handle_interface_created(mock_event)
-        mock_handle_interface_up.assert_called()
+        mock_notify.assert_called()
+        mock_metadata.assert_called()
+        mock_link_up.assert_called()
 
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.handle_interface_link_down')
@@ -1128,16 +1124,62 @@ class TestMain(TestCase):
         mock_topology_update.assert_called()
         mock_status_change.assert_called()
 
+    @patch('napps.kytos.topology.main.Main._get_link_from_interface')
+    @patch('napps.kytos.topology.main.Main.notify_topology_update')
+    @patch('napps.kytos.topology.main.Main.notify_link_status_change')
+    def test_handle_link_up(self, *args):
+        """Test handle link up."""
+        (mock_status_change, mock_topology_update,
+         mock_link_from_interface) = args
+
+        mock_interface = create_autospec(Interface)
+        mock_link = MagicMock()
+        mock_link.is_active.return_value = True
+        mock_link_from_interface.return_value = mock_link
+        self.napp.handle_link_up(mock_interface)
+        mock_interface.activate.assert_called()
+        mock_topology_update.assert_called()
+        mock_status_change.assert_called()
+
+    @patch('time.sleep')
+    @patch('napps.kytos.topology.main.Main._get_link_from_interface')
+    @patch('napps.kytos.topology.main.Main.notify_topology_update')
+    @patch('napps.kytos.topology.main.Main.notify_link_status_change')
+    def test_handle_link_up_intf_down(self, *args):
+        """Test handle link up but one intf down."""
+        (mock_status_change, mock_topology_update,
+         mock_link_from_interface, _) = args
+
+        mock_interface = create_autospec(Interface)
+        mock_link = MagicMock()
+        mock_link.endpoint_a.is_active.return_value = False
+        mock_link.is_active.return_value = False
+        mock_link_from_interface.return_value = mock_link
+        self.napp.handle_link_up(mock_interface)
+        mock_interface.activate.assert_called()
+
+        mock_topology_update.assert_not_called()
+        mock_status_change.assert_not_called()
+
     @patch('napps.kytos.topology.main.Main._get_link_or_create')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     def test_add_links(self, *args):
         """Test add_links."""
         (mock_notify_topology_update, mock_get_link_or_create) = args
-        mock_get_link_or_create.return_value = (MagicMock(), True)
+        mock_link = MagicMock()
+        mock_get_link_or_create.return_value = (mock_link, True)
         mock_event = MagicMock()
+        mock_intf_a = MagicMock()
+        mock_intf_b = MagicMock()
+        mock_event.content = {"interface_a": mock_intf_a,
+                              "interface_b": mock_intf_b}
         self.napp.add_links(mock_event)
         mock_get_link_or_create.assert_called()
         mock_notify_topology_update.assert_called()
+        mock_intf_a.update_link.assert_called()
+        mock_intf_b.update_link.assert_called()
+        mock_link.endpoint_a = mock_intf_a
+        mock_link.endpoint_b = mock_intf_b
 
     @patch('napps.kytos.topology.main.Main._get_switches_dict')
     @patch('napps.kytos.topology.main.StoreHouse.save_status')

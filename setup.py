@@ -22,7 +22,7 @@ if 'bdist_wheel' in sys.argv:
 BASE_ENV = Path(os.environ.get('VIRTUAL_ENV', '/'))
 
 NAPP_NAME = 'topology'
-NAPP_VERSION = '3.8.0'
+NAPP_VERSION = '3.9.0'
 
 # Kytos var folder
 VAR_PATH = BASE_ENV / 'var' / 'lib' / 'kytos'
@@ -69,7 +69,7 @@ class TestCommand(Command):
 
     def get_args(self):
         """Return args to be used in test command."""
-        return '--size %s --type %s' % (self.size, self.type)
+        return f'--size {self.size} --type {self.type}'
 
     def initialize_options(self):
         """Set default size and type args."""
@@ -110,13 +110,13 @@ class Test(TestCommand):
         markers = self.size
         if markers == "small":
             markers = 'not medium and not large'
-        size_args = "" if self.size == "all" else "-m '%s'" % markers
+        size_args = "" if self.size == "all" else f"-m f'{markers}'"
         test_type = "" if self.type == "all" else self.type
-        return '--addopts="tests/%s %s"' % (test_type, size_args)
+        return f'--addopts="tests/{test_type} {size_args}"'
 
     def run(self):
         """Run tests."""
-        cmd = 'python setup.py pytest %s' % self.get_args()
+        cmd = f'python setup.py pytest {self.get_args()}'
         try:
             check_call(cmd, shell=True)
         except CalledProcessError as exc:
@@ -132,7 +132,7 @@ class TestCoverage(Test):
 
     def run(self):
         """Run tests quietly and display coverage report."""
-        cmd = 'coverage3 run setup.py pytest %s' % self.get_args()
+        cmd = f'coverage3 run setup.py pytest {self.get_args()}'
         cmd += '&& coverage3 report'
         try:
             check_call(cmd, shell=True)
@@ -160,9 +160,9 @@ class CITest(TestCommand):
 
     def run(self):
         """Run unit tests with coverage, doc tests and linter."""
-        coverage_cmd = 'python3.6 setup.py coverage %s' % self.get_args()
+        coverage_cmd = f'python3.6 setup.py coverage {self.get_args()}'
         lint_cmd = 'python3.6 setup.py lint'
-        cmd = '%s && %s' % (coverage_cmd, lint_cmd)
+        cmd = f'{coverage_cmd} && {lint_cmd}'
         check_call(cmd, shell=True)
 
 
@@ -203,7 +203,7 @@ class EggInfo(egg_info):
         """Python wheels are much faster (no compiling)."""
         print('Installing dependencies...')
         check_call([sys.executable, '-m', 'pip', 'install', '-r',
-                    'requirements/run.in'])
+                    'requirements/run.txt'])
 
 
 class DevelopMode(develop):
@@ -263,6 +263,16 @@ def symlink_if_different(path, target):
         path.symlink_to(target)
 
 
+def read_requirements(path="requirements/run.txt"):
+    """Read requirements file and return a list."""
+    with open(path, "r", encoding="utf8") as file:
+        return [
+            line.strip()
+            for line in file.readlines()
+            if not line.startswith("#")
+        ]
+
+
 setup(name=f'kytos_{NAPP_NAME}',
       version=NAPP_VERSION,
       description='Core NApps developed by the Kytos Team',
@@ -270,7 +280,7 @@ setup(name=f'kytos_{NAPP_NAME}',
       author='Kytos Team',
       author_email='of-ng-dev@ncc.unesp.br',
       license='MIT',
-      install_requires=['setuptools >= 36.0.1'],
+      install_requires=read_requirements(),
       setup_requires=['pytest-runner'],
       tests_require=['pytest'],
       extras_require={
