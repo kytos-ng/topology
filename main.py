@@ -556,7 +556,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.notify_metadata_changes(link, 'removed')
         return jsonify("Operation successful"), 200
 
-    @listen_to("kytos/*.link_available_tags")
+    @listen_to("kytos/.*.link_available_tags")
     def on_link_available_tags(self, event):
         """Handle on_link_available_tags."""
         with self._links_lock:
