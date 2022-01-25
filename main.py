@@ -631,6 +631,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         self.update_instance_metadata(interface)
         self.handle_interface_link_up(interface)
+        self.notify_topology_update()
 
     @listen_to('.*.switch.interface.created')
     def on_interface_created(self, event):
@@ -649,6 +650,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface = event.content['interface']
         interface.deactivate()
         self.handle_interface_link_down(interface)
+        self.notify_topology_update()
 
     @listen_to('.*.switch.interface.deleted')
     def on_interface_deleted(self, event):
@@ -690,7 +692,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def handle_link_up(self, interface):
         """Notify a link is up."""
         interface.activate()
-        self.notify_topology_update()
         with self._links_lock:
             link = self._get_link_from_interface(interface)
         if not link:
@@ -713,13 +714,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             now = time.time()
             if link.is_active() and \
                     now - last_status_change >= self.link_up_timer:
-                self.update_instance_metadata(link)
                 self.notify_topology_update()
+                self.update_instance_metadata(link)
                 self.notify_link_status_change(link, reason='link up')
         else:
             link.update_metadata('last_status_change', time.time())
-            self.update_instance_metadata(link)
             self.notify_topology_update()
+            self.update_instance_metadata(link)
             self.notify_link_status_change(link, reason='link up')
         link.update_metadata('last_status_is_active', True)
 
@@ -759,18 +760,17 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             link.deactivate()
             link.update_metadata('last_status_change', time.time())
             link.update_metadata('last_status_is_active', False)
-            self.notify_link_status_change(link, reason='link down')
             self.notify_topology_update()
+            self.notify_link_status_change(link, reason='link down')
         if link and not link.is_active():
             with self._links_lock:
                 last_status = link.get_metadata('last_status_is_active')
                 if last_status:
                     link.update_metadata('last_status_is_active', False)
                     link.update_metadata('last_status_change', time.time())
-                    self.notify_link_status_change(link, reason='link down')
                     self.notify_topology_update()
+                    self.notify_link_status_change(link, reason='link down')
         interface.deactivate()
-        self.notify_topology_update()
 
     @listen_to('.*.interface.is.nni')
     def on_add_links(self, event):

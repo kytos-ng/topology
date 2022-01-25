@@ -1036,10 +1036,11 @@ class TestMain(TestCase):
 
     @patch('napps.kytos.topology.main.Main._load_intf_available_tags')
     @patch('napps.kytos.topology.main.Main.handle_interface_link_up')
+    @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.update_instance_metadata')
     def test_handle_interface_created(self, *args):
         """Test handle_interface_created."""
-        (mock_metadata, mock_link_up, mock_tags) = args
+        (mock_metadata, mock_notify, mock_link_up, mock_tags) = args
         mock_event = MagicMock()
         mock_interface = create_autospec(Interface)
         mock_interface.id = "1"
@@ -1048,18 +1049,22 @@ class TestMain(TestCase):
         mock_event.content = {'interface': mock_interface}
         self.napp.intf_available_tags[mock_interface.id] = available_tags
         self.napp.handle_interface_created(mock_event)
+        mock_notify.assert_called()
         mock_metadata.assert_called()
         mock_link_up.assert_called()
         mock_tags.assert_called()
 
+    @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.handle_interface_link_down')
-    def test_handle_interface_down(self, mock_handle_interface_link_down):
+    def test_handle_interface_down(self, *args):
         """Test handle interface down."""
+        (mock_handle_interface_link_down, mock_notify_topology_update) = args
         mock_event = MagicMock()
         mock_interface = create_autospec(Interface)
         mock_event.content['interface'] = mock_interface
         self.napp.handle_interface_down(mock_event)
         mock_handle_interface_link_down.assert_called()
+        mock_notify_topology_update.assert_called()
 
     @patch('napps.kytos.topology.main.Main.handle_interface_down')
     def test_interface_deleted(self, mock_handle_interface_link_down):
@@ -1127,7 +1132,7 @@ class TestMain(TestCase):
         self.napp.handle_link_down(mock_interface)
         mock_interface.deactivate.assert_called()
         mock_link.deactivate.assert_called()
-        assert mock_topology_update.call_count == 2
+        mock_topology_update.assert_called()
         mock_status_change.assert_called()
 
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
@@ -1162,7 +1167,7 @@ class TestMain(TestCase):
         mock_link_from_interface.return_value = mock_link
         self.napp.handle_link_up(mock_interface)
         mock_interface.activate.assert_called()
-        assert mock_topology_update.call_count == 2
+        mock_topology_update.assert_called()
         mock_status_change.assert_called()
 
     @patch('time.sleep')
@@ -1181,7 +1186,8 @@ class TestMain(TestCase):
         mock_link_from_interface.return_value = mock_link
         self.napp.handle_link_up(mock_interface)
         mock_interface.activate.assert_called()
-        assert mock_topology_update.call_count == 1
+
+        mock_topology_update.assert_not_called()
         mock_status_change.assert_not_called()
 
     @patch('napps.kytos.topology.main.Main.update_instance_metadata')
