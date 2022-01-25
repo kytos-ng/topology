@@ -300,6 +300,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                  " to enabled.")
         self.save_status_on_storehouse()
         self.notify_switch_enabled(dpid)
+        self.notify_topology_update()
         return jsonify("Operation successful"), 201
 
     @rest('v3/switches/<dpid>/disable', methods=['POST'])
@@ -390,6 +391,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if not error_list:
             log.info("Storing administrative state for enabled interfaces.")
             self.save_status_on_storehouse()
+            self.notify_topology_update()
             return jsonify("Operation successful"), 200
         return jsonify({msg_error:
                         error_list}), 409
@@ -506,6 +508,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             self.links[link_id],
             reason='link enabled'
         )
+        self.notify_topology_update()
         return jsonify("Operation successful"), 201
 
     @rest('v3/links/<link_id>/disable', methods=['POST'])
