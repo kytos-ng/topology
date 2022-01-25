@@ -24,16 +24,6 @@ Fixed
 Security
 ========
 
-[2022.1.0] - 2022-01-25
-***********************
-
-Changed
-=======
-- Hooked ``notify_topology_update`` to be called at least once if an interface goes up or down
-- Updated rest endpoints that disable entities to notify topology update
-- Updated rest endpoints that enable entities to notify topology update
-- Changed status code from 409 to 404 when interfaces aren't found
-
 [3.10.1] - 2022-01-20
 *********************
 
