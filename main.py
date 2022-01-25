@@ -369,6 +369,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     @rest('v3/interfaces/<interface_enable_id>/enable', methods=['POST'])
     def enable_interface(self, interface_enable_id=None, dpid=None):
         """Administratively enable interfaces in the topology."""
+        error_list = []  # List of interfaces that were not activated.
+        msg_error = "Some interfaces couldn't be found and activated: "
         if dpid is None:
             dpid = ":".join(interface_enable_id.split(":")[:-1])
         try:
@@ -381,21 +383,25 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
             try:
                 switch.interfaces[interface_number].enable()
-            except KeyError:
-                msg = f"Switch {dpid} interface {interface_number} not found"
-                return jsonify(msg), 404
+            except KeyError as exc:
+                error_list.append(f"Switch {dpid} Interface {exc}")
         else:
             for interface in switch.interfaces.values():
                 interface.enable()
-        log.info("Storing administrative state for enabled interfaces.")
-        self.save_status_on_storehouse()
-        self.notify_topology_update()
-        return jsonify("Operation successful"), 200
+        if not error_list:
+            log.info("Storing administrative state for enabled interfaces.")
+            self.save_status_on_storehouse()
+            self.notify_topology_update()
+            return jsonify("Operation successful"), 200
+        return jsonify({msg_error:
+                        error_list}), 409
 
     @rest('v3/interfaces/switch/<dpid>/disable', methods=['POST'])
     @rest('v3/interfaces/<interface_disable_id>/disable', methods=['POST'])
     def disable_interface(self, interface_disable_id=None, dpid=None):
         """Administratively disable interfaces in the topology."""
+        error_list = []  # List of interfaces that were not deactivated.
+        msg_error = "Some interfaces couldn't be found and deactivated: "
         if dpid is None:
             dpid = ":".join(interface_disable_id.split(":")[:-1])
         try:
@@ -408,16 +414,18 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
             try:
                 switch.interfaces[interface_number].disable()
-            except KeyError:
-                msg = f"Switch {dpid} interface {interface_number} not found"
-                return jsonify(msg), 404
+            except KeyError as exc:
+                error_list.append(f"Switch {dpid} Interface {exc}")
         else:
             for interface in switch.interfaces.values():
                 interface.disable()
-        log.info("Storing administrative state for disabled interfaces.")
-        self.save_status_on_storehouse()
-        self.notify_topology_update()
-        return jsonify("Operation successful"), 200
+        if not error_list:
+            log.info("Storing administrative state for disabled interfaces.")
+            self.save_status_on_storehouse()
+            self.notify_topology_update()
+            return jsonify("Operation successful"), 200
+        return jsonify({msg_error:
+                        error_list}), 409
 
     @rest('v3/interfaces/<interface_id>/metadata')
     def get_interface_metadata(self, interface_id):
