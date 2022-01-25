@@ -550,9 +550,8 @@ class TestMain(TestCase):
         with self.assertRaises(RestoreError):
             self.napp._load_link(link_attrs_fail)
 
-    @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
-    def test_enable_switch(self, mock_save_status, mock_notify_topo):
+    def test_enable_switch(self, mock_save_status):
         """Test enable_switch."""
         dpid = "00:00:00:00:00:00:00:01"
         mock_switch = get_switch_mock(dpid)
@@ -564,7 +563,6 @@ class TestMain(TestCase):
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(mock_switch.enable.call_count, 1)
         mock_save_status.assert_called()
-        mock_notify_topo.assert_called()
 
         # fail case
         mock_switch.enable.call_count = 0
@@ -676,9 +674,8 @@ class TestMain(TestCase):
         self.assertEqual(mock_metadata_changes.call_count, 1)  # remains 1 call
         self.assertEqual(response.status_code, 404, response.data)
 
-    @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
-    def test_enable_interfaces(self, mock_save_status, mock_notify_topo):
+    def test_enable_interfaces(self, mock_save_status):
         """Test enable_interfaces."""
         dpid = '00:00:00:00:00:00:00:01'
         mock_switch = get_switch_mock(dpid)
@@ -695,7 +692,6 @@ class TestMain(TestCase):
         self.assertEqual(mock_interface_1.enable.call_count, 1)
         self.assertEqual(mock_interface_2.enable.call_count, 0)
         mock_save_status.assert_called()
-        mock_notify_topo.assert_called()
 
         mock_interface_1.enable.call_count = 0
         mock_interface_2.enable.call_count = 0
@@ -886,9 +882,8 @@ class TestMain(TestCase):
         response = api.delete(url)
         self.assertEqual(response.status_code, 404, response.data)
 
-    @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
-    def test_enable_link(self, mock_save_status, mock_notify_topo):
+    def test_enable_link(self, mock_save_status):
         """Test enable_link."""
         mock_link = MagicMock(Link)
         self.napp.links = {'1': mock_link}
@@ -900,7 +895,6 @@ class TestMain(TestCase):
         response = api.post(url)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(mock_link.enable.call_count, 1)
-        mock_notify_topo.assert_called()
 
         # fail case
         link_id = 2
