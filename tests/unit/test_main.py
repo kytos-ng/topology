@@ -711,7 +711,7 @@ class TestMain(TestCase):
         mock_interface_2.enable.call_count = 0
         url = f'{self.server_name_url}/v3/interfaces/{interface_id}/enable'
         response = api.post(url)
-        self.assertEqual(response.status_code, 409, response.data)
+        self.assertEqual(response.status_code, 404, response.data)
         self.assertEqual(mock_interface_1.enable.call_count, 0)
         self.assertEqual(mock_interface_2.enable.call_count, 0)
 
@@ -758,7 +758,7 @@ class TestMain(TestCase):
         mock_interface_2.disable.call_count = 0
         url = f'{self.server_name_url}/v3/interfaces/{interface_id}/disable'
         response = api.post(url)
-        self.assertEqual(response.status_code, 409, response.data)
+        self.assertEqual(response.status_code, 404, response.data)
         self.assertEqual(mock_interface_1.disable.call_count, 0)
         self.assertEqual(mock_interface_2.disable.call_count, 0)
 
