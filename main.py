@@ -300,6 +300,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                  " to enabled.")
         self.save_status_on_storehouse()
         self.notify_switch_enabled(dpid)
+        self.notify_topology_update()
         return jsonify("Operation successful"), 201
 
     @rest('v3/switches/<dpid>/disable', methods=['POST'])
@@ -314,6 +315,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                  " to disabled.")
         self.save_status_on_storehouse()
         self.notify_switch_disabled(dpid)
+        self.notify_topology_update()
         return jsonify("Operation successful"), 201
 
     @rest('v3/switches/<dpid>/metadata')
@@ -367,8 +369,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     @rest('v3/interfaces/<interface_enable_id>/enable', methods=['POST'])
     def enable_interface(self, interface_enable_id=None, dpid=None):
         """Administratively enable interfaces in the topology."""
-        error_list = []  # List of interfaces that were not activated.
-        msg_error = "Some interfaces couldn't be found and activated: "
         if dpid is None:
             dpid = ":".join(interface_enable_id.split(":")[:-1])
         try:
@@ -381,24 +381,21 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
             try:
                 switch.interfaces[interface_number].enable()
-            except KeyError as exc:
-                error_list.append(f"Switch {dpid} Interface {exc}")
+            except KeyError:
+                msg = f"Switch {dpid} interface {interface_number} not found"
+                return jsonify(msg), 404
         else:
             for interface in switch.interfaces.values():
                 interface.enable()
-        if not error_list:
-            log.info("Storing administrative state for enabled interfaces.")
-            self.save_status_on_storehouse()
-            return jsonify("Operation successful"), 200
-        return jsonify({msg_error:
-                        error_list}), 409
+        log.info("Storing administrative state for enabled interfaces.")
+        self.save_status_on_storehouse()
+        self.notify_topology_update()
+        return jsonify("Operation successful"), 200
 
     @rest('v3/interfaces/switch/<dpid>/disable', methods=['POST'])
     @rest('v3/interfaces/<interface_disable_id>/disable', methods=['POST'])
     def disable_interface(self, interface_disable_id=None, dpid=None):
         """Administratively disable interfaces in the topology."""
-        error_list = []  # List of interfaces that were not deactivated.
-        msg_error = "Some interfaces couldn't be found and deactivated: "
         if dpid is None:
             dpid = ":".join(interface_disable_id.split(":")[:-1])
         try:
@@ -411,17 +408,16 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
             try:
                 switch.interfaces[interface_number].disable()
-            except KeyError as exc:
-                error_list.append(f"Switch {dpid} Interface {exc}")
+            except KeyError:
+                msg = f"Switch {dpid} interface {interface_number} not found"
+                return jsonify(msg), 404
         else:
             for interface in switch.interfaces.values():
                 interface.disable()
-        if not error_list:
-            log.info("Storing administrative state for disabled interfaces.")
-            self.save_status_on_storehouse()
-            return jsonify("Operation successful"), 200
-        return jsonify({msg_error:
-                        error_list}), 409
+        log.info("Storing administrative state for disabled interfaces.")
+        self.save_status_on_storehouse()
+        self.notify_topology_update()
+        return jsonify("Operation successful"), 200
 
     @rest('v3/interfaces/<interface_id>/metadata')
     def get_interface_metadata(self, interface_id):
@@ -504,6 +500,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             self.links[link_id],
             reason='link enabled'
         )
+        self.notify_topology_update()
         return jsonify("Operation successful"), 201
 
     @rest('v3/links/<link_id>/disable', methods=['POST'])
@@ -519,6 +516,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             self.links[link_id],
             reason='link disabled'
         )
+        self.notify_topology_update()
         return jsonify("Operation successful"), 201
 
     @rest('v3/links/<link_id>/metadata')
@@ -631,7 +629,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         self.update_instance_metadata(interface)
         self.handle_interface_link_up(interface)
-        self.notify_topology_update()
 
     @listen_to('.*.switch.interface.created')
     def on_interface_created(self, event):
@@ -650,7 +647,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface = event.content['interface']
         interface.deactivate()
         self.handle_interface_link_down(interface)
-        self.notify_topology_update()
 
     @listen_to('.*.switch.interface.deleted')
     def on_interface_deleted(self, event):
@@ -692,6 +688,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def handle_link_up(self, interface):
         """Notify a link is up."""
         interface.activate()
+        self.notify_topology_update()
         with self._links_lock:
             link = self._get_link_from_interface(interface)
         if not link:
@@ -714,13 +711,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             now = time.time()
             if link.is_active() and \
                     now - last_status_change >= self.link_up_timer:
-                self.notify_topology_update()
                 self.update_instance_metadata(link)
+                self.notify_topology_update()
                 self.notify_link_status_change(link, reason='link up')
         else:
             link.update_metadata('last_status_change', time.time())
-            self.notify_topology_update()
             self.update_instance_metadata(link)
+            self.notify_topology_update()
             self.notify_link_status_change(link, reason='link up')
         link.update_metadata('last_status_is_active', True)
 
@@ -760,7 +757,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             link.deactivate()
             link.update_metadata('last_status_change', time.time())
             link.update_metadata('last_status_is_active', False)
-            self.notify_topology_update()
             self.notify_link_status_change(link, reason='link down')
         if link and not link.is_active():
             with self._links_lock:
@@ -768,9 +764,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 if last_status:
                     link.update_metadata('last_status_is_active', False)
                     link.update_metadata('last_status_change', time.time())
-                    self.notify_topology_update()
                     self.notify_link_status_change(link, reason='link down')
         interface.deactivate()
+        self.notify_topology_update()
 
     @listen_to('.*.interface.is.nni')
     def on_add_links(self, event):

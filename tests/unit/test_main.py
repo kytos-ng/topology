@@ -550,8 +550,9 @@ class TestMain(TestCase):
         with self.assertRaises(RestoreError):
             self.napp._load_link(link_attrs_fail)
 
+    @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
-    def test_enable_switch(self, mock_save_status):
+    def test_enable_switch(self, mock_save_status, mock_notify_topo):
         """Test enable_switch."""
         dpid = "00:00:00:00:00:00:00:01"
         mock_switch = get_switch_mock(dpid)
@@ -563,6 +564,7 @@ class TestMain(TestCase):
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(mock_switch.enable.call_count, 1)
         mock_save_status.assert_called()
+        mock_notify_topo.assert_called()
 
         # fail case
         mock_switch.enable.call_count = 0
@@ -572,9 +574,11 @@ class TestMain(TestCase):
         self.assertEqual(response.status_code, 404, response.data)
         self.assertEqual(mock_switch.enable.call_count, 0)
 
+    @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
-    def test_disable_switch(self, mock_save_status):
+    def test_disable_switch(self, *args):
         """Test disable_switch."""
+        mock_save_status, mock_notify_topo = args
         dpid = "00:00:00:00:00:00:00:01"
         mock_switch = get_switch_mock(dpid)
         self.napp.controller.switches = {dpid: mock_switch}
@@ -585,6 +589,7 @@ class TestMain(TestCase):
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(mock_switch.disable.call_count, 1)
         mock_save_status.assert_called()
+        mock_notify_topo.assert_called()
 
         # fail case
         mock_switch.disable.call_count = 0
@@ -671,8 +676,9 @@ class TestMain(TestCase):
         self.assertEqual(mock_metadata_changes.call_count, 1)  # remains 1 call
         self.assertEqual(response.status_code, 404, response.data)
 
+    @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
-    def test_enable_interfaces(self, mock_save_status):
+    def test_enable_interfaces(self, mock_save_status, mock_notify_topo):
         """Test enable_interfaces."""
         dpid = '00:00:00:00:00:00:00:01'
         mock_switch = get_switch_mock(dpid)
@@ -689,6 +695,7 @@ class TestMain(TestCase):
         self.assertEqual(mock_interface_1.enable.call_count, 1)
         self.assertEqual(mock_interface_2.enable.call_count, 0)
         mock_save_status.assert_called()
+        mock_notify_topo.assert_called()
 
         mock_interface_1.enable.call_count = 0
         mock_interface_2.enable.call_count = 0
@@ -704,7 +711,7 @@ class TestMain(TestCase):
         mock_interface_2.enable.call_count = 0
         url = f'{self.server_name_url}/v3/interfaces/{interface_id}/enable'
         response = api.post(url)
-        self.assertEqual(response.status_code, 409, response.data)
+        self.assertEqual(response.status_code, 404, response.data)
         self.assertEqual(mock_interface_1.enable.call_count, 0)
         self.assertEqual(mock_interface_2.enable.call_count, 0)
 
@@ -716,8 +723,9 @@ class TestMain(TestCase):
         self.assertEqual(mock_interface_1.enable.call_count, 0)
         self.assertEqual(mock_interface_2.enable.call_count, 0)
 
+    @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
-    def test_disable_interfaces(self, mock_save_status):
+    def test_disable_interfaces(self, mock_save_status, mock_notify_topo):
         """Test disable_interfaces."""
         interface_id = '00:00:00:00:00:00:00:01:1'
         dpid = '00:00:00:00:00:00:00:01'
@@ -734,6 +742,7 @@ class TestMain(TestCase):
         self.assertEqual(mock_interface_1.disable.call_count, 1)
         self.assertEqual(mock_interface_2.disable.call_count, 0)
         mock_save_status.assert_called()
+        mock_notify_topo.assert_called()
 
         mock_interface_1.disable.call_count = 0
         mock_interface_2.disable.call_count = 0
@@ -749,7 +758,7 @@ class TestMain(TestCase):
         mock_interface_2.disable.call_count = 0
         url = f'{self.server_name_url}/v3/interfaces/{interface_id}/disable'
         response = api.post(url)
-        self.assertEqual(response.status_code, 409, response.data)
+        self.assertEqual(response.status_code, 404, response.data)
         self.assertEqual(mock_interface_1.disable.call_count, 0)
         self.assertEqual(mock_interface_2.disable.call_count, 0)
 
@@ -877,8 +886,9 @@ class TestMain(TestCase):
         response = api.delete(url)
         self.assertEqual(response.status_code, 404, response.data)
 
+    @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
-    def test_enable_link(self, mock_save_status):
+    def test_enable_link(self, mock_save_status, mock_notify_topo):
         """Test enable_link."""
         mock_link = MagicMock(Link)
         self.napp.links = {'1': mock_link}
@@ -890,6 +900,7 @@ class TestMain(TestCase):
         response = api.post(url)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(mock_link.enable.call_count, 1)
+        mock_notify_topo.assert_called()
 
         # fail case
         link_id = 2
@@ -897,8 +908,9 @@ class TestMain(TestCase):
         response = api.post(url)
         self.assertEqual(response.status_code, 404, response.data)
 
+    @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.save_status_on_storehouse')
-    def test_disable_link(self, mock_save_status):
+    def test_disable_link(self, mock_save_status, mock_notify_topo):
         """Test disable_link."""
         mock_link = MagicMock(Link)
         self.napp.links = {'1': mock_link}
@@ -910,6 +922,7 @@ class TestMain(TestCase):
         response = api.post(url)
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(mock_link.disable.call_count, 1)
+        self.assertEqual(mock_notify_topo.call_count, 1)
 
         # fail case
         link_id = 2
@@ -1036,11 +1049,10 @@ class TestMain(TestCase):
 
     @patch('napps.kytos.topology.main.Main._load_intf_available_tags')
     @patch('napps.kytos.topology.main.Main.handle_interface_link_up')
-    @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.update_instance_metadata')
     def test_handle_interface_created(self, *args):
         """Test handle_interface_created."""
-        (mock_metadata, mock_notify, mock_link_up, mock_tags) = args
+        (mock_metadata, mock_link_up, mock_tags) = args
         mock_event = MagicMock()
         mock_interface = create_autospec(Interface)
         mock_interface.id = "1"
@@ -1049,22 +1061,18 @@ class TestMain(TestCase):
         mock_event.content = {'interface': mock_interface}
         self.napp.intf_available_tags[mock_interface.id] = available_tags
         self.napp.handle_interface_created(mock_event)
-        mock_notify.assert_called()
         mock_metadata.assert_called()
         mock_link_up.assert_called()
         mock_tags.assert_called()
 
-    @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.handle_interface_link_down')
-    def test_handle_interface_down(self, *args):
+    def test_handle_interface_down(self, mock_handle_interface_link_down):
         """Test handle interface down."""
-        (mock_handle_interface_link_down, mock_notify_topology_update) = args
         mock_event = MagicMock()
         mock_interface = create_autospec(Interface)
         mock_event.content['interface'] = mock_interface
         self.napp.handle_interface_down(mock_event)
         mock_handle_interface_link_down.assert_called()
-        mock_notify_topology_update.assert_called()
 
     @patch('napps.kytos.topology.main.Main.handle_interface_down')
     def test_interface_deleted(self, mock_handle_interface_link_down):
@@ -1132,7 +1140,7 @@ class TestMain(TestCase):
         self.napp.handle_link_down(mock_interface)
         mock_interface.deactivate.assert_called()
         mock_link.deactivate.assert_called()
-        mock_topology_update.assert_called()
+        assert mock_topology_update.call_count == 1
         mock_status_change.assert_called()
 
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
@@ -1167,7 +1175,7 @@ class TestMain(TestCase):
         mock_link_from_interface.return_value = mock_link
         self.napp.handle_link_up(mock_interface)
         mock_interface.activate.assert_called()
-        mock_topology_update.assert_called()
+        assert mock_topology_update.call_count == 2
         mock_status_change.assert_called()
 
     @patch('time.sleep')
@@ -1186,8 +1194,7 @@ class TestMain(TestCase):
         mock_link_from_interface.return_value = mock_link
         self.napp.handle_link_up(mock_interface)
         mock_interface.activate.assert_called()
-
-        mock_topology_update.assert_not_called()
+        assert mock_topology_update.call_count == 1
         mock_status_change.assert_not_called()
 
     @patch('napps.kytos.topology.main.Main.update_instance_metadata')
