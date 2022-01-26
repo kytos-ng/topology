@@ -758,7 +758,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             link.update_metadata('last_status_change', time.time())
             link.update_metadata('last_status_is_active', False)
             self.notify_link_status_change(link, reason='link down')
-            self.notify_topology_update()
         if link and not link.is_active():
             with self._links_lock:
                 last_status = link.get_metadata('last_status_is_active')
@@ -766,7 +765,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     link.update_metadata('last_status_is_active', False)
                     link.update_metadata('last_status_change', time.time())
                     self.notify_link_status_change(link, reason='link down')
-                    self.notify_topology_update()
         interface.deactivate()
         self.notify_topology_update()
 

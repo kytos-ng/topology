@@ -1140,7 +1140,7 @@ class TestMain(TestCase):
         self.napp.handle_link_down(mock_interface)
         mock_interface.deactivate.assert_called()
         mock_link.deactivate.assert_called()
-        assert mock_topology_update.call_count == 2
+        assert mock_topology_update.call_count == 1
         mock_status_change.assert_called()
 
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
