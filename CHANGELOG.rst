@@ -24,6 +24,16 @@ Fixed
 Security
 ========
 
+[3.10.1] - 2022-01-20
+*********************
+
+Changed
+=======
+- ``handle_link_down`` to publish link_down
+- ``add_links`` to also notify link_up
+- ``last_status_is_active`` metadata to ensure single notification
+
+
 [3.10.0] - 2022-01-19
 *********************
 

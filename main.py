@@ -722,6 +722,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             self.notify_topology_update()
             self.update_instance_metadata(link)
             self.notify_link_status_change(link, reason='link up')
+        link.update_metadata('last_status_is_active', True)
 
     @listen_to('.*.switch.interface.link_down')
     def on_interface_link_down(self, event):
@@ -758,8 +759,17 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if link and link.is_active():
             link.deactivate()
             link.update_metadata('last_status_change', time.time())
+            link.update_metadata('last_status_is_active', False)
             self.notify_topology_update()
             self.notify_link_status_change(link, reason='link down')
+        if link and not link.is_active():
+            with self._links_lock:
+                last_status = link.get_metadata('last_status_is_active')
+                if last_status:
+                    link.update_metadata('last_status_is_active', False)
+                    link.update_metadata('last_status_change', time.time())
+                    self.notify_topology_update()
+                    self.notify_link_status_change(link, reason='link down')
         interface.deactivate()
 
     @listen_to('.*.interface.is.nni')
@@ -790,6 +800,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             return
 
         if created:
+            self.update_instance_metadata(link)
+            link.update_metadata('last_status_is_active', True)
+            self.notify_link_status_change(link, reason='link up')
             self.notify_topology_update()
 
     # def add_host(self, event):
