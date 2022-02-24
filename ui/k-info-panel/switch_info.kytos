@@ -1,7 +1,9 @@
 <template>
     <k-accordion>
+      <k-button title="Enable" :on_click="bt_enable"></k-button>
+      <k-button title="Disable" :on_click="bt_disable"></k-button>
       <k-accordion-item title="Usage Radar" v-if="this.metadata.id">
-        <k-switch-radar :dpid="metadata.id" :showGrid="true" :showAxis="true" :showLabels="true" :showLegend="false"></k-switch-radar>
+      <k-switch-radar :dpid="metadata.id" :showGrid="true" :showAxis="true" :showLabels="true" :showLegend="false"></k-switch-radar>
       </k-accordion-item>
       <k-accordion-item title="Basic Details">
           <k-property-panel>
@@ -61,7 +63,43 @@
        window.d3.json(endpoint, function(error, result) {
          self.flows = result[dpid].flows
        })
-     }
+     },
+     bt_enable(){
+       var notification = {
+         title: "",
+         description: "",
+         icon: "gear",
+       }
+       $.ajax({
+         type:"POST",
+         url: this.$kytos_server_api + "kytos/topology/v3/switches/" + this.metadata.dpid
+              + "/enable",
+         async: true,
+         success: function(message){
+           notification['title'] = "Succes"
+           notification['description'] = message
+         }
+       });
+       this.$kytos.$emit("setNotification", notification)
+     },
+     bt_disable(){
+       var notification = {
+         title: "",
+         description: "",
+         icon: "gear",
+       }
+       $.ajax({
+         type:"POST",
+         url: this.$kytos_server_api + "kytos/topology/v3/switches/" + this.metadata.dpid
+              + "/disable",
+         async: true,
+         success: function(message){
+           notification['title'] = "Succes"
+           notification['description'] = message
+         }
+       });
+       this.$kytos.$emit("setNotification", notification)
+     },
    },
    mounted () {
      this.update_switch_content()
