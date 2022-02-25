@@ -29,6 +29,9 @@
    props: ["content"],
    data () {
      return {
+       notification: {'title': '',
+                      'description': '',
+                      'icon': '',},
        display: false,
        metadata: {'id': '',
                   'name': '',
@@ -64,41 +67,55 @@
          self.flows = result[dpid].flows
        })
      },
-     bt_enable(){
-       var notification = {
-         title: "",
-         description: "",
-         icon: "gear",
+     msg_en_success(){
+       let notification = {
+            title: 'Switch Enabled',
+            description: 'Success: The switch ' + this.metadata.dpid + " was enabled.",
+            icon: 'gear',
        }
-       $.ajax({
-         type:"POST",
-         url: this.$kytos_server_api + "kytos/topology/v3/switches/" + this.metadata.dpid
-              + "/enable",
-         async: true,
-         success: function(message){
-           notification['title'] = "Succes"
-           notification['description'] = message
-         }
-       });
+       this.$kytos.$emit("setNotification", notification)
+     },
+     msg_en_failure(){
+       let notification = {
+            title: 'Switch Enabled',
+            description: 'Fail: The switch ' + this.metadata.dpid + " was not enabled.",
+            icon: 'gear',
+       }
+       this.$kytos.$emit("setNotification", notification)
+     },
+     bt_enable(){
+       let request = $.ajax({
+                        type:"POST",
+                        url: this.$kytos_server_api + "kytos/topology/v3/switches/" + this.metadata.dpid
+                              + "/enable",
+                        async: true,});
+       request.done(this.msg_en_success)
+       request.fail(this.msg_en_failure)
+     },
+     msg_dis_success(){
+       let notification = {
+            title: 'Switch Disabled',
+            description: 'Success: The switch ' + this.metadata.dpid + " was disabled.",
+            icon: 'gear',
+       }
+       this.$kytos.$emit("setNotification", notification)
+     },
+     msg_dis_failure(){
+       let notification = {
+            title: 'Switch Disabled',
+            description: 'Fail: The switch ' + this.metadata.dpid + " was not disabled.",
+            icon: 'gear',
+       }
        this.$kytos.$emit("setNotification", notification)
      },
      bt_disable(){
-       var notification = {
-         title: "",
-         description: "",
-         icon: "gear",
-       }
-       $.ajax({
-         type:"POST",
-         url: this.$kytos_server_api + "kytos/topology/v3/switches/" + this.metadata.dpid
-              + "/disable",
-         async: true,
-         success: function(message){
-           notification['title'] = "Succes"
-           notification['description'] = message
-         }
-       });
-       this.$kytos.$emit("setNotification", notification)
+       let request = $.ajax({
+                        type:"POST",
+                        url: this.$kytos_server_api + "kytos/topology/v3/switches/" + this.metadata.dpid
+                              + "/enable",
+                        async: true,});
+       request.done(this.msg_dis_success)
+       request.fail(this.msg_dis_failure)
      },
    },
    mounted () {
