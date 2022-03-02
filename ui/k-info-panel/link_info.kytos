@@ -1,0 +1,56 @@
+<template>
+    <k-accordion>
+      <k-accordion-item title="Basic Details">
+        <k-property-panel>
+          <k-property-panel-item :name="key" :value="value" 
+          :key="key" v-if="content" v-for="(value, key) in this.details">
+          </k-property-panel-item>
+        </k-property-panel>
+      </k-accordion-item>
+      <k-accordion-item title="Metadata">
+      </k-accordion-item>
+    </k-accordion>
+</template>
+
+<script>
+ module.exports = {
+   props: ["content"],
+   methods: {
+   },
+   data () {
+     return {
+         details: {'enabled': '',
+                   'active': '',
+                   'id': '',
+                   'endpoint_a': '',
+                   'endpoint_b': '',},
+     }
+   },
+   methods: {
+     get_details: function(){
+       if(this.content === undefined) return
+       var self = this
+       Object.keys(this.details).forEach(function (key) {
+         let value = self.content[key]
+         if (key != 'endpoint_a' && key != 'endpoint_b') {
+             self.details[key] = String(value)
+         }
+         else {
+             self.details[key] = String(value['id'])
+         }
+         
+       });
+     },
+   },
+   mounted () {
+       this.get_details()
+   },
+   watch:{
+       content(){
+           if (this.content){
+               this.get_details()
+           }
+       }
+   }
+ }
+</script>
