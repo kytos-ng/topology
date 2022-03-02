@@ -67,23 +67,24 @@
          self.flows = result[dpid].flows
        })
      },
-     msg_en_success(){
+     msg_en_success(data){
        let notification = {
-            title: 'Switch Enabled',
-            description: 'Success: The switch ' + this.metadata.dpid + " was enabled.",
+            title: 'Switch Enabled: Succeed ',
+            description: 'The switch ' + this.metadata.dpid + " was enabled.",
             icon: 'gear',
        }
        this.$kytos.$emit("setNotification", notification)
      },
-     msg_en_failure(){
+     msg_en_failure(data){
        let notification = {
-            title: 'Switch Enabled',
-            description: 'Fail: The switch ' + this.metadata.dpid + " was not enabled.",
+            title: 'Switch Enabled: Failed',
+            description: data.status + ': ' + data.responseJSON.description + 'The switch ' + this.metadata.dpid + ' was not enabled.',
             icon: 'gear',
        }
        this.$kytos.$emit("setNotification", notification)
      },
      bt_enable(){
+       console.log(this.metadata.dpid)
        let request = $.ajax({
                         type:"POST",
                         url: this.$kytos_server_api + "kytos/topology/v3/switches/" + this.metadata.dpid
@@ -92,18 +93,18 @@
        request.done(this.msg_en_success)
        request.fail(this.msg_en_failure)
      },
-     msg_dis_success(){
+     msg_dis_success(data){
        let notification = {
-            title: 'Switch Disabled',
-            description: 'Success: The switch ' + this.metadata.dpid + " was disabled.",
+            title: 'Switch Disabled: Succeed',
+            description: 'The switch ' + this.metadata.dpid + " was disabled.",
             icon: 'gear',
        }
        this.$kytos.$emit("setNotification", notification)
      },
-     msg_dis_failure(){
+     msg_dis_failure(data){
        let notification = {
-            title: 'Switch Disabled',
-            description: 'Fail: The switch ' + this.metadata.dpid + " was not disabled.",
+            title: 'Switch Disabled: Failed',
+            description: data.status + ': ' + data.responseJSON.description + 'The switch ' + this.metadata.dpid + ' was not disabled.',
             icon: 'gear',
        }
        this.$kytos.$emit("setNotification", notification)
