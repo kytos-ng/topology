@@ -56,7 +56,7 @@
          let value = self.content[key]
          self.metadata[key] = String(value)
        });
-       this.next_state = this.metadata.enabled == 'true'? 'Disable': 'Enable'
+       
        this.get_flows()
      },
      get_flows() {
@@ -96,6 +96,7 @@
    },
    mounted () {
      this.update_switch_content()
+     this.next_state = this.metadata.enabled == 'true'? 'Disable': 'Enable'
    },
    watch: {
      content () {
