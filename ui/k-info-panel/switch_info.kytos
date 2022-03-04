@@ -1,7 +1,6 @@
 <template>
     <k-accordion>
-      <k-button title="Enable" :on_click="bt_enable"></k-button>
-      <k-button title="Disable" :on_click="bt_disable"></k-button>
+      <button class='bt_state' @click= "bt_stateToggle">{{this.nextState}}</button>
       <k-accordion-item title="Usage Radar" v-if="this.metadata.id">
       <k-switch-radar :dpid="metadata.id" :showGrid="true" :showAxis="true" :showLabels="true" :showLegend="false"></k-switch-radar>
       </k-accordion-item>
@@ -29,6 +28,8 @@
    props: ["content"],
    data () {
      return {
+       nextState: '',
+       isActive: '',
        notification: {'title': '',
                       'description': '',
                       'icon': '',},
@@ -41,7 +42,9 @@
                   'manufacturer': '',
                   'serial': '',
                   'hardware': '',
-                  'software': ''},
+                  'software': '',
+                  'enabled': '',
+                  'active': '',},
        interfaces: [],
        custom_properties: {},
        flows: [],
@@ -60,6 +63,8 @@
        this.get_flows()
      },
      get_flows() {
+       this.nextState = this.metadata.enabled == 'true'? 'Disable': 'Enable'
+       console.log(this.nextState)
        var dpid = this.metadata.dpid
        var endpoint = this.$kytos_server_api + "kytos/flow_manager/v2/flows/" + dpid
        var self = this
@@ -67,56 +72,32 @@
          self.flows = result[dpid].flows
        })
      },
-     msg_en_success(data){
+     msg_state_success(data){
        let notification = {
-            title: 'Switch Enabled: Succeed ',
-            description: 'The switch ' + this.metadata.dpid + " was enabled.",
-            icon: 'gear',
+         title: 'Switch ' + this.nextState + 'd: Succeed',
+         description: 'The switch ' + this.metadata.dpid + ' was ' + this.nextState.toLowerCase() + 'd.',
+         icon: 'gear',
+       }
+       this.nextState = this.nextState == 'Enable'? 'Disable' : 'Enable'
+       this.$kytos.$emit("setNotification", notification)
+     },
+     msg_state_failure(data){
+       let notification = {
+         title: 'Switch ' + this.nextState + 'd: Failed',
+         description: data.status + ': ' + data.responseJSON.description + '. The switch ' + this.metadata.dpid + ' was not ' + this.nextState.toLowerCase() + 'd.',
+         icon: 'gear',
        }
        this.$kytos.$emit("setNotification", notification)
      },
-     msg_en_failure(data){
-       let notification = {
-            title: 'Switch Enabled: Failed',
-            description: data.status + ': ' + data.responseJSON.description + 'The switch ' + this.metadata.dpid + ' was not enabled.',
-            icon: 'gear',
-       }
-       this.$kytos.$emit("setNotification", notification)
-     },
-     bt_enable(){
-       console.log(this.metadata.dpid)
+     bt_stateToggle(){
+       console.log("Hola->", this.nextState)
        let request = $.ajax({
                         type:"POST",
                         url: this.$kytos_server_api + "kytos/topology/v3/switches/" + this.metadata.dpid
-                              + "/enable",
-                        async: true,});
-       request.done(this.msg_en_success)
-       request.fail(this.msg_en_failure)
-     },
-     msg_dis_success(data){
-       let notification = {
-            title: 'Switch Disabled: Succeed',
-            description: 'The switch ' + this.metadata.dpid + " was disabled.",
-            icon: 'gear',
-       }
-       this.$kytos.$emit("setNotification", notification)
-     },
-     msg_dis_failure(data){
-       let notification = {
-            title: 'Switch Disabled: Failed',
-            description: data.status + ': ' + data.responseJSON.description + 'The switch ' + this.metadata.dpid + ' was not disabled.',
-            icon: 'gear',
-       }
-       this.$kytos.$emit("setNotification", notification)
-     },
-     bt_disable(){
-       let request = $.ajax({
-                        type:"POST",
-                        url: this.$kytos_server_api + "kytos/topology/v3/switches/" + this.metadata.dpid
-                              + "/enable",
-                        async: true,});
-       request.done(this.msg_dis_success)
-       request.fail(this.msg_dis_failure)
+                              + "/" + this.nextState.toLowerCase(),
+                        async: true,});       
+       request.done(this.msg_state_success)
+       request.fail(this.msg_state_failure)                        
      },
    },
    mounted () {
@@ -132,3 +113,16 @@
  }
 </script>
 
+<style>
+  .bt_state {
+    height: 28px;
+    background-color: #414141;
+    border: none;
+    color: #a8a8a8;
+  }
+  .bt_state:hover {
+    color: #eee;
+    background-color: #666;
+    cursor: pointer;
+  }
+</style>
