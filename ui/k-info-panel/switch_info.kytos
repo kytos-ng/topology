@@ -1,6 +1,6 @@
 <template>
     <k-accordion>
-      <button class='bt_state' @click= "bt_stateToggle">{{this.nextState}}</button>
+      <k-button :on_click="bt_state_toggle" :title="next_state"></k-button>
       <k-accordion-item title="Usage Radar" v-if="this.metadata.id">
       <k-switch-radar :dpid="metadata.id" :showGrid="true" :showAxis="true" :showLabels="true" :showLegend="false"></k-switch-radar>
       </k-accordion-item>
@@ -28,11 +28,7 @@
    props: ["content"],
    data () {
      return {
-       nextState: '',
-       isActive: '',
-       notification: {'title': '',
-                      'description': '',
-                      'icon': '',},
+       next_state: '',
        display: false,
        metadata: {'id': '',
                   'name': '',
@@ -60,11 +56,10 @@
          let value = self.content[key]
          self.metadata[key] = String(value)
        });
+       this.next_state = this.metadata.enabled == 'true'? 'Disable': 'Enable'
        this.get_flows()
      },
      get_flows() {
-       this.nextState = this.metadata.enabled == 'true'? 'Disable': 'Enable'
-       console.log(this.nextState)
        var dpid = this.metadata.dpid
        var endpoint = this.$kytos_server_api + "kytos/flow_manager/v2/flows/" + dpid
        var self = this
@@ -74,27 +69,26 @@
      },
      msg_state_success(data){
        let notification = {
-         title: 'Switch ' + this.nextState + 'd: Succeed',
-         description: 'The switch ' + this.metadata.dpid + ' was ' + this.nextState.toLowerCase() + 'd.',
+         title: 'Switch ' + this.next_state + 'd: Succeed',
+         description: 'The switch ' + this.metadata.dpid + ' was ' + this.next_state.toLowerCase() + 'd.',
          icon: 'gear',
        }
-       this.nextState = this.nextState == 'Enable'? 'Disable' : 'Enable'
+       this.next_state = this.next_state == 'Enable'? 'Disable' : 'Enable'
        this.$kytos.$emit("setNotification", notification)
      },
      msg_state_failure(data){
        let notification = {
-         title: 'Switch ' + this.nextState + 'd: Failed',
-         description: data.status + ': ' + data.responseJSON.description + '. The switch ' + this.metadata.dpid + ' was not ' + this.nextState.toLowerCase() + 'd.',
+         title: 'Switch ' + this.next_state + 'd: Failed',
+         description: data.status + ': ' + data.responseJSON.description + '. The switch ' + this.metadata.dpid + ' was not ' + this.next_state.toLowerCase() + 'd.',
          icon: 'gear',
        }
        this.$kytos.$emit("setNotification", notification)
      },
-     bt_stateToggle(){
-       console.log("Hola->", this.nextState)
+     bt_state_toggle(){
        let request = $.ajax({
                         type:"POST",
                         url: this.$kytos_server_api + "kytos/topology/v3/switches/" + this.metadata.dpid
-                              + "/" + this.nextState.toLowerCase(),
+                              + "/" + this.next_state.toLowerCase(),
                         async: true,});       
        request.done(this.msg_state_success)
        request.fail(this.msg_state_failure)                        
@@ -112,17 +106,3 @@
    }
  }
 </script>
-
-<style>
-  .bt_state {
-    height: 28px;
-    background-color: #414141;
-    border: none;
-    color: #a8a8a8;
-  }
-  .bt_state:hover {
-    color: #eee;
-    background-color: #666;
-    cursor: pointer;
-  }
-</style>
