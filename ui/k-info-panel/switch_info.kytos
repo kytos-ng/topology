@@ -95,7 +95,7 @@
    },
    mounted () {
      this.update_switch_content()
-     this.next_state = this.metadata.enabled == 'false'? 'Disable' : 'Enable'
+     this.next_state = this.metadata.enabled == 'true'? 'Disable' : 'Enable'
    },
    watch: {
      content () {
