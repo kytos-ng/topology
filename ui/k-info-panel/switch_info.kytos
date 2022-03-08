@@ -23,7 +23,7 @@
       </k-accordion-item>
       <k-accordion-item title="Links" v-if="this.table_link_body.length > 0">
         <div class="link-table">
-          <table id="link-table-idk">
+          <table id="link-table-id">
             <thead>
               <tr v-for="header in this.table_link_header">
                 <th>{{header}}</th>
@@ -32,7 +32,7 @@
             <tbody>
               <tr v-for="link in this.table_link_body"
                 @click="rowClicked(link)">
-                <td v-if="link.metadata.link_name">{{link.metadata.link_name}}</td>
+                <td v-if="link.metadata.link_name !== undefined && link.metadata.link_name !== 0">{{link.metadata.link_name}}</td>
                 <td v-else>{{link.id}}</td>
               </tr>
             </tbody>
@@ -120,12 +120,13 @@
 
      rowClicked (link) {
        var subtitle = ""
-       if(link.metadata.link_name === undefined){
-         subtitle = link.id
-         if(subtitle.length > 16) subtitle=subtitle.substr(0,16) + "..."
+       if(link.metadata.link_name !== undefined && link.metadata.link_name.length !== 0){
+         subtitle = link.metadata.link_name
        }
        else{
-         subtitle = link.metadata.link_name
+         subtitle = link.id
+         if(subtitle.length > 16) subtitle=subtitle.substr(0,16) + "..."         
+         
        }
        var content = {
                       "component": 'kytos-topology-k-info-panel-link_info',
