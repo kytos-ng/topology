@@ -7,7 +7,10 @@
           </k-property-panel-item>
         </k-property-panel>
       </k-accordion-item>
-      <k-accordion-item title="Metadata">
+      <k-accordion-item title="Metadata" v-if="Object.keys(this.metadata).length > 0">
+        <k-property-panel>
+          <k-property-panel-item :name="key" :value="value" v-for="(value, key) in this.metadata"></k-property-panel-item>
+        </k-property-panel>
       </k-accordion-item>
     </k-accordion>
 </template>
@@ -19,6 +22,7 @@
    },
    data () {
      return {
+         metadata: [],
          details: {'enabled': '',
                    'active': '',
                    'id': '',
@@ -38,12 +42,16 @@
          else {
              self.details[key] = String(value['id'])
          }
-         
        });
+     },
+     get_metadata: function(){
+       if(this.content === undefined) return
+       this.metadata = this.content.metadata
      },
    },
    mounted () {
        this.get_details()
+       this.get_metadata()
    },
    watch:{
        content(){
