@@ -32,7 +32,7 @@
             <tbody>
               <tr v-for="link in this.table_link_body"
                 @click="rowClicked(link)">
-                <td v-if="link.metadata.link_name !== undefined && link.metadata.link_name !== 0">{{link.metadata.link_name}}</td>
+                <td v-if="link.metadata.link_name !== undefined && link.metadata.link_name.length !== 0">{{link.metadata.link_name}}</td>
                 <td v-else>{{link.id}}</td>
               </tr>
             </tbody>
