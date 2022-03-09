@@ -8,6 +8,8 @@ All notable changes to the ``topology`` project will be documented in this file.
 ********************************
 Added
 =====
+- Added a table of links to ``k-info-panel/switch_info``
+- Added the new ``k-info-panel/link_info`` to display link attributes
 
 Changed
 =======
