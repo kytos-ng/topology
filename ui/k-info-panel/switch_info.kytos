@@ -19,6 +19,24 @@
       <k-accordion-item title="Flows" v-if="this.flows">
          <k-flow :content="flow" :key="flow.id" v-for="flow in this.flows"></k-flow>
       </k-accordion-item>
+      <k-accordion-item title="Metadata" v-if="this.metadata_items.length !== 0">
+         <div class="metadata_table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Value</th>  
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(value, key) in this.metadata_items">
+                  <td >{{key}}</td>
+                  <td >{{value}}</td>
+                </tr>
+              </tbody>
+            </table>
+         </div>
+      </k-accordion-item>
     </k-accordion>
 </template>
 
@@ -28,6 +46,7 @@
    data () {
      return {
        display: false,
+       metadata_items: [],
        metadata: {'id': '',
                   'name': '',
                   'dpid': '',
@@ -36,7 +55,9 @@
                   'manufacturer': '',
                   'serial': '',
                   'hardware': '',
-                  'software': ''},
+                  'software': '',
+                  'enabled': '',
+                  'active': '',},
        interfaces: [],
        custom_properties: {},
        flows: [],
@@ -61,10 +82,15 @@
        window.d3.json(endpoint, function(error, result) {
          self.flows = result[dpid].flows
        })
+     },
+     get_metadata() {
+       if(this.content === undefined) return
+       this.metadata_items = this.content.metadata
      }
    },
    mounted () {
      this.update_switch_content()
+     this.get_metadata()
    },
    watch: {
      content () {
@@ -76,3 +102,37 @@
  }
 </script>
 
+<style>
+.metadata_table {
+  color: #ccc;
+  max-height: 250px;
+  text-align: center;
+  margin: 0 auto;
+  display: block;
+  padding: 0.5em 0 1em 0.3em;
+  font-size: 0.8em;
+  height: 190px;
+}
+.metadata_table table{
+  display: table;
+  width: 100%;
+}
+.metadata_table thead{
+  font-weight: bold;
+  background: #554077;
+}
+.metadata_table th{
+  padding: 0.6em 0 0.6em 0;
+}
+.metadata_table td{
+  vertical-align: middle;
+  padding: 0.45em 0 0.45em 0;
+}
+.metadata_table tbody tr:nth-child(even) {
+  background: #313131;
+}
+.metadata_table tbody tr:hover {
+    color: #eee;
+    background-color: #666;
+}
+</style>
