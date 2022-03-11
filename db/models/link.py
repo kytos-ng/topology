@@ -1,22 +1,19 @@
 """Link models."""
 
-from typing import Optional
-
 from pydantic import BaseModel
-from pydantic import validator
+from pydantic import Field
 
 
 class LinkModel(BaseModel):
     """Link Model."""
 
-    id: str
-    _id: Optional[str]
+    id: str = Field(None, alias="_id")
     enabled: bool
     active: bool
     metadata: dict
 
-    @validator("_id", always=True)
-    def _id_overwrite(cls, v, values, **kwargs) -> str:
-        if values and values.get("id"):
-            v = values["id"]
-        return v
+    def dict(self) -> dict:
+        values = super().dict()
+        if "id" in values:
+            values["_id"] = values["id"]
+        return values

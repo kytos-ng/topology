@@ -1,7 +1,7 @@
 """Interface models."""
 
 from pydantic import BaseModel
-from pydantic import conlist
+from typing import Optional
 
 
 class LinkPairModel(BaseModel):
@@ -23,7 +23,7 @@ class InterfaceModel(BaseModel):
     name: str
     uni: bool
     lldp: bool
-    link_pair: conlist(LinkPairModel, min_items=2, max_items=2)
+    link_pair: Optional[LinkPairModel]
     switch: str
     type: str
     metadata: dict
