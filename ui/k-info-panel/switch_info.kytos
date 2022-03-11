@@ -38,9 +38,7 @@
                   'manufacturer': '',
                   'serial': '',
                   'hardware': '',
-                  'software': '',
-                  'enabled': '',
-                  'active': '',},
+                  'software': '',},
        interfaces: [],
        custom_properties: {},
        flows: []
@@ -57,6 +55,7 @@
          self.metadata[key] = String(value)
        });
        this.get_flows()
+       this.get_enabled_value()
      },
      get_flows() {
        var dpid = this.metadata.dpid
@@ -65,6 +64,9 @@
        window.d3.json(endpoint, function(error, result) {
          self.flows = result[dpid].flows
        })
+     },
+     get_enabled_value() {
+       this.next_state = this.metadata.enabled == 'true'? 'Disable' : 'Enable'
      },
      msg_state_success(data){
        let notification = {
@@ -95,7 +97,6 @@
    },
    mounted () {
      this.update_switch_content()
-     this.next_state = this.metadata.enabled == 'true'? 'Disable' : 'Enable'
    },
    watch: {
      content () {
