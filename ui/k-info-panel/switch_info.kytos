@@ -78,7 +78,7 @@
          self.metadata[key] = String(value)
        });
        this.get_flows()
-
+       this.get_links()
      },
      get_links_success(data){
        this.links = data['topology']['links']
@@ -141,7 +141,6 @@
    },
    mounted () {
      this.update_switch_content()
-     this.get_links()
    },
    watch: {
      content () {
@@ -181,6 +180,7 @@
   color: lightgray;
 }
 .link-table td {
+  padding: 0.6em 0 0.6em 0;
   vertical-align: middle;
   text-overflow: ellipsis;
   overflow: hidden;
