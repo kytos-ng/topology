@@ -8,6 +8,7 @@ All notable changes to the ``topology`` project will be documented in this file.
 ********************************
 Added
 =====
+- Added a table on ``k-info-panel/switch_info`` to display switch metadata
 
 Changed
 =======
