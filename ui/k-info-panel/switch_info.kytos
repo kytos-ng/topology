@@ -74,6 +74,7 @@
          self.metadata[key] = String(value)
        });
        this.get_flows()
+       this.get_metadata()
      },
      get_flows() {
        var dpid = this.metadata.dpid
@@ -90,7 +91,6 @@
    },
    mounted () {
      this.update_switch_content()
-     this.get_metadata()
    },
    watch: {
      content () {
