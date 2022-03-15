@@ -30,7 +30,9 @@
      return {
        next_state: '',
        display: false,
-       metadata: {'id': '',
+       metadata: {'enabled': '',
+                  'active': '',
+                  'id': '',
                   'name': '',
                   'dpid': '',
                   'connection': '',
