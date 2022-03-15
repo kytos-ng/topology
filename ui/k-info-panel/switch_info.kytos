@@ -82,7 +82,7 @@
      },
      get_links_success(data){
        this.links = data['topology']['links']
-       
+       this.table_link_body = []
        var id = ""
        for (interface in this.interfaces){
          id = this.interfaces[interface].link
@@ -162,6 +162,8 @@
   padding: 0.5em 0 1em 0.3em;
   font-size: .8em;
   height: 190px;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .link-table table {
   display: table;
