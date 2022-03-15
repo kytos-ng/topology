@@ -111,7 +111,8 @@
   display: block;
   padding: 0.5em 0 1em 0.3em;
   font-size: 0.8em;
-  height: 190px;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .metadata_table table{
   display: table;
@@ -127,6 +128,10 @@
 .metadata_table td{
   vertical-align: middle;
   padding: 0.45em 0 0.45em 0;
+  word-break: break-all;
+}
+.metadata_table tbody>tr>:nth-child(1) {
+  width: 62px; 
 }
 .metadata_table tbody tr:nth-child(even) {
   background: #313131;
