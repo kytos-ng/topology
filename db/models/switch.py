@@ -2,15 +2,13 @@
 
 from typing import List, Optional
 
-from pydantic import BaseModel
-from pydantic import Field
+from .base import DocumentBaseModel
 from .interface import InterfaceModel
 
 
-class SwitchModel(BaseModel):
+class SwitchModel(DocumentBaseModel):
     """SwitchModel."""
 
-    id: str = Field(None, alias="_id")
     enabled: bool
     active: bool
     data_path: str
@@ -23,11 +21,5 @@ class SwitchModel(BaseModel):
     ofp_version: str
     serial: Optional[str]
     type: str
-    metadata: dict
+    metadata: dict = {}
     interfaces: List[InterfaceModel]
-
-    def dict(self) -> dict:
-        values = super().dict()
-        if "id" in values:
-            values["_id"] = values["id"]
-        return values

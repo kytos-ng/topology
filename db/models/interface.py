@@ -4,13 +4,6 @@ from pydantic import BaseModel
 from typing import Optional
 
 
-class LinkPairModel(BaseModel):
-    """LinkPairModel."""
-
-    id: str
-    side: str
-
-
 class InterfaceModel(BaseModel):
     """Interface Model."""
 
@@ -23,7 +16,7 @@ class InterfaceModel(BaseModel):
     name: str
     uni: bool
     lldp: bool
-    link_pair: Optional[LinkPairModel]
+    link: Optional[str]
     switch: str
     type: str
     metadata: dict

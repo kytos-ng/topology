@@ -1,19 +1,14 @@
 """Link models."""
 
-from pydantic import BaseModel
-from pydantic import Field
+from .base import DocumentBaseModel
+from .interface import InterfaceModel
 
 
-class LinkModel(BaseModel):
+class LinkModel(DocumentBaseModel):
     """Link Model."""
 
-    id: str = Field(None, alias="_id")
     enabled: bool
     active: bool
-    metadata: dict
-
-    def dict(self) -> dict:
-        values = super().dict()
-        if "id" in values:
-            values["_id"] = values["id"]
-        return values
+    metadata: dict = {}
+    endpoint_a: InterfaceModel
+    endpoint_b: InterfaceModel
