@@ -25,6 +25,14 @@
           </table>
         </div>
       </k-accordion-item>
+      <k-accordion-item title="Metadata actions">
+        <div class="metadata_container">
+          <k-input title="Insert metadata" icon="arrow-right" placeholder='Eg. {"bandwidth": 100, "port_name": "some_name"}' :value.sync="to_add"></k-input>
+          <k-button title="Add metadata" :on_click="bt_add_metadata"></k-button>
+          <k-input title="Insert metadata" icon="arrow-right" placeholder="Eg. port_name" :value.sync="to_delete"></k-input>
+          <k-button title="Remove metadata" :on_click="bt_rmv_metadata"></k-button>
+        </div>
+      </k-accordion-item>
     </k-accordion>
 </template>
 
@@ -35,6 +43,8 @@
    },
    data () {
      return {
+         to_add: '',
+         to_delete: '',
          metadata: [],
          details: {'enabled': '',
                    'active': '',
@@ -62,6 +72,61 @@
        if(this.content === undefined) return
        this.metadata = this.content.metadata
      },
+     bt_add_metadata() {
+       let name = this.metadata.link_name !== undefined && this.metadata.link_name.length !== 0? '"' + this.metadata.link_name + '"' : this.details.id
+       var _this = this
+       let request = $.ajax({
+                        type: "POST",
+                        url: this.$kytos_server_api + "kytos/topology/v3/links/" + this.details.id
+                              + "/metadata",
+                        async: true,
+                        data: this.to_add,
+                        dataType: "json",
+                        contentType: "application/json; charset=utf-8",
+       });
+       request.done(function() {
+         let notification = {
+              icon: 'gear',
+              title: 'Add metadata: Success',
+              description: '"' + _this.to_add + '" was added to the metadata. Link: ' + name,
+         }
+         _this.$kytos.$emit("setNotification", notification)
+       });
+       request.fail(function(data) {
+         let notification = {
+              icon: 'gear',
+              title: 'Add metadata: Failure',
+              description: data.status + ': ' + data.responseJSON.description + ' "' + _this.to_add + '" was not added to the metadata. Link: ' + name,
+         }
+         _this.$kytos.$emit("setNotification", notification)
+       });
+     },
+     bt_rmv_metadata() {
+       let name = this.metadata.link_name !== undefined && this.metadata.link_name.length !== 0? '"' + this.metadata.link_name + '"' : this.details.id
+       var _this = this
+       let request = $.ajax({
+                        type: "DELETE",
+                        url: this.$kytos_server_api + "kytos/topology/v3/links/" + this.details.id
+                              + "/metadata/" + this.to_delete,
+                        async: true,
+       });
+       request.done(function() {
+         let notification = {
+              icon: 'gear',
+              title: 'Delete metadata: Success',
+              description: '"' + _this.to_delete + '" was deleted from the metadata. Link: ' + name,
+         }
+         _this.$kytos.$emit("setNotification", notification)
+       });
+       request.fail(function(data) {
+         let notification = {
+              icon: 'gear',
+              title: 'Delete metadata: Failure',
+              description: data.status + ': ' + data.responseJSON.description + ' "' + _this.to_delete + '" was not deleted from the metadata. Link: ' + name,
+         }
+         _this.$kytos.$emit("setNotification", notification)
+       });
+     },
    },
    mounted () {
        this.get_details()
@@ -85,7 +150,6 @@
   display: block;
   padding: 0.5em 0 1em 0.3em;
   font-size: 0.9em;
-  height: 190px;
 }
 .metadata_table table{
   display: table;
