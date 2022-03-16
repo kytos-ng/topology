@@ -27,9 +27,9 @@
       </k-accordion-item>
       <k-accordion-item title="Metadata actions">
         <div class="metadata_container">
-          <k-input title="Insert metadata" icon="arrow-right" placeholder='Eg. {"bandwidth": 100, "port_name": "some_name"}' :value.sync="to_add"></k-input>
+          <k-textarea title="Insert metadata" icon="arrow-right" placeholder='Eg. {"bandwidth": 100, "port_name": "some_name"}' :value.sync="to_add"></k-textarea>
           <k-button title="Add metadata" :on_click="bt_add_metadata"></k-button>
-          <k-input title="Insert metadata" icon="arrow-right" placeholder="Eg. port_name" :value.sync="to_delete"></k-input>
+          <k-textarea title="Insert metadata" icon="arrow-right" placeholder="Eg. port_name" :value.sync="to_delete"></k-textarea>
           <k-button title="Remove metadata" :on_click="bt_rmv_metadata"></k-button>
         </div>
       </k-accordion-item>
@@ -172,5 +172,9 @@
 .metadata_table tbody tr:hover {
     color: #eee;
     background-color: #666;
+}
+.metadata_container {
+  display: flex;
+  flex-direction: column;
 }
 </style>
