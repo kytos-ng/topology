@@ -85,7 +85,6 @@
   display: block;
   padding: 0.5em 0 1em 0.3em;
   font-size: 0.9em;
-  height: 190px;
 }
 .metadata_table table{
   display: table;
