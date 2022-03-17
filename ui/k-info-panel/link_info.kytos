@@ -76,6 +76,8 @@
          icon: 'gear',
        }
        this.next_state = this.next_state == 'Enable'? 'Disable' : 'Enable'
+       this.content['enabled'] = this.next_state == 'Enable'? 'false' : 'true'
+       this.details['enabled'] = this.content['enabled']
        this.$kytos.$emit("setNotification", notification)
      },
      msg_state_failure(data){
