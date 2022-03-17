@@ -9,8 +9,10 @@ class DocumentBaseModel(BaseModel):
 
     id: str = Field(None, alias="_id")
 
-    def dict(self) -> dict:
-        values = super().dict()
+    def dict(self, **kwargs) -> dict:
+        values = super().dict(**kwargs)
         if "id" in values and values["id"]:
             values["_id"] = values["id"]
+        if "exclude" in kwargs and "_id" in kwargs["exclude"]:
+            values.pop("_id")
         return values
