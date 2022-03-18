@@ -1,7 +1,8 @@
 <template>
     <k-accordion>
+      <k-button :on_click="bt_state_toggle" :title="next_state"></k-button>
       <k-accordion-item title="Usage Radar" v-if="this.metadata.id">
-        <k-switch-radar :dpid="metadata.id" :showGrid="true" :showAxis="true" :showLabels="true" :showLegend="false"></k-switch-radar>
+      <k-switch-radar :dpid="metadata.id" :showGrid="true" :showAxis="true" :showLabels="true" :showLegend="false"></k-switch-radar>
       </k-accordion-item>
       <k-accordion-item title="Basic Details">
           <k-property-panel>
@@ -27,8 +28,11 @@
    props: ["content"],
    data () {
      return {
+       next_state: '',
        display: false,
-       metadata: {'id': '',
+       metadata: {'enabled': '',
+                  'active': '',
+                  'id': '',
                   'name': '',
                   'dpid': '',
                   'connection': '',
@@ -36,10 +40,10 @@
                   'manufacturer': '',
                   'serial': '',
                   'hardware': '',
-                  'software': ''},
+                  'software': '',},
        interfaces: [],
        custom_properties: {},
-       flows: [],
+       flows: []
      }
    },
    methods: {
@@ -53,6 +57,7 @@
          self.metadata[key] = String(value)
        });
        this.get_flows()
+       this.get_enabled_value()
      },
      get_flows() {
        var dpid = this.metadata.dpid
@@ -61,7 +66,38 @@
        window.d3.json(endpoint, function(error, result) {
          self.flows = result[dpid].flows
        })
-     }
+     },
+     get_enabled_value() {
+       this.next_state = this.metadata.enabled == 'true'? 'Disable' : 'Enable'
+     },
+     msg_state_success(data){
+       let notification = {
+         title: 'Switch ' + this.next_state + 'd: Succeed',
+         description: 'The switch ' + this.metadata.dpid + ' was ' + this.next_state.toLowerCase() + 'd.',
+         icon: 'gear',
+       }
+       this.next_state = this.next_state == 'Enable'? 'Disable' : 'Enable'
+       this.content['enabled'] = this.next_state == 'Enable'? 'false' : 'true'
+       this.metadata['enabled'] = this.content['enabled']
+       this.$kytos.$emit("setNotification", notification)
+     },
+     msg_state_failure(data){
+       let notification = {
+         title: 'Switch ' + this.next_state + 'd: Failed',
+         description: data.status + ': ' + data.responseJSON.description + '. The switch ' + this.metadata.dpid + ' was not ' + this.next_state.toLowerCase() + 'd.',
+         icon: 'gear',
+       }
+       this.$kytos.$emit("setNotification", notification)
+     },
+     bt_state_toggle(){
+       let request = $.ajax({
+                        type:"POST",
+                        url: this.$kytos_server_api + "kytos/topology/v3/switches/" + this.metadata.dpid
+                              + "/" + this.next_state.toLowerCase(),
+                        async: true,});       
+       request.done(this.msg_state_success)
+       request.fail(this.msg_state_failure)                        
+     },
    },
    mounted () {
      this.update_switch_content()
@@ -75,4 +111,3 @@
    }
  }
 </script>
-
