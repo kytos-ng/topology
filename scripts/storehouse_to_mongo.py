@@ -15,7 +15,7 @@ def build_mongo_uri(
     host="localhost", port=27017, username="", password="", db=""
 ) -> str:
     username = username or os.environ.get("MONGO_INITDB_ROOT_USERNAME")
-    password = os.environ.get("MONGO_INITDB_ROOT_PASSWORD", "")
+    password = password or os.environ.get("MONGO_INITDB_ROOT_PASSWORD", "")
     return f"mongodb://{username}:{password}@{host}:{port}/{db}"
 
 
@@ -63,8 +63,8 @@ def load_topology_status() -> Tuple[List[dict], List[dict]]:
 
     switches = []
     for switch in content["network_status"]["switches"].values():
+        switch["_id"] = switch["id"]
         if "interfaces" in switch:
-            switch["_id"] = switch["id"]
             switch["interfaces"] = list(switch["interfaces"].values())
         switches.append(switch)
 
@@ -119,4 +119,5 @@ def insert_from_topology_status(client=client) -> Tuple[List[str], List[str]]:
 
 if __name__ == "__main__":
     # print(json.dumps(load_topology_status()))
+    # TODO break as a CLI
     print(insert_from_topology_status())
