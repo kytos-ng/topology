@@ -1,5 +1,9 @@
 """DB Document base models."""
 
+from typing import Optional
+
+from datetime import datetime
+
 from pydantic import BaseModel
 from pydantic import Field
 
@@ -8,6 +12,8 @@ class DocumentBaseModel(BaseModel):
     """DocumentBaseModel."""
 
     id: str = Field(None, alias="_id")
+    inserted_at: Optional[datetime]
+    updated_at: Optional[datetime]
 
     def dict(self, **kwargs) -> dict:
         values = super().dict(**kwargs)

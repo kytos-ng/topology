@@ -26,22 +26,22 @@ class SwitchModel(DocumentBaseModel):
     interfaces: List[InterfaceModel] = []
 
     @validator("dpid", always=True)
-    def validate_dpid(cls, v, values, **kwargs) -> bool:
-        """Validate dpid."""
+    def preset_dpid(cls, v, values, **kwargs) -> bool:
+        """Preset dpid."""
         if not v and "id" in values:
             return values["id"]
         return v
 
     @validator("name", always=True)
-    def validate_name(cls, v, values, **kwargs) -> bool:
-        """Validate name."""
+    def preset_name(cls, v, values, **kwargs) -> bool:
+        """Preset name."""
         if not v and "id" in values:
             return values["id"]
         return v
 
     @validator("interfaces", pre=True)
-    def validate_interfaces(cls, v, values, **kwargs) -> List[InterfaceModel]:
-        """Validate interfaces."""
+    def preset_interfaces(cls, v, values, **kwargs) -> List[InterfaceModel]:
+        """Preset interfaces."""
         if isinstance(v, dict):
             return list(v.values())
         return v
