@@ -90,6 +90,7 @@
               description: '"' + _this.to_add + '" was added to the metadata. Switch: ' + _this.metadata.id,
          }
          _this.$kytos.$emit("setNotification", notification)
+         _this.to_add = ''
        });
        request.fail(function(data) {
          let notification = {
@@ -115,6 +116,7 @@
               description: '"' + _this.to_delete + '" was deleted from the metadata. Switch: ' + _this.metadata.id,
          }
          _this.$kytos.$emit("setNotification", notification)
+         _this.to_delete = ''
        });
        request.fail(function(data) {
          let notification = {
