@@ -130,9 +130,6 @@
   padding: 0.45em 0 0.45em 0;
   word-break: break-all;
 }
-.metadata_table tbody>tr>:nth-child(1) {
-  width: 62px; 
-}
 .metadata_table tbody tr:nth-child(even) {
   background: #313131;
 }
