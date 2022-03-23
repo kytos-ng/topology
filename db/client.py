@@ -7,28 +7,32 @@ from pymongo import MongoClient
 
 
 def mongo_client(
-    host_seeds=None,
-    username=os.environ.get("MONGO_USERNAME")
-    or os.environ.get("MONGO_INITDB_ROOT_USERNAME", ""),
-    password=os.environ.get("MONGO_PASSWORD")
-    or os.environ.get("MONGO_INITDB_ROOT_PASSWORD", ""),
+    host_seeds=os.environ.get(
+        "MONGO_HOST_SEEDS", "mongo1:27017,mongo2:27018,mongo3:27019"
+    ),
+    username=os.environ.get("MONGO_USERNAME"),
+    password=os.environ.get("MONGO_PASSWORD"),
     replicaset=os.environ.get("MONGO_REPLICASET"),
+    database=os.environ.get("MONGO_DBNAME", "napps"),
     connect=False,
     retrywrites=True,
     retryreads=True,
+    readpreference='primaryPreferred',
     maxpoolsize=int(os.environ.get("MONGO_MAX_POOLSIZE", 100)),
     minpoolsize=int(os.environ.get("MONGO_MIN_POOLSIZE", 10)),
     **kwargs,
 ) -> MongoClient:
     """mongo_client."""
     return MongoClient(
-        host_seeds or ["localhost:27017"],
+        host_seeds.split(","),
         username=username,
         password=password,
         connect=False,
         replicaset=replicaset,
+        authsource=database,
         retrywrites=retrywrites,
         retryreads=retryreads,
+        readpreference=readpreference,
         maxpoolsize=maxpoolsize,
         minpoolsize=minpoolsize,
         **kwargs,
