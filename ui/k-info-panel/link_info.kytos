@@ -71,7 +71,7 @@
      msg_state_success(data){
        let name = this.metadata.link_name !== undefined && this.metadata.link_name.length !== 0? '"' + this.metadata.link_name + '"' : this.details.id
        let notification = {
-         title: 'Switch ' + this.next_state + 'd: Succeed',
+         title: 'Link ' + this.next_state + 'd: Succeed',
          description: 'The link ' + name + ' was ' + this.next_state.toLowerCase() + 'd.',
          icon: 'gear',
        }
@@ -83,7 +83,7 @@
      msg_state_failure(data){
        let name = this.metadata.link_name !== undefined && this.metadata.link_name.length !== 0? '"' + this.metadata.link_name + '"' : this.details.id
        let notification = {
-         title: 'Switch ' + this.next_state + 'd: Failed',
+         title: 'Link ' + this.next_state + 'd: Failed',
          description: data.status + ': ' + data.responseJSON.description + ' The link ' + name + ' was not ' + this.next_state.toLowerCase() + 'd.',
          icon: 'gear',
        }
