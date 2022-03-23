@@ -91,6 +91,12 @@
               description: '"' + _this.to_add + '" was added to the metadata. Link: ' + name,
          }
          _this.$kytos.$emit("setNotification", notification)
+         let temp = JSON.parse(_this.to_add)
+         for (key in temp){
+           _this.metadata[key] = temp[key]
+           _this.content.metadata[key] = temp[key]
+         }
+         _this.to_add = ''
        });
        request.fail(function(data) {
          let notification = {
@@ -117,6 +123,9 @@
               description: '"' + _this.to_delete + '" was deleted from the metadata. Link: ' + name,
          }
          _this.$kytos.$emit("setNotification", notification)
+         delete _this.metadata[_this.to_delete]
+         delete _this.content.metadata[_this.to_delete]
+         _this.to_delete = ''
        });
        request.fail(function(data) {
          let notification = {
