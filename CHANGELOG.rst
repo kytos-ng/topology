@@ -9,6 +9,7 @@ All notable changes to the ``topology`` project will be documented in this file.
 Added
 =====
 - Added a table on ``k-info-panel/switch_info`` to display switch metadata
+- Added a toggle button to enable and disable a switch in the ``k-info-panel/switch_info`` component
 
 Changed
 =======
