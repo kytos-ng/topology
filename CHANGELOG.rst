@@ -10,6 +10,8 @@ Added
 =====
 - Added a table of links to ``k-info-panel/switch_info``
 - Added the new ``k-info-panel/link_info`` to display link attributes
+- Added a toggle button to enable and disable a switch in the ``k-info-panel/switch_info`` component
+- Added a toggle button to enable and disable a link in the ``k-info-panel/link_info`` component
 
 Changed
 =======
