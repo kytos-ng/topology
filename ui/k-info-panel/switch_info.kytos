@@ -15,11 +15,31 @@
           </k-property-panel>
       </k-accordion-item>
       <k-accordion-item title="Interfaces" v-if="this.interfaces">
-         <k-interface :interface_id="interface.id" :name="interface.name" :port_number="interface.port_number" :mac="interface.mac" :speed="interface.speed" :key="interface.name" v-for="interface in this.interfaces"></k-interface>
+         <k-interface :interface_id="interface.id" :name="interface.name" :port_number="interface.port_number" :mac="interface.mac" 
+                      :speed="interface.speed" :key="interface.name" v-for="interface in this.interfaces">
+         </k-interface>
       </k-accordion-item>
       <k-accordion-item title="Flows" v-if="this.flows">
          <k-flow :content="flow" :key="flow.id" v-for="flow in this.flows"></k-flow>
       </k-accordion-item>
+      <k-accordion-item title="Links" v-if="this.table_link_body.length > 0">
+        <div class="link-table">
+          <table id="link-table-id">
+            <thead>
+              <tr v-for="header in this.table_link_header">
+                <th>{{header}}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="link in this.table_link_body"
+                @click="rowClicked(link)">
+                <td v-if="link.metadata.link_name !== undefined && link.metadata.link_name.length !== 0">{{link.metadata.link_name}}</td>
+                <td v-else>{{link.id}}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </k-accordion-item>            
       <k-accordion-item title="Metadata actions"> 
          <k-textarea title="Add metadata" icon="arrow-right" placeholder='Eg. {"bandwidth": 100, "port_name": "some_name"}' :value.sync="to_add"></k-textarea>
          <div class="metadata_container">
@@ -38,6 +58,8 @@
    props: ["content"],
    data () {
      return {
+       table_link_header: ['Links'],
+       table_link_body: [],
        next_state: '',
        display: false,
        to_add: '',
@@ -56,12 +78,15 @@
        interfaces: [],
        custom_properties: {},
        flows: [],
+       links: [],
+       headers: ['Links'],
      }
    },
    methods: {
      update_switch_content () {
        if(this.content === undefined) return
        this.interfaces = this.content.interfaces
+       
        this.custom_properties = this.content.custom_properties
        var self = this
        Object.keys(this.metadata).forEach(function (key) {
@@ -69,7 +94,37 @@
          self.metadata[key] = String(value)
        });
        this.get_flows()
+       this.get_links()
        this.get_enabled_value()
+     },
+     get_links_success(data){
+       this.links = data['topology']['links']
+       this.table_link_body = []
+       var id = ""
+       for (interface in this.interfaces){
+         id = this.interfaces[interface].link
+  
+         if (id != ""){
+          this.table_link_body.push(this.links[id])
+         }
+       }
+     },
+     get_links_failure(data){
+       let notification = {
+         icon: 'gear',
+         title: 'Could not reach links data (' + data.status + '):',
+         description: data.responseJSON.description,
+       }
+       this.$kytos.$emit("setNotification", notification);
+     },
+     get_links(){
+       var self = this
+       let request = $.ajax({
+                      async: true,
+                      dataType: "json",
+                      url: this.$kytos_server_api + "kytos/topology/v3/",})
+       request.done(this.get_links_success)
+       request.fail(this.get_links_failure)
      },
      get_flows() {
        var dpid = this.metadata.dpid
@@ -139,6 +194,26 @@
          _this.$kytos.$emit("setNotification", notification)
        });
      },
+     rowClicked (link) {
+       var subtitle = ""
+       if(link.metadata.link_name !== undefined && link.metadata.link_name.length !== 0){
+         subtitle = link.metadata.link_name
+       }
+       else{
+         subtitle = link.id
+         if(subtitle.length > 16) subtitle=subtitle.substr(0,16) + "..."         
+         
+       }
+       var content = {
+                      "component": 'kytos-topology-k-info-panel-link_info',
+                      
+                      "icon": "home",
+                      "title": "Link Details",
+                      "subtitle": subtitle,
+                      "content": link,
+       }
+       this.$kytos.$emit("showInfoPanel", content)
+     },
      get_enabled_value() {
        this.next_state = this.metadata.enabled == 'true'? 'Disable' : 'Enable'
      },
@@ -168,7 +243,7 @@
                               + "/" + this.next_state.toLowerCase(),
                         async: true,});       
        request.done(this.msg_state_success)
-       request.fail(this.msg_state_failure)                        
+       request.fail(this.msg_state_failure)
      },
    },
    mounted () {
@@ -180,7 +255,7 @@
          this.update_switch_content()
        }
      }
-   }
+   },
  }
 </script>
 <style>
@@ -191,5 +266,68 @@
 }
 .metadata_container .k-button{
   width: 150px;
+}
+.link-table {
+  color: #ccc;
+  max-height: 250px;
+  text-align: center;
+  margin: 0 auto;
+  display: block;
+  padding: 0.5em 0 1em 0.3em;
+  font-size: .8em;
+  height: 190px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.link-table table {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+.link-table thead {
+  font-weight: bold;
+  background: #554077;
+}
+.link-table th {
+  padding: 0.6em 0 0.6em 0;
+}
+.link-table tr {
+  color: lightgray;
+}
+.link-table td {
+  padding: 0.6em 0 0.6em 0;
+  vertical-align: middle;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.link-table .header {
+  cursor: pointer;
+}
+.link-table .header-filter th{
+  padding: 0 0 0.5em 0;
+  background: #554077;
+}
+.link-table .header-filter input {
+  background: lightgray;
+  border: 1px solid gray;
+  border-radius: 3px;
+  font-size: 0.9em;
+  margin: 0 0.2em 0 0.2em;
+}
+.link-table tbody tr:nth-child(even) {
+  background: #313131;
+}
+.link-table tbody tr:hover {
+  color: #eee;
+  background-color: #666;
+  cursor: pointer;
+}
+.link-table tbody tr.inactive {
+  background-color: #600000;
+}
+.link-table-divisor {
+  height: 190px;
 }
 </style>
