@@ -2,6 +2,7 @@
 
 from .base import DocumentBaseModel
 from .interface import InterfaceModel
+from pydantic import conlist
 
 
 class LinkModel(DocumentBaseModel):
@@ -10,5 +11,4 @@ class LinkModel(DocumentBaseModel):
     enabled: bool
     active: bool
     metadata: dict = {}
-    endpoint_a: InterfaceModel
-    endpoint_b: InterfaceModel
+    endpoints: conlist(InterfaceModel, min_items=2, max_items=2)

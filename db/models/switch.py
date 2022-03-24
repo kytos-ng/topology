@@ -13,8 +13,6 @@ class SwitchModel(DocumentBaseModel):
 
     enabled: bool
     active: bool
-    dpid: Optional[str]
-    name: Optional[str]
     data_path: Optional[str]
     hardware: Optional[str]
     manufacturer: Optional[str]
@@ -24,20 +22,6 @@ class SwitchModel(DocumentBaseModel):
     serial: Optional[str]
     metadata: dict = {}
     interfaces: List[InterfaceModel] = []
-
-    @validator("dpid", always=True)
-    def preset_dpid(cls, v, values, **kwargs) -> bool:
-        """Preset dpid."""
-        if not v and "id" in values:
-            return values["id"]
-        return v
-
-    @validator("name", always=True)
-    def preset_name(cls, v, values, **kwargs) -> bool:
-        """Preset name."""
-        if not v and "id" in values:
-            return values["id"]
-        return v
 
     @validator("interfaces", pre=True)
     def preset_interfaces(cls, v, values, **kwargs) -> List[InterfaceModel]:
