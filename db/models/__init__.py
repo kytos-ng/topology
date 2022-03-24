@@ -25,8 +25,8 @@ class DocumentBaseModel(BaseModel):
         return values
 
 
-class InterfaceDB(BaseModel):
-    """Interface DB Model."""
+class InterfaceSubDoc(BaseModel):
+    """Interface DB SubDocument Model."""
 
     id: str
     enabled: bool
@@ -39,10 +39,11 @@ class InterfaceDB(BaseModel):
     lldp: bool
     link: Optional[str]
     metadata: dict = {}
+    updated_at: Optional[datetime]
 
 
-class SwitchDB(DocumentBaseModel):
-    """Switch DB Model."""
+class SwitchDoc(DocumentBaseModel):
+    """Switch DB Document Model."""
 
     enabled: bool
     active: bool
@@ -54,20 +55,20 @@ class SwitchDB(DocumentBaseModel):
     ofp_version: Optional[str]
     serial: Optional[str]
     metadata: dict = {}
-    interfaces: List[InterfaceDB] = []
+    interfaces: List[InterfaceSubDoc] = []
 
     @validator("interfaces", pre=True)
-    def preset_interfaces(cls, v, values, **kwargs) -> List[InterfaceDB]:
+    def preset_interfaces(cls, v, values, **kwargs) -> List[InterfaceSubDoc]:
         """Preset interfaces."""
         if isinstance(v, dict):
             return list(v.values())
         return v
 
 
-class LinkDB(DocumentBaseModel):
-    """Link DB Model."""
+class LinkDoc(DocumentBaseModel):
+    """Link DB Document Model."""
 
     enabled: bool
     active: bool
     metadata: dict = {}
-    endpoints: conlist(InterfaceDB, min_items=2, max_items=2)
+    endpoints: conlist(InterfaceSubDoc, min_items=2, max_items=2)

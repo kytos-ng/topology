@@ -5,8 +5,8 @@ import glob
 import pickle
 import os
 from typing import Any, List, Tuple
-from napps.kytos.topology.db.models.switch import SwitchModel
-from napps.kytos.topology.db.models.link import LinkModel
+from napps.kytos.topology.db.models import SwitchDoc
+from napps.kytos.topology.db.models import LinkDoc
 from napps.kytos.topology.db.client import mongo_client
 
 client = mongo_client()
@@ -63,8 +63,8 @@ def load_topology_status() -> Tuple[List[dict], List[dict]]:
             link_values["_id"] = link_values["id"]
 
     return (
-        [SwitchModel(**switch).dict() for switch in switches],
-        [LinkModel(**link).dict() for link in links.values()],
+        [SwitchDoc(**switch).dict() for switch in switches],
+        [LinkDoc(**link).dict() for link in links.values()],
     )
 
 
