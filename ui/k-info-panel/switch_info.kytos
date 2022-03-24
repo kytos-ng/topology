@@ -40,6 +40,11 @@
           </table>
         </div>
       </k-accordion-item>
+      <k-accordion-item title="LLDP Packets">
+        <k-select title="Interfaces:" :options="get_interfaces" :value.sync ="chosen_interface"></k-select>
+        <k-dropdown title="Select options:" :options="get_options" :value.sync="chosen_option"></k-dropdown>
+        <k-button title="Request" :on_click="bt_request"></k-button>
+      </k-accordion-item>
     </k-accordion>
 </template>
 
@@ -48,6 +53,8 @@
    props: ["content"],
    data () {
      return {
+       chosen_option: '',
+       chosen_interface: '',
        table_link_header: ['Links'],
        table_link_body: [],
        next_state: '',
@@ -173,6 +180,34 @@
        request.done(this.msg_state_success)
        request.fail(this.msg_state_failure)
      },
+     bt_request(){
+       var temp = {}
+       temp["interfaces"] = this.chosen_interface
+       let request = $.ajax({
+                        type: "POST",
+                        url: this.$kytos_server_api + "kytos/of_lldp/v1/interfaces/" + this.chosen_option.toLowerCase(),
+                        async: true,
+                        contentType: "application/json",
+                        data: JSON.stringify(temp),
+       });
+       var _this = this
+       request.done(function(data){
+         let notification = {
+           title: 'Interfaces ' + _this.chosen_option + 'd: Success',
+           description: 'The interfaces ' + temp["interfaces"] + ' is/are ' + _this.chosen_option.toLowerCase() + 'd to receive lldp packet',
+           icon: 'gear',
+         }
+         _this.$kytos.$emit("setNotification", notification)
+       })
+       request.fail(function(data){
+         let notification = {
+           title: 'Interfaces ' + _this.chosen_option + 'd: Failed',
+           description: data.status + ': ' + data.responseJSON.description + ' The interfaces ' + temp["interfaces"] + ' is/are not ' + _this.chosen_option.toLowerCase() + 'd to receive lldp packet',
+           icon: 'gear',
+           }
+         _this.$kytos.$emit("setNotification", notification)
+       })
+     }
    },
    mounted () {
      this.update_switch_content()
@@ -182,6 +217,26 @@
        if (this.content) {
          this.update_switch_content()
        }
+     }
+   },
+   computed: {
+     get_options() {
+       var temp = []
+       temp.push({value: "Enable", description: "Enable"})
+       temp.push({value: "Disable", description: "Disable"})
+       return temp;
+     },
+     get_interfaces() {
+       var interfaces = []
+       $.each(this.interfaces, function(key, value){
+         if (value.metadata.port_name !== undefined && value.metadata.port_name.length !== 0){
+           interfaces.push({value:value.id, description:value.metadata.port_name})
+         }
+         else{
+           interfaces.push({value:value.id, description:value.id})
+         }
+       });
+       return interfaces;
      }
    },
  }
