@@ -2,24 +2,14 @@
 # -*- coding: utf-8 -*-
 
 import glob
-import json
 import pickle
 import os
 from typing import Any, List, Tuple
-from pymongo import MongoClient
 from napps.kytos.topology.db.models.switch import SwitchModel
 from napps.kytos.topology.db.models.link import LinkModel
+from napps.kytos.topology.db.client import mongo_client
 
-
-def build_mongo_uri(
-    host="localhost", port=27017, username="", password="", db=""
-) -> str:
-    username = username or os.environ.get("MONGO_INITDB_ROOT_USERNAME")
-    password = password or os.environ.get("MONGO_INITDB_ROOT_PASSWORD", "")
-    return f"mongodb://{username}:{password}@{host}:{port}/{db}"
-
-
-client = MongoClient(build_mongo_uri())
+client = mongo_client()
 
 
 def get_storehouse_dir() -> str:
