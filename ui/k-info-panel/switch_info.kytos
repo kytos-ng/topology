@@ -20,11 +20,13 @@
       <k-accordion-item title="Flows" v-if="this.flows">
          <k-flow :content="flow" :key="flow.id" v-for="flow in this.flows"></k-flow>
       </k-accordion-item>
-      <k-accordion-item title="Metadata actions">
+      <k-accordion-item title="Metadata actions"> 
+         <k-textarea title="Add metadata" icon="arrow-right" placeholder='Eg. {"bandwidth": 100, "port_name": "some_name"}' :value.sync="to_add"></k-textarea>
          <div class="metadata_container">
-              <k-textarea title="Insert metadata" icon="arrow-right" placeholder='Eg. {"bandwidth": 100, "port_name": "some_name"}' :value.sync="to_add"></k-textarea>
               <k-button title="Add metadata" :on_click="bt_add_metadata"></k-button>
-              <k-textarea title="Insert metadata" icon="arrow-right" placeholder="Eg. port_name" :value.sync="to_delete"></k-textarea>
+         </div>
+         <k-input title="Delete metadata" icon="arrow-right" placeholder="Eg. port_name" :value.sync="to_delete"></k-input>
+         <div class="metadata_container">
               <k-button title="Remove metadata" :on_click="bt_rmv_metadata"></k-button>
          </div>
       </k-accordion-item>
@@ -183,7 +185,11 @@
 </script>
 <style>
 .metadata_container {
+  width: 100%;
   display: flex;
-  flex-direction: column;
+  justify-content: center;
+}
+.metadata_container .k-button{
+  width: 150px;
 }
 </style>
