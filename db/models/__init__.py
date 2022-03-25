@@ -72,3 +72,9 @@ class LinkDoc(DocumentBaseModel):
     active: bool
     metadata: dict = {}
     endpoints: conlist(InterfaceSubDoc, min_items=2, max_items=2)
+
+
+class InterfaceDetailDoc(DocumentBaseModel):
+    """InterfaceDetail DB Document Model."""
+
+    available_vlans: List[int]
