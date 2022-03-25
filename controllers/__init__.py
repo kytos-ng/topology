@@ -1,4 +1,5 @@
 """TopoController."""
+from typing import List
 from typing import Optional
 
 from datetime import datetime
@@ -7,6 +8,7 @@ from napps.kytos.topology.db.client import mongo_client
 from napps.kytos.topology.db.client import bootstrap_index
 from napps.kytos.topology.db.models import SwitchDoc
 from napps.kytos.topology.db.models import LinkDoc
+from napps.kytos.topology.db.models import InterfaceDetailDoc
 
 from kytos.core import log
 import pymongo
@@ -27,7 +29,6 @@ class TopoController:
         index_tuples = [
             ("switches", "interfaces.id", pymongo.ASCENDING),
             ("links", "endpoints.id", pymongo.ASCENDING),
-            ("interface_vlan_tags", "interface_id", pymongo.ASCENDING),
         ]
         for collection, index, direction in index_tuples:
             if bootstrap_index(self.db, collection, index, direction):
@@ -105,9 +106,7 @@ class TopoController:
     def upsert_switch(self, dpid: str, switch_dict: dict) -> Optional[dict]:
         """Update or insert switch."""
         utc_now = datetime.utcnow()
-        model = SwitchDoc(
-            **{**switch_dict, **{"_id": dpid, "updated_at": utc_now}}
-        )
+        model = SwitchDoc(**{**switch_dict, **{"_id": dpid, "updated_at": utc_now}})
         old_document = self.db.switches.find_one_and_update(
             {"_id": dpid},
             {
@@ -198,12 +197,12 @@ class TopoController:
         updated = self.db.switches.find_one_and_update(
             {"interfaces.id": interface_id},
             interfaces_expression,
-            return_document=ReturnDocument.AFTER,
+            return_document=ReturnDocument.BEFORE,
         )
         self.db.links.find_one_and_update(
             {"endpoints.id": interface_id},
             links_expression,
-            return_document=ReturnDocument.AFTER,
+            return_document=ReturnDocument.BEFORE,
         )
         return updated
 
@@ -229,7 +228,7 @@ class TopoController:
                 "$set": model.dict(exclude={"inserted_at"}),
                 "$setOnInsert": {"inserted_at": utc_now},
             },
-            return_document=ReturnDocument.AFTER,
+            return_document=ReturnDocument.BEFORE,
             upsert=True,
         )
         return updated
@@ -241,11 +240,16 @@ class TopoController:
 
     def activate_link(self, link_id: str) -> Optional[dict]:
         """Try to find one link and activate it."""
-        return self._update_link(link_id, {"$set": {"active": True}})
+        return self._update_link(
+            link_id, {"$set": {"active": True, "metadata.last_status_is_active": True}}
+        )
 
     def deactivate_link(self, link_id: str, interface_id: str) -> Optional[dict]:
         """Try to find one link and deactivate it."""
-        return self._update_link(link_id, {"$set": {"active": False}})
+        return self._update_link(
+            link_id,
+            {"$set": {"active": False, "metadata.last_status_is_active": False}},
+        )
 
     def enable_link(self, link_id: str) -> Optional[dict]:
         """Try to find one link and enable it."""
@@ -259,3 +263,40 @@ class TopoController:
         """Try to find link and add to its metadata."""
         update_expr = {"$set": {f"metadata.{k}": v for k, v in metadata.items()}}
         return self._update_link(link_id, update_expr)
+
+    def delete_link_metadata_key(self, link_id: str, key: str) -> Optional[dict]:
+        """Try to find a link and delete a metadata key."""
+        return self._update_link(link_id, {"$unset": {f"metadata.{key}": ""}})
+
+    def upsert_interface_detail(
+        self, interface_id: str, detail_dict: dict
+    ) -> Optional[dict]:
+        """Update or insert an interface_detail."""
+        utc_now = datetime.utcnow()
+        model = InterfaceDetailDoc(
+            **{
+                **detail_dict,
+                **{
+                    "updated_at": utc_now,
+                    "_id": interface_id,
+                },
+            }
+        )
+        updated = self.db.interface_details.find_one_and_update(
+            {"_id": interface_id},
+            {
+                "$set": model.dict(exclude={"inserted_at"}),
+                "$setOnInsert": {"inserted_at": utc_now},
+            },
+            return_document=ReturnDocument.BEFORE,
+            upsert=True,
+        )
+        return updated
+
+    def get_interfaces_details(self, interface_ids: List[str]) -> Optional[dict]:
+        """Try to get interfaces details given a list of interface ids."""
+        return self.db.interface_details.aggregate(
+            [
+                {"$match": {"_id": {"$in": interface_ids}}},
+            ]
+        )
