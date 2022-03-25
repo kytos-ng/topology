@@ -41,11 +41,11 @@
         </div>
       </k-accordion-item>            
       <k-accordion-item title="Metadata actions"> 
-         <k-textarea title="Add metadata" icon="arrow-right" placeholder='Eg. {"bandwidth": 100, "port_name": "some_name"}' :value.sync="to_add"></k-textarea>
+         <k-textarea title="Add metadata" icon="arrow-right" placeholder='Eg. {"node_name": "some_name", "address": "some_address"}' :value.sync="to_add"></k-textarea>
          <div class="metadata_container">
               <k-button title="Add metadata" :on_click="bt_add_metadata"></k-button>
          </div>
-         <k-input title="Delete metadata" icon="arrow-right" placeholder="Eg. port_name" :value.sync="to_delete"></k-input>
+         <k-input title="Delete metadata" icon="arrow-right" placeholder="Eg. node_name" :value.sync="to_delete"></k-input>
          <div class="metadata_container">
               <k-button title="Remove metadata" :on_click="bt_rmv_metadata"></k-button>
          </div>
