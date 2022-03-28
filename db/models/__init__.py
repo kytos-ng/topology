@@ -37,6 +37,7 @@ class InterfaceSubDoc(BaseModel):
     name: str
     nni: bool = False
     lldp: bool
+    switch: str
     link: Optional[str]
     metadata: dict = {}
     updated_at: Optional[datetime]
