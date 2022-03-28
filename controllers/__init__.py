@@ -48,16 +48,36 @@ class TopoController:
         switches = self.db.switches.aggregate(
             [
                 {"$sort": {"_id": 1}},
-                {"$project": {"_id": 0}},
+                {
+                    "$project": {
+                        "_id": 0,
+                        "id": 1,
+                        "enabled": 1,
+                        "active": 1,
+                        "data_path": 1,
+                        "hardware": 1,
+                        "manufacturer": 1,
+                        "software": 1,
+                        "connection": 1,
+                        "ofp_version": 1,
+                        "serial": 1,
+                        "metadata": 1,
+                        "inserted_at": 1,
+                        "created_at": 1,
+                        "interfaces": {
+                            "$arrayToObject": {
+                                "$map": {
+                                    "input": "$interfaces",
+                                    "as": "intf",
+                                    "in": {"k": "$$intf.id", "v": "$$intf"},
+                                }
+                            }
+                        }
+                    }
+                },
             ]
         )
-        sws = {}
-        for switch in switches:
-            switch["interfaces"] = {
-                value["id"]: value for value in switch.get("interfaces", [])
-            }
-            sws[switch["id"]] = switch
-        return {"switches": sws}
+        return {"switches": {value["id"]: value for value in switches}}
 
     def get_links(self) -> dict:
         """Get links from DB."""
@@ -156,6 +176,14 @@ class TopoController:
     def deactivate_interface(self, interface_id: str) -> Optional[dict]:
         """Try to deactivate one interface."""
         return self._update_interface(interface_id, {"$set": {"active": False}})
+
+    def enable_interface_lldp(self, interface_id: str) -> Optional[dict]:
+        """Try to enable LLDP one interface."""
+        return self._update_interface(interface_id, {"$set": {"lldp": True}})
+
+    def disable_interface_lldp(self, interface_id: str) -> Optional[dict]:
+        """Try to disable LLDP one interface."""
+        return self._update_interface(interface_id, {"$set": {"lldp": False}})
 
     def update_interface_link_id(
         self, interface_id: str, link_id: str
