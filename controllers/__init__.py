@@ -14,6 +14,7 @@ from napps.kytos.topology.db.models import InterfaceDetailDoc
 from kytos.core import log
 import pymongo
 from pymongo.collection import ReturnDocument
+from pymongo.operations import ReplaceOne
 
 
 class TopoController:
@@ -125,7 +126,7 @@ class TopoController:
         self._set_updated_at(update_expr)
         return self.db.switches.find_one_and_update({"_id": dpid}, update_expr)
 
-    def upsert_switch(self, dpid: str, switch_dict: dict) -> Optional[dict]:
+    def upsert_switch(self, dpid: str, switch_dict: dict, **kwargs) -> Optional[dict]:
         """Update or insert switch."""
         utc_now = datetime.utcnow()
         model = SwitchDoc(**{**switch_dict, **{"_id": dpid, "updated_at": utc_now}})
@@ -137,8 +138,46 @@ class TopoController:
             },
             return_document=ReturnDocument.BEFORE,
             upsert=True,
+            **kwargs,
         )
         return old_document
+
+    def bulk_update_interfaces_links(
+        self, dpid: str, switch_dict: dict, links_dict: List[dict]
+    ) -> None:
+        """Bulk update interfaces links.
+
+        Interfaces are bulk updated by updating the entire switch document
+        it's easier than managing bulk query update operators for now.
+        """
+
+        utc_now = datetime.utcnow()
+
+        link_ops = []
+        for link_dict in links_dict:
+            endpoint_a = link_dict.get("endpoint_a")
+            endpoint_b = link_dict.get("endpoint_b")
+            model = LinkDoc(
+                **{
+                    **link_dict,
+                    **{
+                        "updated_at": utc_now,
+                        "_id": link_dict.get("id"),
+                        "endpoints": [endpoint_a, endpoint_b],
+                    },
+                }
+            )
+            link_ops.append(
+                ReplaceOne(
+                    {"_id": model.id}, model.dict(exclude={"inserted_at"}), upsert=False
+                )
+            )
+
+        with self.transaction_lock:
+            with self.db_client.start_session() as session:
+                with session.start_transaction():
+                    self.upsert_switch(dpid, switch_dict, session=session)
+                    self.db.links.bulk_write(link_ops, ordered=False, session=session)
 
     def enable_switch(self, dpid: str) -> Optional[dict]:
         """Try to find one switch and enable it."""
