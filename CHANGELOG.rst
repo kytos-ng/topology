@@ -11,6 +11,7 @@ Added
 - Added a table of links to ``k-info-panel/switch_info``
 - Added the new ``k-info-panel/link_info`` to display link attributes
 - Added a toggle button to enable and disable a switch in the ``k-info-panel/switch_info`` component
+- Added functionality to add and remove metadata from a link on ``k-info-panel/link-info``
 
 Changed
 =======
