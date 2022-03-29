@@ -1,5 +1,6 @@
 <template>
     <k-accordion>
+      <k-button :on_click="bt_state_toggle" :title="next_state"></k-button>
       <k-accordion-item title="Basic Details">
         <k-property-panel>
           <k-property-panel-item :name="key" :value="value" 
@@ -48,6 +49,7 @@
          to_add: '',
          to_delete: '',
          metadata: [],
+         next_state: '',
          details: {'enabled': '',
                    'active': '',
                    'id': '',
@@ -69,10 +71,44 @@
          }
        });
        this.get_metadata()
+       this.get_enabled_value()
      },
      get_metadata: function(){
        if(this.content === undefined) return
        this.metadata = this.content.metadata
+     },
+     get_enabled_value() {
+       this.next_state = this.details.enabled == 'true'? 'Disable' : 'Enable'
+     },
+     msg_state_success(data){
+       let name = this.metadata.link_name !== undefined && this.metadata.link_name.length !== 0? '"' + this.metadata.link_name + '"' : this.details.id
+       let notification = {
+         title: 'Link ' + this.next_state + 'd: Succeed',
+         description: 'The link ' + name + ' was ' + this.next_state.toLowerCase() + 'd.',
+         icon: 'gear',
+       }
+       this.next_state = this.next_state == 'Enable'? 'Disable' : 'Enable'
+       this.content['enabled'] = this.next_state == 'Enable'? 'false' : 'true'
+       this.details['enabled'] = this.content['enabled']
+       this.$kytos.$emit("setNotification", notification)
+     },
+     msg_state_failure(data){
+       let name = this.metadata.link_name !== undefined && this.metadata.link_name.length !== 0? '"' + this.metadata.link_name + '"' : this.details.id
+       let notification = {
+         title: 'Link ' + this.next_state + 'd: Failed',
+         description: data.status + ': ' + data.responseJSON.description + ' The link ' + name + ' was not ' + this.next_state.toLowerCase() + 'd.',
+         icon: 'gear',
+       }
+       this.$kytos.$emit("setNotification", notification)
+     },
+     bt_state_toggle(){
+       let request = $.ajax({
+                        type:"POST",
+                        url: this.$kytos_server_api + "kytos/topology/v3/links/" + this.details.id
+                              + "/" + this.next_state.toLowerCase(),
+                        async: true,});       
+       request.done(this.msg_state_success)
+       request.fail(this.msg_state_failure)
      },
      bt_add_metadata() {
        let name = this.metadata.link_name !== undefined && this.metadata.link_name.length !== 0? '"' + this.metadata.link_name + '"' : this.details.id
