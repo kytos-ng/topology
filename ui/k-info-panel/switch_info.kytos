@@ -41,7 +41,7 @@
         </div>
       </k-accordion-item>
       <k-accordion-item title="LLDP Packets">
-        <k-select title="Interfaces:" :options="get_interfaces" :value.sync ="chosen_interface"></k-select>
+        <k-select title="Interfaces:" :options="get_interfaces" :value.sync ="chosen_interfaces"></k-select>
         <k-dropdown title="Action:" :options="get_actions" :value.sync="chosen_action"></k-dropdown>
         <k-button title="Request" :on_click="bt_request"></k-button>
       </k-accordion-item>
@@ -54,7 +54,7 @@
    data () {
      return {
        chosen_action: '',
-       chosen_interface: '',
+       chosen_interfaces: '',
        table_link_header: ['Links'],
        table_link_body: [],
        next_state: '',
@@ -182,7 +182,7 @@
      },
      bt_request(){
        var interfaces = {}
-       interfaces["interfaces"] = this.chosen_interface
+       interfaces["interfaces"] = this.chosen_interfaces
        let request = $.ajax({
                         type: "POST",
                         url: this.$kytos_server_api + "kytos/of_lldp/v1/interfaces/" + this.chosen_action.toLowerCase(),
@@ -193,7 +193,7 @@
        var _this = this
        request.done(function(data){
          let notification = {
-           title: 'Interfaces LLDP' + _this.chosen_action + 'd: Success',
+           title: 'Interfaces LLDP ' + _this.chosen_action + 'd: Success',
            description: 'The interfaces ' + interfaces["interfaces"] + ' is/are ' + _this.chosen_action.toLowerCase() + 'd to send lldp packet',
            icon: 'gear',
          }
@@ -201,7 +201,7 @@
        })
        request.fail(function(data){
          let notification = {
-           title: 'Interfaces LLDP' + _this.chosen_action + 'd: Failed',
+           title: 'Interfaces LLDP ' + _this.chosen_action + 'd: Failed',
            description: data.status + ': ' + data.responseJSON.description + ' The interfaces ' + interfaces["interfaces"] + ' is/are not ' + _this.chosen_action.toLowerCase() + 'd to send lldp packet',
            icon: 'gear',
            }
