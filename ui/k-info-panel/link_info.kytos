@@ -115,13 +115,12 @@
 <style>
 .metadata_table {
   color: #ccc;
-  max-height: 250px;
   text-align: center;
   margin: 0 auto;
   display: block;
   padding: 0.5em 0 1em 0.3em;
   font-size: 0.9em;
-  height: 190px;
+  overflow-x: auto;
 }
 .metadata_table table{
   display: table;

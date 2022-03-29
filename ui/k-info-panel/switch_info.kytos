@@ -83,7 +83,7 @@
        });
        this.get_flows()
        this.get_links()
-       this.get_enabled_value()       
+       this.get_enabled_value()
      },
      get_links_success(data){
        this.links = data['topology']['links']
@@ -122,7 +122,6 @@
          self.flows = result[dpid].flows
        })
      },
-
      rowClicked (link) {
        var subtitle = ""
        if(link.metadata.link_name !== undefined && link.metadata.link_name.length !== 0){
@@ -172,7 +171,7 @@
                               + "/" + this.next_state.toLowerCase(),
                         async: true,});       
        request.done(this.msg_state_success)
-       request.fail(this.msg_state_failure)                        
+       request.fail(this.msg_state_failure)
      },
    },
    mounted () {
