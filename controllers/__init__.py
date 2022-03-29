@@ -1,6 +1,7 @@
 """TopoController."""
 from typing import List
 from typing import Optional
+from threading import Lock
 
 from datetime import datetime
 
@@ -23,6 +24,7 @@ class TopoController:
         db_client_kwargs = db_client_options or {}
         self.db_client = db_client(**db_client_kwargs)
         self.db = self.db_client.napps
+        self.transaction_lock = Lock()
 
     def bootstrap_indexes(self) -> None:
         """Bootstrap all topology related indexes."""
@@ -72,7 +74,7 @@ class TopoController:
                                     "in": {"k": "$$intf.id", "v": "$$intf"},
                                 }
                             }
-                        }
+                        },
                     }
                 },
             ]
@@ -185,14 +187,6 @@ class TopoController:
         """Try to disable LLDP one interface."""
         return self._update_interface(interface_id, {"$set": {"lldp": False}})
 
-    def update_interface_link_id(
-        self, interface_id: str, link_id: str
-    ) -> Optional[dict]:
-        """Try to update interface link_id."""
-        return self._update_interface(
-            interface_id, {"$set": {"link": link_id, "nni": True}}
-        )
-
     def add_interface_metadata(
         self, interface_id: str, metadata: dict
     ) -> Optional[dict]:
@@ -221,45 +215,73 @@ class TopoController:
                 f"endpoints.$.{k}": v for k, v in values.items()
             }
 
-        # TODO transaction
-        updated = self.db.switches.find_one_and_update(
-            {"interfaces.id": interface_id},
-            interfaces_expression,
-            return_document=ReturnDocument.BEFORE,
-        )
-        self.db.links.find_one_and_update(
-            {"endpoints.id": interface_id},
-            links_expression,
-            return_document=ReturnDocument.BEFORE,
-        )
-        return updated
+        with self.transaction_lock:
+            with self.db_client.start_session() as session:
+                with session.start_transaction():
+                    updated = self.db.switches.find_one_and_update(
+                        {"interfaces.id": interface_id},
+                        interfaces_expression,
+                        return_document=ReturnDocument.BEFORE,
+                        session=session,
+                    )
+                    self.db.links.find_one_and_update(
+                        {"endpoints.id": interface_id},
+                        links_expression,
+                        return_document=ReturnDocument.BEFORE,
+                        session=session,
+                    )
+                    return updated
 
     def upsert_link(self, link_id: str, link_dict: dict) -> dict:
         """Update or insert a Link."""
         utc_now = datetime.utcnow()
+
+        endpoint_a = link_dict.get("endpoint_a")
+        endpoint_b = link_dict.get("endpoint_b")
         model = LinkDoc(
             **{
                 **link_dict,
                 **{
                     "updated_at": utc_now,
                     "_id": link_id,
-                    "endpoints": [
-                        link_dict.get("endpoint_a"),
-                        link_dict.get("endpoint_b"),
-                    ],
+                    "endpoints": [endpoint_a, endpoint_b],
                 },
             }
         )
-        updated = self.db.links.find_one_and_update(
-            {"_id": link_id},
-            {
-                "$set": model.dict(exclude={"inserted_at"}),
-                "$setOnInsert": {"inserted_at": utc_now},
-            },
-            return_document=ReturnDocument.BEFORE,
-            upsert=True,
-        )
-        return updated
+        with self.transaction_lock:
+            with self.db_client.start_session() as session:
+                with session.start_transaction():
+                    updated = self.db.links.find_one_and_update(
+                        {"_id": link_id},
+                        {
+                            "$set": model.dict(exclude={"inserted_at"}),
+                            "$setOnInsert": {"inserted_at": utc_now},
+                        },
+                        return_document=ReturnDocument.BEFORE,
+                        upsert=True,
+                        session=session,
+                    )
+                    self.db.switches.find_one_and_update(
+                        {"interfaces.id": endpoint_a},
+                        {
+                            "$set": {
+                                "interfaces.$.link_id": link_id,
+                                "updated_at": utc_now,
+                            }
+                        },
+                        session=session,
+                    )
+                    self.db.switches.find_one_and_update(
+                        {"interfaces.id": endpoint_b},
+                        {
+                            "$set": {
+                                "interfaces.$.link_id": link_id,
+                                "updated_at": utc_now,
+                            }
+                        },
+                        session=session,
+                    )
+                    return updated
 
     def _update_link(self, link_id: str, update_expr: dict) -> Optional[dict]:
         """Try to find one link and update it given an update expression."""
