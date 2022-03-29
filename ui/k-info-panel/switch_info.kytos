@@ -22,6 +22,24 @@
       <k-accordion-item title="Flows" v-if="this.flows">
          <k-flow :content="flow" :key="flow.id" v-for="flow in this.flows"></k-flow>
       </k-accordion-item>
+      <k-accordion-item title="Metadata" v-if="this.metadata_items.length !== 0">
+         <div class="metadata_table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Value</th>  
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(value, key) in this.metadata_items">
+                  <td >{{key}}</td>
+                  <td >{{value}}</td>
+                </tr>
+              </tbody>
+            </table>
+         </div>
+      </k-accordion-item>
       <k-accordion-item title="Links" v-if="this.table_link_body.length > 0">
         <div class="link-table">
           <table id="link-table-id">
@@ -39,6 +57,16 @@
             </tbody>
           </table>
         </div>
+      </k-accordion-item>            
+      <k-accordion-item title="Metadata actions"> 
+         <k-textarea title="Add metadata" icon="arrow-right" placeholder='Eg. {"node_name": "some_name", "address": "some_address"}' :value.sync="to_add"></k-textarea>
+         <div class="metadata_container">
+              <k-button title="Add metadata" :on_click="bt_add_metadata"></k-button>
+         </div>
+         <k-input title="Delete metadata" icon="arrow-right" placeholder="Eg. node_name" :value.sync="to_delete"></k-input>
+         <div class="metadata_container">
+              <k-button title="Remove metadata" :on_click="bt_rmv_metadata"></k-button>
+         </div>
       </k-accordion-item>
     </k-accordion>
 </template>
@@ -52,6 +80,9 @@
        table_link_body: [],
        next_state: '',
        display: false,
+       metadata_items: [],
+       to_add: '',
+       to_delete: '',
        metadata: {'enabled': '',
                   'active': '',
                   'id': '',
@@ -82,6 +113,7 @@
          self.metadata[key] = String(value)
        });
        this.get_flows()
+       this.get_metadata()
        this.get_links()
        this.get_enabled_value()
      },
@@ -121,6 +153,70 @@
        window.d3.json(endpoint, function(error, result) {
          self.flows = result[dpid].flows
        })
+     },
+     get_metadata() {
+       if(this.content === undefined) return
+       this.metadata_items = this.content.metadata
+     },
+     bt_add_metadata() {
+       var _this = this
+       let request = $.ajax({
+                        type: "POST",
+                        url: this.$kytos_server_api + "kytos/topology/v3/switches/" + this.metadata.dpid
+                              + "/metadata",
+                        async: true,
+                        data: this.to_add,
+                        dataType: "json",
+                        contentType: "application/json; charset=utf-8",
+       });
+       request.done(function() {
+         let notification = {
+              icon: 'gear',
+              title: 'Add metadata: Success',
+              description: '"' + _this.to_add + '" was added to the metadata. Switch: ' + _this.metadata.id,
+         }
+         _this.$kytos.$emit("setNotification", notification)
+         let temp = JSON.parse(_this.to_add)
+         for (key in temp){
+           _this.content.metadata[key] = temp[key]
+         }
+         _this.to_add = ''
+       });
+       request.fail(function(data) {
+         let notification = {
+              icon: 'gear',
+              title: 'Add metadata: Failure',
+              description: data.status + ': ' + data.responseJSON.description + ' "' + _this.to_add + '" was not added to the metadata. Switch: ' + _this.metadata.id,
+         }
+         _this.$kytos.$emit("setNotification", notification)
+       });
+     },
+     bt_rmv_metadata() {
+       var _this = this
+       let request = $.ajax({
+                        type: "DELETE",
+                        url: this.$kytos_server_api + "kytos/topology/v3/switches/" + this.metadata.dpid
+                              + "/metadata/" + this.to_delete,
+                        async: true,
+       });
+       request.done(function() {
+         let notification = {
+              icon: 'gear',
+              title: 'Delete metadata: Success',
+              description: '"' + _this.to_delete + '" was deleted from the metadata. Switch: ' + _this.metadata.id,
+         }
+         _this.$kytos.$emit("setNotification", notification)
+         delete _this.content.metadata[_this.to_delete]
+         _this.to_delete = ''
+       });
+       request.fail(function(data) {
+         let notification = {
+              icon: 'gear',
+              title: 'Delete metadata: Failure',
+              description: data.status + ': ' + data.responseJSON.description + ' "' + _this.to_delete + '" was not deleted from the metadata. Switch: ' + _this.metadata.id,
+         }
+         _this.$kytos.$emit("setNotification", notification)
+       });
      },
      rowClicked (link) {
        var subtitle = ""
@@ -186,8 +282,49 @@
    },
  }
 </script>
-
 <style>
+.metadata_table {
+  color: #ccc;
+  max-height: 250px;
+  text-align: center;
+  margin: 0 auto;
+  display: block;
+  padding: 0.5em 0 1em 0.3em;
+  font-size: 0.8em;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.metadata_table table{
+  display: table;
+  width: 100%;
+}
+.metadata_table thead{
+  font-weight: bold;
+  background: #554077;
+}
+.metadata_table th{
+  padding: 0.6em 0 0.6em 0;
+}
+.metadata_table td{
+  vertical-align: middle;
+  padding: 0.45em 0 0.45em 0;
+  word-break: break-all;
+}
+.metadata_table tbody tr:nth-child(even) {
+  background: #313131;
+}
+.metadata_table tbody tr:hover {
+    color: #eee;
+    background-color: #666;
+    }
+.metadata_container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+.metadata_container .k-button{
+  width: 150px;
+}
 .link-table {
   color: #ccc;
   max-height: 250px;
