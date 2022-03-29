@@ -8,10 +8,13 @@ All notable changes to the ``topology`` project will be documented in this file.
 ********************************
 Added
 =====
+- Added a table on ``k-info-panel/switch_info`` to display switch metadata
+- Added functionality to add and remove metadata from a switch on ``k-info-panel/switch-info``
 - Added a table of links to ``k-info-panel/switch_info``
 - Added the new ``k-info-panel/link_info`` to display link attributes
 - Added a toggle button to enable and disable a switch in the ``k-info-panel/switch_info`` component
 - Added a new accordion to ``k-info-panel/switch_info`` to enable and disable LLDP on interfaces
+- Added functionality to add and remove metadata from a link on ``k-info-panel/link-info``
 
 Changed
 =======
