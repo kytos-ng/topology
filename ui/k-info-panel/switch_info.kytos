@@ -2,7 +2,7 @@
     <k-accordion>
       <k-button :on_click="bt_state_toggle" :title="next_state"></k-button>
       <k-accordion-item title="Usage Radar" v-if="this.metadata.id">
-      <k-switch-radar :dpid="metadata.id" :showGrid="true" :showAxis="true" :showLabels="true" :showLegend="false"></k-switch-radar>
+        <k-switch-radar :dpid="metadata.id" :showGrid="true" :showAxis="true" :showLabels="true" :showLegend="false"></k-switch-radar>
       </k-accordion-item>
       <k-accordion-item title="Basic Details">
           <k-property-panel>
@@ -122,7 +122,6 @@
          self.flows = result[dpid].flows
        })
      },
-
      rowClicked (link) {
        var subtitle = ""
        if(link.metadata.link_name !== undefined && link.metadata.link_name.length !== 0){
@@ -172,7 +171,7 @@
                               + "/" + this.next_state.toLowerCase(),
                         async: true,});       
        request.done(this.msg_state_success)
-       request.fail(this.msg_state_failure)                        
+       request.fail(this.msg_state_failure)
      },
    },
    mounted () {
