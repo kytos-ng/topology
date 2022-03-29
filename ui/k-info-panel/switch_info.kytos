@@ -316,6 +316,7 @@
 .metadata_table tbody tr:hover {
     color: #eee;
     background-color: #666;
+    }
 .metadata_container {
   width: 100%;
   display: flex;
