@@ -15,7 +15,6 @@ from napps.kytos.topology.db.models import InterfaceDetailDoc
 from kytos.core import log
 import pymongo
 from pymongo.collection import ReturnDocument
-from pymongo.operations import ReplaceOne
 from pymongo.operations import UpdateOne
 
 
@@ -108,44 +107,6 @@ class TopoController:
         )
         return updated
 
-    def bulk_update_interfaces_links(
-        self, dpid: str, switch_dict: dict, links_dict: List[dict]
-    ) -> None:
-        """Bulk update interfaces links.
-
-        Interfaces are bulk updated by updating the entire switch document
-        it's easier than managing bulk query update operators for now.
-        """
-
-        utc_now = datetime.utcnow()
-
-        link_ops = []
-        for link_dict in links_dict:
-            endpoint_a = link_dict.get("endpoint_a")
-            endpoint_b = link_dict.get("endpoint_b")
-            model = LinkDoc(
-                **{
-                    **link_dict,
-                    **{
-                        "updated_at": utc_now,
-                        "_id": link_dict.get("id"),
-                        "endpoints": [endpoint_a, endpoint_b],
-                    },
-                }
-            )
-            link_ops.append(
-                ReplaceOne(
-                    {"_id": model.id}, model.dict(exclude={"inserted_at"}), upsert=False
-                )
-            )
-
-        # could get rid of this
-        with self.transaction_lock:
-            with self.db_client.start_session() as session:
-                with session.start_transaction():
-                    self.upsert_switch(dpid, switch_dict, session=session)
-                    self.db.links.bulk_write(link_ops, ordered=False, session=session)
-
     def enable_switch(self, dpid: str) -> Optional[dict]:
         """Try to find one switch and enable it."""
         return self._update_switch(dpid, {"$set": {"enabled": True}})
@@ -208,36 +169,17 @@ class TopoController:
 
     def _update_interface(self, interface_id: str, update_expr: dict) -> Optional[dict]:
         """Try to update one interface and its embedded object on links."""
-
         self._set_updated_at(update_expr)
         interfaces_expression = {}
-        links_expression = {}
-
         for operator, values in update_expr.items():
             interfaces_expression[operator] = {
                 f"interfaces.$.{k}": v for k, v in values.items()
             }
-            links_expression[operator] = {
-                f"endpoints.$.{k}": v for k, v in values.items()
-            }
-
-        # could get rid of this too
-        with self.transaction_lock:
-            with self.db_client.start_session() as session:
-                with session.start_transaction():
-                    updated = self.db.switches.find_one_and_update(
-                        {"interfaces.id": interface_id},
-                        interfaces_expression,
-                        return_document=ReturnDocument.AFTER,
-                        session=session,
-                    )
-                    self.db.links.find_one_and_update(
-                        {"endpoints.id": interface_id},
-                        links_expression,
-                        return_document=ReturnDocument.AFTER,
-                        session=session,
-                    )
-                    return updated
+        return self.db.switches.find_one_and_update(
+            {"interfaces.id": interface_id},
+            interfaces_expression,
+            return_document=ReturnDocument.AFTER,
+        )
 
     def upsert_link(self, link_id: str, link_dict: dict) -> dict:
         """Update or insert a Link."""
