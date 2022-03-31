@@ -65,6 +65,35 @@ class SwitchDoc(DocumentBaseModel):
             return list(v.values())
         return v
 
+    @staticmethod
+    def projection() -> dict:
+        """Base projection of this model."""
+        return {
+            "_id": 0,
+            "id": 1,
+            "enabled": 1,
+            "active": 1,
+            "data_path": 1,
+            "hardware": 1,
+            "manufacturer": 1,
+            "software": 1,
+            "connection": 1,
+            "ofp_version": 1,
+            "serial": 1,
+            "metadata": 1,
+            "interfaces": {
+                "$arrayToObject": {
+                    "$map": {
+                        "input": "$interfaces",
+                        "as": "intf",
+                        "in": {"k": "$$intf.id", "v": "$$intf"},
+                    }
+                }
+            },
+            "updated_at": 1,
+            "inserted_at": 1,
+        }
+
 
 class LinkDoc(DocumentBaseModel):
     """Link DB Document Model."""
@@ -73,6 +102,21 @@ class LinkDoc(DocumentBaseModel):
     active: bool
     metadata: dict = {}
     endpoints: conlist(InterfaceSubDoc, min_items=2, max_items=2)
+
+    @staticmethod
+    def projection() -> dict:
+        """Base projection of this model."""
+        return {
+            "_id": 0,
+            "id": 1,
+            "enabled": 1,
+            "active": 1,
+            "metadata": 1,
+            "endpoint_a": {"$first": "$endpoints"},
+            "endpoint_b": {"$last": "$endpoints"},
+            "updated_at": 1,
+            "inserted_at": 1,
+        }
 
 
 class InterfaceDetailDoc(DocumentBaseModel):
