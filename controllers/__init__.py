@@ -1,6 +1,7 @@
 """TopoController."""
 from typing import List
 from typing import Optional
+from typing import Tuple
 from threading import Lock
 
 from datetime import datetime
@@ -15,6 +16,7 @@ from kytos.core import log
 import pymongo
 from pymongo.collection import ReturnDocument
 from pymongo.operations import ReplaceOne
+from pymongo.operations import UpdateOne
 
 
 class TopoController:
@@ -51,33 +53,7 @@ class TopoController:
         switches = self.db.switches.aggregate(
             [
                 {"$sort": {"_id": 1}},
-                {
-                    "$project": {
-                        "_id": 0,
-                        "id": 1,
-                        "enabled": 1,
-                        "active": 1,
-                        "data_path": 1,
-                        "hardware": 1,
-                        "manufacturer": 1,
-                        "software": 1,
-                        "connection": 1,
-                        "ofp_version": 1,
-                        "serial": 1,
-                        "metadata": 1,
-                        "inserted_at": 1,
-                        "created_at": 1,
-                        "interfaces": {
-                            "$arrayToObject": {
-                                "$map": {
-                                    "input": "$interfaces",
-                                    "as": "intf",
-                                    "in": {"k": "$$intf.id", "v": "$$intf"},
-                                }
-                            }
-                        },
-                    }
-                },
+                {"$project": SwitchDoc.projection()},
             ]
         )
         return {"switches": {value["id"]: value for value in switches}}
@@ -87,17 +63,7 @@ class TopoController:
         links = self.db.links.aggregate(
             [
                 {"$sort": {"_id": 1}},
-                {
-                    "$project": {
-                        "_id": 0,
-                        "id": 1,
-                        "enabled": 1,
-                        "active": 1,
-                        "metadata": 1,
-                        "endpoint_a": {"$first": "$endpoints"},
-                        "endpoint_b": {"$last": "$endpoints"},
-                    }
-                },
+                {"$project": LinkDoc.projection()},
             ]
         )
         return {"links": {value["id"]: value for value in links}}
@@ -130,17 +96,17 @@ class TopoController:
         """Update or insert switch."""
         utc_now = datetime.utcnow()
         model = SwitchDoc(**{**switch_dict, **{"_id": dpid, "updated_at": utc_now}})
-        old_document = self.db.switches.find_one_and_update(
+        updated = self.db.switches.find_one_and_update(
             {"_id": dpid},
             {
                 "$set": model.dict(exclude={"inserted_at"}),
                 "$setOnInsert": {"inserted_at": utc_now},
             },
-            return_document=ReturnDocument.BEFORE,
+            return_document=ReturnDocument.AFTER,
             upsert=True,
             **kwargs,
         )
-        return old_document
+        return updated
 
     def bulk_update_interfaces_links(
         self, dpid: str, switch_dict: dict, links_dict: List[dict]
@@ -173,6 +139,7 @@ class TopoController:
                 )
             )
 
+        # could get rid of this
         with self.transaction_lock:
             with self.db_client.start_session() as session:
                 with session.start_transaction():
@@ -189,7 +156,7 @@ class TopoController:
 
     def disable_switch(self, dpid: str) -> Optional[dict]:
         """Try to find one switch and disable it."""
-        return self.db.switches._update_switch(
+        return self._update_switch(
             dpid, {"$set": {"enabled": False, "interfaces.$[].enabled": False}}
         )
 
@@ -204,11 +171,11 @@ class TopoController:
 
     def enable_interface(self, interface_id: str) -> Optional[dict]:
         """Try to enable one interface and its embedded object on links."""
-        return self._update_interface(interface_id, {"$set": {"enable": True}})
+        return self._update_interface(interface_id, {"$set": {"enabled": True}})
 
     def disable_interface(self, interface_id: str) -> Optional[dict]:
         """Try to disable one interface and its embedded object on links."""
-        return self._update_interface(interface_id, {"$set": {"enable": False}})
+        return self._update_interface(interface_id, {"$set": {"enabled": False}})
 
     def activate_interface(self, interface_id: str) -> Optional[dict]:
         """Try to activate one interface."""
@@ -254,19 +221,20 @@ class TopoController:
                 f"endpoints.$.{k}": v for k, v in values.items()
             }
 
+        # could get rid of this too
         with self.transaction_lock:
             with self.db_client.start_session() as session:
                 with session.start_transaction():
                     updated = self.db.switches.find_one_and_update(
                         {"interfaces.id": interface_id},
                         interfaces_expression,
-                        return_document=ReturnDocument.BEFORE,
+                        return_document=ReturnDocument.AFTER,
                         session=session,
                     )
                     self.db.links.find_one_and_update(
                         {"endpoints.id": interface_id},
                         links_expression,
-                        return_document=ReturnDocument.BEFORE,
+                        return_document=ReturnDocument.AFTER,
                         session=session,
                     )
                     return updated
@@ -296,7 +264,7 @@ class TopoController:
                             "$set": model.dict(exclude={"inserted_at"}),
                             "$setOnInsert": {"inserted_at": utc_now},
                         },
-                        return_document=ReturnDocument.BEFORE,
+                        return_document=ReturnDocument.AFTER,
                         upsert=True,
                         session=session,
                     )
@@ -357,30 +325,38 @@ class TopoController:
         """Try to find a link and delete a metadata key."""
         return self._update_link(link_id, {"$unset": {f"metadata.{key}": ""}})
 
-    def upsert_interface_detail(
-        self, interface_id: str, detail_dict: dict
+    def bulk_upsert_interface_details(
+        self, ids_details: Tuple[str, dict]
     ) -> Optional[dict]:
-        """Update or insert an interface_detail."""
+        """Update or insert interfaces details."""
         utc_now = datetime.utcnow()
-        model = InterfaceDetailDoc(
-            **{
-                **detail_dict,
-                **{
-                    "updated_at": utc_now,
-                    "_id": interface_id,
-                },
-            }
-        )
-        updated = self.db.interface_details.find_one_and_update(
-            {"_id": interface_id},
-            {
-                "$set": model.dict(exclude={"inserted_at"}),
-                "$setOnInsert": {"inserted_at": utc_now},
-            },
-            return_document=ReturnDocument.BEFORE,
-            upsert=True,
-        )
-        return updated
+        ops = []
+        for _id, detail_dict in ids_details:
+            ops.append(
+                UpdateOne(
+                    {"_id": _id},
+                    {
+                        "$set": InterfaceDetailDoc(
+                            **{
+                                **detail_dict,
+                                **{
+                                    "updated_at": utc_now,
+                                    "_id": _id,
+                                },
+                            }
+                        ).dict(exclude={"inserted_at"}),
+                        "$setOnInsert": {"inserted_at": utc_now},
+                    },
+                    upsert=True,
+                ),
+            )
+
+        with self.transaction_lock:
+            with self.db_client.start_session() as session:
+                with session.start_transaction():
+                    return self.db.interface_details.bulk_write(
+                        ops, ordered=False, session=session
+                    )
 
     def get_interfaces_details(self, interface_ids: List[str]) -> Optional[dict]:
         """Try to get interfaces details given a list of interface ids."""
