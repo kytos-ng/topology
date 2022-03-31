@@ -39,6 +39,7 @@ class InterfaceSubDoc(BaseModel):
     lldp: bool
     switch: str
     link: Optional[str]
+    link_side: Optional[str]
     metadata: dict = {}
     updated_at: Optional[datetime]
 
@@ -95,13 +96,19 @@ class SwitchDoc(DocumentBaseModel):
         }
 
 
+class InterfaceIdSubDoc(BaseModel):
+    """InterfaceId DB SubDocument Model."""
+
+    id: str
+
+
 class LinkDoc(DocumentBaseModel):
     """Link DB Document Model."""
 
     enabled: bool
     active: bool
     metadata: dict = {}
-    endpoints: conlist(InterfaceSubDoc, min_items=2, max_items=2)
+    endpoints: conlist(InterfaceIdSubDoc, min_items=2, max_items=2)
 
     @staticmethod
     def projection() -> dict:
