@@ -137,21 +137,18 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         return None
 
     def _load_link(self, link_att):
-        dpid_a = link_att['endpoint_a']['switch']
-        dpid_b = link_att['endpoint_b']['switch']
-        port_a = link_att['endpoint_a']['port_number']
-        port_b = link_att['endpoint_b']['port_number']
-        link_str = f'{dpid_a}:{port_a}-{dpid_b}:{port_b}'
-        log.info(f"Loading link: {link_att['id']}")
+        endpoint_a = link_att['endpoint_a']['id']
+        endpoint_b = link_att['endpoint_b']['id']
+        link_str = link_att['id']
+        log.info(f"Loading link: {link_str}")
+        interface_a = self.controller.get_interface_by_id(endpoint_a)
+        interface_b = self.controller.get_interface_by_id(endpoint_b)
 
-        try:
-            switch_a = self.controller.switches[dpid_a]
-            switch_b = self.controller.switches[dpid_b]
-            interface_a = switch_a.interfaces[port_a]
-            interface_b = switch_b.interfaces[port_b]
-        except Exception as err:
-            error = f'Fail to load endpoints for link {link_str}: {err}'
-            raise RestoreError(error) from err
+        error = f"Fail to load endpoints for link {link_str}. "
+        if not interface_a:
+            raise RestoreError(f"{error}, endpoint_a {endpoint_a} not found")
+        if not interface_b:
+            raise RestoreError(f"{error}, endpoint_b {endpoint_b} not found")
 
         with self._links_lock:
             link, _ = self._get_link_or_create(interface_a, interface_b)
@@ -366,14 +363,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         else:
             for interface in switch.interfaces.values():
                 interface.enable()
-            links_dict = {
-                intf.link.id: intf.link.as_dict()
-                for intf in switch.interfaces.values()
-                if intf.link
-            }
-            self.topo_controller.bulk_update_interfaces_links(
-                switch.id, switch.as_dict(), links_dict.values()
-            )
+            self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         self.notify_topology_update()
         return jsonify("Operation successful"), 200
 
@@ -401,14 +391,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         else:
             for interface in switch.interfaces.values():
                 interface.disable()
-            links_dict = {
-                intf.link.id: intf.link.as_dict()
-                for intf in switch.interfaces.values()
-                if intf.link
-            }
-            self.topo_controller.bulk_update_interfaces_links(
-                switch.id, switch.as_dict(), links_dict.values()
-            )
+            self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         self.notify_topology_update()
         return jsonify("Operation successful"), 200
 
