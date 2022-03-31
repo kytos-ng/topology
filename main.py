@@ -721,8 +721,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             metadata = {'last_status_change': time.time(),
                         'last_status_is_active': True}
             link.extend_metadata(metadata)
-            with self.topo_controller.transaction_lock:
-                self.topo_controller.add_link_metadata(link.id, metadata)
+            self.topo_controller.add_link_metadata(link.id, metadata)
             self.notify_topology_update()
             self.notify_link_status_change(link, reason='link up')
 

@@ -26,7 +26,7 @@ class TopoController:
         db_client_kwargs = db_client_options or {}
         self.db_client = db_client(**db_client_kwargs)
         self.db = self.db_client.napps
-        self.transaction_lock = Lock()
+        self.interface_details_lock = Lock()
 
     def bootstrap_indexes(self) -> None:
         """Bootstrap all topology related indexes."""
@@ -197,40 +197,36 @@ class TopoController:
                 },
             }
         )
-        with self.transaction_lock:
-            with self.db_client.start_session() as session:
-                with session.start_transaction():
-                    updated = self.db.links.find_one_and_update(
-                        {"_id": link_id},
-                        {
-                            "$set": model.dict(exclude={"inserted_at"}),
-                            "$setOnInsert": {"inserted_at": utc_now},
-                        },
-                        return_document=ReturnDocument.AFTER,
-                        upsert=True,
-                        session=session,
-                    )
-                    self.db.switches.find_one_and_update(
-                        {"interfaces.id": endpoint_a},
-                        {
-                            "$set": {
-                                "interfaces.$.link_id": link_id,
-                                "updated_at": utc_now,
-                            }
-                        },
-                        session=session,
-                    )
-                    self.db.switches.find_one_and_update(
-                        {"interfaces.id": endpoint_b},
-                        {
-                            "$set": {
-                                "interfaces.$.link_id": link_id,
-                                "updated_at": utc_now,
-                            }
-                        },
-                        session=session,
-                    )
-                    return updated
+        updated = self.db.links.find_one_and_update(
+            {"_id": link_id},
+            {
+                "$set": model.dict(exclude={"inserted_at"}),
+                "$setOnInsert": {"inserted_at": utc_now},
+            },
+            return_document=ReturnDocument.AFTER,
+            upsert=True,
+        )
+        self.db.switches.find_one_and_update(
+            {"interfaces.id": endpoint_a},
+            {
+                "$set": {
+                    "interfaces.$.link_id": link_id,
+                    "interfaces.$.link_side": "endpoint_a",
+                    "updated_at": utc_now,
+                }
+            },
+        )
+        self.db.switches.find_one_and_update(
+            {"interfaces.id": endpoint_b},
+            {
+                "$set": {
+                    "interfaces.$.link_id": link_id,
+                    "interfaces.$.link_side": "endpoint_b",
+                    "updated_at": utc_now,
+                }
+            },
+        )
+        return updated
 
     def _update_link(self, link_id: str, update_expr: dict) -> Optional[dict]:
         """Try to find one link and update it given an update expression."""
@@ -293,7 +289,7 @@ class TopoController:
                 ),
             )
 
-        with self.transaction_lock:
+        with self.interface_details_lock:
             with self.db_client.start_session() as session:
                 with session.start_transaction():
                     return self.db.interface_details.bulk_write(
