@@ -1,4 +1,6 @@
 """TopoController."""
+import os
+
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -23,9 +25,12 @@ class TopoController:
 
     def __init__(self, db_client=mongo_client, db_client_options=None) -> None:
         """Constructor of TopoController."""
-        db_client_kwargs = db_client_options or {}
-        self.db_client = db_client(**db_client_kwargs)
-        self.db = self.db_client.napps
+        client_kwargs = db_client_options or {}
+        db_name = client_kwargs.get("database") or os.environ.get(
+            "MONGO_DBNAME", "napps"
+        )
+        self.db_client = db_client(**client_kwargs)
+        self.db = self.db_client[db_name]
         self.interface_details_lock = Lock()
 
     def bootstrap_indexes(self) -> None:
