@@ -718,10 +718,21 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 self.notify_topology_update()
                 self.notify_link_status_change(link, reason='link up')
         else:
-            metadata = {'last_status_change': time.time(),
+            last_status_change = time.time()
+            metadata = {'last_status_change': last_status_change,
                         'last_status_is_active': True}
             link.extend_metadata(metadata)
             self.topo_controller.add_link_metadata(link.id, metadata)
+            self.topo_controller._update_link(
+                link.id,
+                {
+                    "$set": {
+                        "metadata.last_status_change": last_status_change,
+                        "metadata.last_status_is_active": True,
+                        "active": True,
+                    }
+                },
+            )
             self.notify_topology_update()
             self.notify_link_status_change(link, reason='link up')
 
