@@ -2,13 +2,15 @@
 
 Manage the network topology
 """
+# pylint: disable=wrong-import-order
+
 import time
 from threading import Lock
 from typing import List
 
 from flask import jsonify, request
-from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 from pymongo.errors import AutoReconnect
+from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 
 from kytos.core import KytosEvent, KytosNApp, log, rest
 from kytos.core.exceptions import KytosLinkCreationError
@@ -17,9 +19,9 @@ from kytos.core.interface import Interface
 from kytos.core.link import Link
 from kytos.core.switch import Switch
 from napps.kytos.topology import settings
+from napps.kytos.topology.controllers import TopoController
 from napps.kytos.topology.exceptions import RestoreError
 from napps.kytos.topology.models import Topology
-from napps.kytos.topology.controllers import TopoController
 
 DEFAULT_LINK_UP_TIMER = 10
 
@@ -319,7 +321,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         except KeyError:
             return jsonify("Switch not found"), 404
 
-        if not switch.get_metadata(key):
+        try:
+            _ = switch.metadata[key]
+        except KeyError:
             return jsonify("Metadata not found"), 404
 
         self.topo_controller.delete_switch_metadata_key(dpid, key)
@@ -449,7 +453,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         except KeyError:
             return jsonify("Interface not found"), 404
 
-        if not interface.get_metadata(key):
+        try:
+            _ = interface.metadata[key]
+        except KeyError:
             return jsonify("Metadata not found"), 404
 
         self.topo_controller.delete_interface_metadata_key(interface.id, key)
@@ -530,7 +536,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         except KeyError:
             return jsonify("Link not found"), 404
 
-        if not link.get_metadata(key):
+        try:
+            _ = link.metadata[key]
+        except KeyError:
             return jsonify("Metadata not found"), 404
 
         self.topo_controller.delete_link_metadata_key(link.id, key)
@@ -553,8 +561,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         values_a = [tag.value for tag in endpoint_a.available_tags]
         values_b = [tag.value for tag in endpoint_b.available_tags]
         ids_details = [
-            (endpoint_a.id, {"_id": endpoint_a.id, "available_vlans": values_a}),
-            (endpoint_b.id, {"_id": endpoint_b.id, "available_vlans": values_b})
+            (endpoint_a.id, {"_id": endpoint_a.id,
+                             "available_vlans": values_a}),
+            (endpoint_b.id, {"_id": endpoint_b.id,
+                             "available_vlans": values_b})
         ]
         self.topo_controller.bulk_upsert_interface_details(ids_details)
 
@@ -923,29 +933,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         event = KytosEvent(name=name, content=event.content)
         self.controller.buffers.app.put(event)
 
-    def load_switch_interfaces_metadata(self, switch: Switch,
-                                        switch_model: dict) -> None:
-        """Load switch and interfaces metadata."""
-        if not switch_model:
-            return
-        sw_metadata = switch_model.get("metadata")
-        if sw_metadata:
-            log.debug(f"Loading switch id {switch.id} metadata: {sw_metadata}")
-            switch.extend_metadata(sw_metadata)
-        if switch_model.get("interfaces", []):
-            for intf_model in switch_model.get("interfaces", []):
-                intf_metadata = intf_model.get("metadata")
-                if not intf_metadata:
-                    continue
-                if not switch.interfaces.get(intf_model.get("port_number")):
-                    continue
-                intf_id = intf_model.get("id")
-                log.debug(f"Loading interface id {intf_id} metadata: "
-                          f"{intf_metadata}")
-                interface = switch.interfaces[intf_model["port_number"]]
-                interface.extend_metadata(intf_metadata)
-
-    def load_interfaces_available_tags(self, switch: Switch,
+    @staticmethod
+    def load_interfaces_available_tags(switch: Switch,
                                        interfaces_details: List[dict]) -> None:
         """Load interfaces available tags (vlans)."""
         if not interfaces_details:
