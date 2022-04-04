@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import json
 import glob
 import pickle
 import os
+import sys
 from typing import Any, List, Tuple
-from napps.kytos.topology.db.models import SwitchDoc
-from napps.kytos.topology.db.models import LinkDoc
-from napps.kytos.topology.db.client import mongo_client
+from napps.kytos.topology.controllers import TopoController
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-client = mongo_client()
+topo_controller = TopoController()
 
 
 def get_storehouse_dir() -> str:
@@ -37,7 +38,7 @@ def load_boxes_data(namespace: str) -> dict:
 
 
 def load_topology_status() -> Tuple[List[dict], List[dict]]:
-    """Map topology status."""
+    """Load topology status."""
     namespace = "kytos.topology.status"
     content = load_boxes_data(namespace)
     if namespace not in content:
@@ -49,65 +50,137 @@ def load_topology_status() -> Tuple[List[dict], List[dict]]:
     if "switches" not in content["network_status"]:
         return ([], [])
 
-    links = content["network_status"].get("links", {})
+    links_status = content["network_status"].get("links", {})
 
     switches = []
     for switch in content["network_status"]["switches"].values():
         switch["_id"] = switch["id"]
-        if "interfaces" in switch:
-            switch["interfaces"] = list(switch["interfaces"].values())
         switches.append(switch)
 
-    for link_values in links.values():
+    links = []
+    for link_values in links_status.values():
         if "id" in link_values:
             link_values["_id"] = link_values["id"]
+            links.append(link_values)
 
-    return (
-        [SwitchDoc(**switch).dict() for switch in switches],
-        [LinkDoc(**link).dict() for link in links.values()],
-    )
+    return (switches, links)
 
 
-def insert_from_topology_status(client=client) -> Tuple[List[str], List[str]]:
+def insert_from_topology_status(
+    topo_controller=topo_controller,
+) -> Tuple[List[dict], List[dict]]:
     """Insert from topology status."""
-    db = client.napps
-    switches = db.switches
-
     loaded_switches, loaded_links = load_topology_status()
-    listed_switches = list(
-        switches.find(
-            {
-                "_id": {"$in": [switch["id"] for switch in loaded_switches]},
-            },
-            {"_id": 1},
-        )
-    )
-    listed_ids = set([switch["_id"] for switch in listed_switches])
 
     insert_switches = []
-    for switch in loaded_switches:
-        if switch["id"] not in listed_ids:
-            insert_switches.append(switch)
-    if insert_switches:
-        insert_switches = switches.insert_many(insert_switches).inserted_ids
-
-    links = db.links
-    listed_links = list(
-        links.find({"_id": {"$in": [link["id"] for link in loaded_links]}}, {"_id": 1})
-    )
-    link_listed_ids = set([link["_id"] for link in listed_links])
+    with ThreadPoolExecutor(max_workers=len(loaded_switches)) as executor:
+        futures = [
+            executor.submit(topo_controller.upsert_switch, switch["id"], switch)
+            for switch in loaded_switches
+        ]
+        for future in as_completed(futures):
+            response = future.result()
+            insert_switches.append(response)
 
     insert_links = []
-    for link in loaded_links:
-        if link["id"] not in link_listed_ids:
-            insert_links.append(link)
-    if insert_links:
-        insert_links = links.insert_many(insert_links).inserted_ids
+    with ThreadPoolExecutor(max_workers=len(loaded_links)) as executor:
+        futures = [
+            executor.submit(topo_controller.upsert_link, link["id"], link)
+            for link in loaded_links
+        ]
+        for future in as_completed(futures):
+            response = future.result()
+            insert_switches.append(response)
 
     return (insert_switches, insert_links)
 
 
+def load_topology_metadata(entity: str) -> dict:
+    """Load topology metadata."""
+    namespace = f"kytos.topology.{entity}.metadata"
+    content = load_boxes_data(namespace)
+    if namespace not in content:
+        return {}
+    content = content[namespace]
+    return content
+
+
+def insert_from_topology_switches_metadata(
+    topo_controller=topo_controller,
+) -> List[dict]:
+    """Insert from topology switches metadata namespace."""
+    switches = load_topology_metadata("switches")
+    responses = []
+    with ThreadPoolExecutor(max_workers=len(switches)) as executor:
+        futures = [
+            executor.submit(topo_controller.add_switch_metadata, dpid, metadata)
+            for dpid, metadata in switches.items()
+        ]
+        for future in as_completed(futures):
+            response = future.result()
+            responses.append(response)
+    return responses
+
+
+def insert_from_topology_interfaces_metadata(
+    topo_controller=topo_controller,
+) -> List[dict]:
+    """Insert from topology interfaces metadata namespace."""
+    interfaces = load_topology_metadata("interfaces")
+    responses = []
+    with ThreadPoolExecutor(max_workers=len(interfaces)) as executor:
+        futures = [
+            executor.submit(
+                topo_controller.add_interface_metadata, interface_id, metadata
+            )
+            for interface_id, metadata in interfaces.items()
+        ]
+        for future in as_completed(futures):
+            response = future.result()
+            responses.append(response)
+    return responses
+
+
+def insert_from_topology_links_metadata(topo_controller=topo_controller) -> List[dict]:
+    """Insert from topology links metadata namespace."""
+    links = load_topology_metadata("links")
+    responses = []
+    with ThreadPoolExecutor(max_workers=len(links)) as executor:
+        futures = [
+            executor.submit(topo_controller.add_link_metadata, link_id, metadata)
+            for link_id, metadata in links.items()
+        ]
+        for future in as_completed(futures):
+            response = future.result()
+            responses.append(response)
+    return responses
+
+
 if __name__ == "__main__":
-    # print(json.dumps(load_topology_status()))
-    # TODO break as a CLI
-    print(insert_from_topology_status())
+    cmds = {
+        "insert_links_metadata": insert_from_topology_links_metadata,
+        "insert_switches_metadata": insert_from_topology_switches_metadata,
+        "insert_interfaces_metadata": insert_from_topology_interfaces_metadata,
+        "insert_topology": insert_from_topology_status,
+        "load_topology": lambda: json.dumps(load_topology_status()),
+        "load_switches_metadata": lambda: json.dumps(
+            load_topology_metadata("switches")
+        ),
+        "load_interfaces_metadata": lambda: json.dumps(
+            load_topology_metadata("interfaces")
+        ),
+        "load_links_metadata": lambda: json.dumps(load_topology_metadata("links")),
+    }
+    try:
+        cmd = os.environ["CMD"]
+    except KeyError:
+        print("Please set the 'CMD' env var.")
+        sys.exit(1)
+    try:
+        for command in cmd.split(","):
+            print(cmds[command]())
+    except KeyError as e:
+        print(
+            f"Unknown cmd: {str(e)}. 'CMD' env var has to be one of these {list(cmds.keys())}."
+        )
+        sys.exit(1)
