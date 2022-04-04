@@ -44,9 +44,7 @@ def bootstrap_index(
     indexes = set()
 
     for value in db[collection].index_information().values():
-        if "key" not in value:
-            pass
-        if value["key"] and isinstance(value["key"], list):
+        if "key" in value and isinstance(value["key"], list):
             indexes.add(value["key"][0])
 
     if (index, direction) not in indexes:
