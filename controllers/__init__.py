@@ -96,7 +96,7 @@ class TopoController:
         self._set_updated_at(update_expr)
         return self.db.switches.find_one_and_update({"_id": dpid}, update_expr)
 
-    def upsert_switch(self, dpid: str, switch_dict: dict, **kwargs) -> Optional[dict]:
+    def upsert_switch(self, dpid: str, switch_dict: dict) -> Optional[dict]:
         """Update or insert switch."""
         utc_now = datetime.utcnow()
         model = SwitchDoc(**{**switch_dict, **{"_id": dpid, "updated_at": utc_now}})
@@ -108,7 +108,6 @@ class TopoController:
             },
             return_document=ReturnDocument.AFTER,
             upsert=True,
-            **kwargs,
         )
         return updated
 
@@ -238,19 +237,6 @@ class TopoController:
         self._set_updated_at(update_expr)
         return self.db.links.find_one_and_update({"_id": link_id}, update_expr)
 
-    def activate_link(self, link_id: str) -> Optional[dict]:
-        """Try to find one link and activate it."""
-        return self._update_link(
-            link_id, {"$set": {"active": True, "metadata.last_status_is_active": True}}
-        )
-
-    def deactivate_link(self, link_id: str, interface_id: str) -> Optional[dict]:
-        """Try to find one link and deactivate it."""
-        return self._update_link(
-            link_id,
-            {"$set": {"active": False, "metadata.last_status_is_active": False}},
-        )
-
     def enable_link(self, link_id: str) -> Optional[dict]:
         """Try to find one link and enable it."""
         return self._update_link(link_id, {"$set": {"enabled": True}})
@@ -269,7 +255,7 @@ class TopoController:
         return self._update_link(link_id, {"$unset": {f"metadata.{key}": ""}})
 
     def bulk_upsert_interface_details(
-        self, ids_details: Tuple[str, dict]
+        self, ids_details: List[Tuple[str, dict]]
     ) -> Optional[dict]:
         """Update or insert interfaces details."""
         utc_now = datetime.utcnow()
