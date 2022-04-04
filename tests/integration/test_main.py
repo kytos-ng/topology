@@ -1,6 +1,6 @@
 """Module to test the main napp file."""
 from unittest import TestCase
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 
 # pylint: disable=import-error,no-name-in-module
 from kytos.core.events import KytosEvent
@@ -118,22 +118,10 @@ class TestMain(TestCase):
 
         patch('kytos.core.helpers.run_on_thread', lambda x: x).start()
         from napps.kytos.topology.main import Main
+        Main.ensure_db_or_core_shutdown = MagicMock(return_value=False)
         self.addCleanup(patch.stopall)
         self.napp = Main(get_controller_mock())
-        self.init_napp()
-
-    @patch('napps.kytos.topology.main.Main.verify_storehouse')
-    def init_napp(self, mock_verify_storehouse=None):
-        """Initialize a Topology NApp instance."""
-        mock_verify_storehouse.return_value = None
-        patch('kytos.core.helpers.run_on_thread', lambda x: x).start()
-        from napps.kytos.topology.main import Main
-        self.addCleanup(patch.stopall)
-        self.napp = Main(get_controller_mock())
-        self.napp.store_items = {
-            "links": FakeBox(LINK_DATA),
-            "switches": FakeBox(SWITCH_DATA)
-        }
+        self.napp.topo_controller = MagicMock()
 
     def test_get_switches_dict(self):
         """Basic test for switch listing."""
@@ -145,6 +133,7 @@ class TestMain(TestCase):
 
     def test_get_event_listeners(self):
         """Verify all event listeners registered."""
+        actual_events = self.napp.listeners()
         expected_events = ['kytos/core.shutdown',
                            'kytos/core.shutdown.kytos/topology',
                            'kytos/maintenance.start_link',
@@ -152,17 +141,16 @@ class TestMain(TestCase):
                            'kytos/maintenance.start_switch',
                            'kytos/maintenance.end_switch',
                            'kytos/.*.link_available_tags',
-                           '.*.network_status.updated',
+                           '.*.of_lldp.network_status.updated',
                            '.*.interface.is.nni',
                            '.*.connection.lost',
-                           '.*.switch.interface.created',
+                           '.*.switch.interfaces.created',
+                           '.*.topology.switch.interface.created',
                            '.*.switch.interface.deleted',
                            '.*.switch.interface.link_down',
                            '.*.switch.interface.link_up',
                            '.*.switch.(new|reconnected)',
-                           '.*.switch.port.created',
-                           'kytos/storehouse.loaded']
-        actual_events = self.napp.listeners()
+                           '.*.switch.port.created']
         self.assertCountEqual(expected_events, actual_events)
 
     def test_verify_api_urls(self):
@@ -244,17 +232,24 @@ class TestMain(TestCase):
         napp.controller.api_server.register_napp_endpoints(napp)
         return napp.controller.api_server.app.test_client()
 
-    def test_save_metadata_on_store(self):
-        """Test save metadata on store."""
-        switch = get_switch_mock(0x04)
-        self.napp.save_metadata_on_store(switch, 'switches')
-        event_list_response = self.napp.controller.buffers.app.get()
-        event_updated_response = self.napp.controller.buffers.app.get()
-
-        self.assertEqual(event_list_response.name,
-                         'kytos.storehouse.list')
-        self.assertEqual(event_updated_response.name,
-                         'kytos.storehouse.update')
+    def test_get_interfaces(self):
+        """test_get_interfaces."""
+        dpid = "00:00:00:00:00:00:00:01"
+        switch = get_switch_mock(0x04, dpid=dpid)
+        switch.dpid = dpid
+        switch.metadata = {"lat": 0, "lng": 0}
+        switch.interfaces = {f"{dpid}:1": f"{dpid}:1"}
+        switch.as_dict = lambda: {"dpid": dpid, "metadata": switch.metadata,
+                                  "interfaces": switch.interfaces}
+        self.napp.controller.switches = {dpid: switch}
+        client = self.get_app_test_client(self.napp)
+        url = "http://127.0.0.1:8181/api/kytos/topology/v3/interfaces"
+        response = client.get(url)
+        assert response.status_code == 200
+        data = response.json
+        assert "interfaces" in data
+        assert len(data["interfaces"]) == 1
+        assert data["interfaces"][f"{dpid}:1"]
 
     def test_handle_new_switch(self):
         """Test handle new switch."""
@@ -263,11 +258,7 @@ class TestMain(TestCase):
         event = KytosEvent(name=event_name,
                            content={'switch': switch})
         self.napp.handle_new_switch(event)
-        event_list_response = self.napp.controller.buffers.app.get()
         event_response = self.napp.controller.buffers.app.get()
-
-        self.assertEqual(event_list_response.name,
-                         'kytos.storehouse.list')
         self.assertEqual(event_response.name,
                          'kytos/topology.updated')
 
@@ -275,13 +266,11 @@ class TestMain(TestCase):
         """Test handle interface deleted."""
         event_name = '.*.switch.interface.deleted'
         interface = get_interface_mock("interface1", 7)
+        interface.switch.dpid = "00:00:00:00:00:00:00:01"
         stats_event = KytosEvent(name=event_name,
                                  content={'interface': interface})
         self.napp.handle_interface_deleted(stats_event)
-        event_list_response = self.napp.controller.buffers.app.get()
         event_updated_response = self.napp.controller.buffers.app.get()
-        self.assertEqual(event_list_response.name,
-                         'kytos.storehouse.list')
         self.assertEqual(event_updated_response.name,
                          'kytos/topology.updated')
 
@@ -292,9 +281,6 @@ class TestMain(TestCase):
         stats_event = KytosEvent(name=event_name,
                                  content={'source': source})
         self.napp.handle_connection_lost(stats_event)
-        event_list_response = self.napp.controller.buffers.app.get()
         event_updated_response = self.napp.controller.buffers.app.get()
-        self.assertEqual(event_list_response.name,
-                         'kytos.storehouse.list')
         self.assertEqual(event_updated_response.name,
                          'kytos/topology.updated')
