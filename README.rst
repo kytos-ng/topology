@@ -1,13 +1,18 @@
-########
+|Stable| |Tag| |License| |Build| |Coverage| |Quality|
+
+.. raw:: html
+
+  <div align="center">
+    <h1><code>kytos/topology</code></h1>
+
+    <strong>NApp that manages the network topology</strong>
+
+    <h3><a href="https://kytos-ng.github.io/api/topology.html">OpenAPI Docs</a></h3>
+  </div>
+
+
 Overview
-########
-
-|License| |Build| |Coverage| |Quality|
-
-.. attention::
-
-    THIS NAPP IS STILL EXPERIMENTAL AND IT'S EVENTS, METHODS AND STRUCTURES MAY
-    CHANGE A LOT ON THE NEXT FEW DAYS/WEEKS, USE IT AT YOUR OWN DISCERNEMENT
+========
 
 This NApp is responsible for tracking the network topology and supplying
 network topology information to any NApp that requires it.
@@ -16,153 +21,57 @@ This NApp intends to be protocol agnostic. Therefore, if you want to provide
 network topology data from any network protocol, check the listened events
 section and generate them from your NApp.
 
-##########
 Installing
-##########
+==========
 
-All of the Kytos Network Applications are located in the NApps online
-repository. To install this NApp, run:
+To install this NApp, first, make sure to have the same venv activated as you have ``kytos`` installed on:
 
 .. code:: shell
 
-   $ kytos napps install kytos/topology
+   $ git clone https://github.com/kytos-ng/topology.git
+   $ cd topology
+   $ python setup.py develop
 
-############
 Requirements
-############
+============
 
-- kytos/of_core
-- kytos/of_lldp
-- kytos/storehouse
+- `kytos/of_core <https://github.com/kytos-ng/of_core.git>`_
 
-###########
-Configuring
-###########
-
-You have few options to configure the behaviour of this NApp in the
-`settings.py` file. Please take a look in this file.
-
-You can customize circuits in the topology using a JSON configuration file. See
-`etc/circuits.json.sample` for an example.
-
-Circuits can have a name, a list of hops and as many numeric custom properties
-as the user wants.
-
-We are working to deliver methods and resources to extend the custom properties
-in the future.
-
-######
 Events
-######
+======
 
-********
-Listened
-********
+Subscribed
+----------
 
-.*.switch.new
-==================
-Event reporting that a new switch was created/added on the network.
+- ``kytos/storehouse.loaded``
+- ``.*.switch.(new|reconnected)``
+- ``.*.connection.lost``
+- ``.*.switch.interface.created``
+- ``.*.switch.interface.deleted``
+- ``.*.switch.interface.link_up``
+- ``.*.switch.interface.link_down``
+- ``.*.switch.port.created``
+- ``.*.switch.port.modified``
+- ``.*.switch.port.deleted``
+- ``.*.interface.is.nni``
+- ``.*.network_status.updated``
+- ``kytos/.*.link_available_tags``
+- ``kytos/maintenance.start_link``
+- ``kytos/maintenance.end_link``
+- ``kytos/maintenance.start_switch``
+- ``kytos/maintenance.end_switch``
 
-Content
--------
 
-.. code-block:: python3
-
-   {
-     'switch': <Switch object>  # kytos.core.switch.Switch class
-   }
-
-.*.switch.port.created
-======================
-Event reporting that a port was created/added in the switch/datapath.
-
-Content
--------
-
-.. code-block:: python3
-
-   {
-     'switch': <switch id>,
-     'port': <port number>,
-     'port_description': {<description of the port>}  # port description dict
-   }
-
-.*.switch.port.modified
-=======================
-Event reporting that a port was modified in the datapath.
-
-Content
--------
-
-.. code-block:: python3
-
-   {
-     'switch': <switch id>,
-     'port': <port number>,
-     'port_description': {<description of the port>}  # port description dict
-   }
-
-.*.switch.port.deleted
-======================
-Event reporting that a port was deleted from the datapath.
-
-Content
--------
-
-.. code-block:: python3
-
-   {
-     'switch': <switch id>,
-     'port': <port number>,
-     'port_description': {<description of the port>}  # port description dict
-   }
-
-.*.interface.is.nni
-===================
-Event reporting that two interfaces were identified as NNI interfaces.
-
-Content
--------
-
-.. code-block:: python3
-
-   {
-     'interface_a': {
-        'switch': <switch id>,
-        'port': <port number>
-     },
-     'interface_b': {
-        'switch': <switch id>,
-        'port': <port number>
-     }
-   }
-
-.*.reachable.mac
-================
-Event reporting that a mac address is reachable from a specific switch/port.
-
-Content
--------
-
-.. code-block:: python3
-
-    {
-        'switch': <switch id>,
-        'port': <port number>,
-        'reachable_mac': <mac address>
-    }
-
-*********
-Generated
-*********
+Published
+---------
 
 kytos/topology.topology_loaded
-==============================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Event reporting that the topology was loaded from storehouse. It contains the
 most updated topology.
 
-Content
--------
+Content:
 
 .. code-block:: python3
 
@@ -173,12 +82,12 @@ Content
    }
 
 kytos/topology.updated
-======================
+~~~~~~~~~~~~~~~~~~~~~~
+
 Event reporting that the topology was updated. It contains the most updated
 topology.
 
-Content
--------
+Content:
 
 .. code-block:: python3
 
@@ -187,11 +96,11 @@ Content
    }
 
 kytos/topology.switch.enabled
-=============================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Event reporting that the switch was enabled. It contains the switch id.
 
-Content
--------
+Content:
 
 .. code-block:: python3
 
@@ -200,11 +109,11 @@ Content
    }
 
 kytos/topology.switch.disabled
-==============================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Event reporting that the switch was disabled. It contains the switch id.
 
-Content
--------
+Content:
 
 .. code-block:: python3
 
@@ -213,24 +122,25 @@ Content
    }
 
 kytos/topology.link.up
-======================
+~~~~~~~~~~~~~~~~~~~~~~
+
 Event reporting that the link was changed to 'up'. It contains the link instance.
 
-Content
--------
+Content:
 
 .. code-block:: python3
 
    {
      'link': <Link object>
    }
+
 
 kytos/topology.link.down
-========================
+~~~~~~~~~~~~~~~~~~~~~~~~
+
 Event reporting that the link was changed to 'down'. It contains the link instance.
 
-Content
--------
+Content:
 
 .. code-block:: python3
 
@@ -238,13 +148,21 @@ Content
      'link': <Link object>
    }
 
-########
-Rest API
-########
 
-You can find a list of the available endpoints and example input/output in the
-'REST API' tab in this NApp's webpage in the `Kytos NApps Server
-<https://napps.kytos.io/kytos/topology>`_.
+kytos/topology.(switches|interfaces|links).(added|removed)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Event reporting metadata changes. 
+
+Content:
+
+.. code-block:: python3
+
+   {
+     'switch|interface|link': <object>,
+     'metadata': object's metadata dict
+   }
+
 
 .. |License| image:: https://img.shields.io/github/license/kytos-ng/kytos.svg
    :target: https://github.com/kytos-ng/topology/blob/master/LICENSE
@@ -257,3 +175,7 @@ You can find a list of the available endpoints and example input/output in the
 .. |Quality| image:: https://scrutinizer-ci.com/g/kytos-ng/topology/badges/quality-score.png?b=master
   :alt: Code-quality score
   :target: https://scrutinizer-ci.com/g/kytos-ng/topology/?branch=master
+.. |Stable| image:: https://img.shields.io/badge/stability-stable-green.svg
+   :target: https://github.com/kytos-ng/topology
+.. |Tag| image:: https://img.shields.io/github/tag/kytos-ng/topology.svg
+   :target: https://github.com/kytos-ng/topology/tags
