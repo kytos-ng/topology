@@ -8,15 +8,21 @@ All notable changes to the ``topology`` project will be documented in this file.
 ********************************
 Added
 =====
+- MongoDB integration with pymongo
+- TopoController and DB models
+- ``storehouse_to_mongo.py`` script to migrate data from storehouse to MongoDB
 
 Changed
 =======
+- Refactored API and event handlers to also update MongoDB accordingly.
 
 Deprecated
 ==========
+- Storehouse file system backend
 
 Removed
 =======
+- Storehouse backend
 
 Fixed
 =====
