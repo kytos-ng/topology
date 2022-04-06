@@ -5,7 +5,10 @@
 
 # Time (in seconds) to wait before setting a link as up
 LINK_UP_TIMER = 10
-# Time (in seconds) to wait retrieve box from storehouse
-BOX_RESTORE_TIMER = 0.1
-# Time (in seconds) to wait before restore interfaces
-INTERFACE_RESTORE_TIMER = 2
+
+# Time (in seconds) to wait for a confirmation from storehouse
+# when retrieving or updating a box
+STOREHOUSE_TIMEOUT = 5.0
+
+# Time (in seconds) to sleep while waiting from storehouse (busy wait)
+STOREHOUSE_WAIT_INTERVAL = 0.05

@@ -30,7 +30,7 @@ def get_napp_urls(napp):
     for rule in controller.api_server.app.url_map.iter_rules():
         options = {}
         for arg in rule.arguments:
-            options[arg] = "[{0}]".format(arg)
+            options[arg] = f"[{arg}]"
 
         if f'{napp.username}/{napp.name}' in str(rule):
             urls.append((options, rule.methods, f'{str(rule)}'))

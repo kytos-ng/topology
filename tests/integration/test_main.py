@@ -2,6 +2,7 @@
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
+# pylint: disable=import-error,no-name-in-module
 from kytos.core.events import KytosEvent
 from tests.integration.helpers import (get_controller_mock, get_interface_mock,
                                        get_switch_mock)
@@ -136,7 +137,8 @@ class TestMain(TestCase):
 
     def test_get_switches_dict(self):
         """Basic test for switch listing."""
-        # pylint: disable=protected-access
+        # pylint: disable=protected-access,
+        # pylint: disable=use-implicit-booleaness-not-comparison
         switches = self.napp._get_switches_dict()
         assert isinstance(switches['switches'], dict)
         assert switches['switches'] == {}
@@ -149,6 +151,7 @@ class TestMain(TestCase):
                            'kytos/maintenance.end_link',
                            'kytos/maintenance.start_switch',
                            'kytos/maintenance.end_switch',
+                           'kytos/.*.link_available_tags',
                            '.*.network_status.updated',
                            '.*.interface.is.nni',
                            '.*.connection.lost',
@@ -158,7 +161,7 @@ class TestMain(TestCase):
                            '.*.switch.interface.link_up',
                            '.*.switch.(new|reconnected)',
                            '.*.switch.port.created',
-                           'kytos/topology.*.metadata.*']
+                           'kytos/storehouse.loaded']
         actual_events = self.napp.listeners()
         self.assertCountEqual(expected_events, actual_events)
 
@@ -228,7 +231,7 @@ class TestMain(TestCase):
         for rule in controller.api_server.app.url_map.iter_rules():
             options = {}
             for arg in rule.arguments:
-                options[arg] = "[{0}]".format(arg)
+                options[arg] = f"[{arg}]"
 
             if f'{napp.username}/{napp.name}' in str(rule):
                 urls.append((options, rule.methods, f'{str(rule)}'))
@@ -243,11 +246,8 @@ class TestMain(TestCase):
 
     def test_save_metadata_on_store(self):
         """Test save metadata on store."""
-        event_name = 'kytos.storehouse.update'
         switch = get_switch_mock(0x04)
-        event = KytosEvent(name=event_name,
-                           content={'switch': switch})
-        self.napp.save_metadata_on_store(event)
+        self.napp.save_metadata_on_store(switch, 'switches')
         event_list_response = self.napp.controller.buffers.app.get()
         event_updated_response = self.napp.controller.buffers.app.get()
 
@@ -269,21 +269,6 @@ class TestMain(TestCase):
         self.assertEqual(event_list_response.name,
                          'kytos.storehouse.list')
         self.assertEqual(event_response.name,
-                         'kytos/topology.updated')
-
-    def test_handle_interface_created(self):
-        """Test handle interface created."""
-        event_name = '.*.switch.interface.created'
-        interface = get_interface_mock("interface1", 7)
-        stats_event = KytosEvent(name=event_name,
-                                 content={'interface': interface})
-        self.napp.handle_interface_created(stats_event)
-        event_list_response = self.napp.controller.buffers.app.get()
-        event_updated_response = self.napp.controller.buffers.app.get()
-
-        self.assertEqual(event_list_response.name,
-                         'kytos.storehouse.list')
-        self.assertEqual(event_updated_response.name,
                          'kytos/topology.updated')
 
     def test_handle_interface_deleted(self):
