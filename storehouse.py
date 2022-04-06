@@ -1,12 +1,10 @@
 """Module to handle the storehouse."""
+import threading
 import time
 
 from kytos.core import log
 from kytos.core.events import KytosEvent
 from napps.kytos.topology import settings
-
-DEFAULT_BOX_RESTORE_TIMER = 0.1
-BOX_RESTORE_ATTEMPTS = 20
 
 
 class StoreHouse:
@@ -26,20 +24,21 @@ class StoreHouse:
         """Create a storehouse client instance."""
         self.controller = controller
         self.namespace = 'kytos.topology.status'
-        self.box_restore_timer = getattr(settings, 'BOX_RESTORE_TIMER',
-                                         DEFAULT_BOX_RESTORE_TIMER)
-
+        if '_lock' not in self.__dict__:
+            self._lock = threading.Lock()
         if 'box' not in self.__dict__:
             self.box = None
+        self.storehouse_done = False
+        self.storehouse_error = None
         self.list_stored_boxes()
 
     def get_data(self):
         """Return the persistence box data."""
         # Wait for box retrieve from storehouse
         i = 0
-        while not self.box and i < BOX_RESTORE_ATTEMPTS:
-            time.sleep(self.box_restore_timer)
-            i += 1
+        while not self.box and i < settings.STOREHOUSE_TIMEOUT:
+            time.sleep(settings.STOREHOUSE_WAIT_INTERVAL)
+            i += settings.STOREHOUSE_WAIT_INTERVAL
         if not self.box:
             error = 'Error retrieving persistence box from storehouse.'
             raise FileNotFoundError(error)
@@ -96,20 +95,36 @@ class StoreHouse:
 
     def save_status(self, status):
         """Save the network administrative status using storehouse."""
-        self.box.data[status.get('id')] = status
+        with self._lock:
+            self.storehouse_done = False
+            self.storehouse_error = None
+            self.box.data[status.get('id')] = status
+            content = {'namespace': self.namespace,
+                       'box_id': self.box.box_id,
+                       'data': self.box.data,
+                       'callback': self._save_status_callback}
+            event = KytosEvent(name='kytos.storehouse.update',
+                               content=content)
+            self.controller.buffers.app.put(event)
 
-        content = {'namespace': self.namespace,
-                   'box_id': self.box.box_id,
-                   'data': self.box.data,
-                   'callback': self._save_status_callback}
+            i = 0
+            while not self.storehouse_done and i < settings.STOREHOUSE_TIMEOUT:
+                time.sleep(settings.STOREHOUSE_WAIT_INTERVAL)
+                i += settings.STOREHOUSE_WAIT_INTERVAL
 
-        event = KytosEvent(name='kytos.storehouse.update', content=content)
-        self.controller.buffers.app.put(event)
+            if not self.storehouse_done:
+                self.storehouse_error = 'Timeout while waiting for storehouse'
 
-    def _save_status_callback(self, _event, data, error):
-        """Display the saved network status in the log."""
-        if error:
-            log.error(f'Can\'t update persistence box {data.box_id}.')
+            if self.storehouse_error:
+                log.error('Fail to update persistence box in '
+                          f'{self.namespace}.{self.box.box_id}. '
+                          f'Error: {self.storehouse_error}')
+                return
 
         log.info('Network administrative status saved in '
-                 f'{self.namespace}.{data.box_id}')
+                 f'{self.namespace}.{self.box.box_id}')
+
+    def _save_status_callback(self, _event, _data, error):
+        """Handle storehouse update result."""
+        self.storehouse_done = True
+        self.storehouse_error = error

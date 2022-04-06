@@ -8,6 +8,14 @@ All notable changes to the ``topology`` project will be documented in this file.
 ********************************
 Added
 =====
+- Added a table on ``k-info-panel/switch_info`` to display switch metadata
+- Added functionality to add and remove metadata from a switch on ``k-info-panel/switch-info``
+- Added a table of links to ``k-info-panel/switch_info``
+- Added the new ``k-info-panel/link_info`` to display link attributes
+- Added a toggle button to enable and disable a switch in the ``k-info-panel/switch_info`` component
+- Added a new accordion to ``k-info-panel/switch_info`` to enable and disable LLDP on interfaces
+- Added a toggle button to enable and disable a link in the ``k-info-panel/link_info`` component
+- Added functionality to add and remove metadata from a link on ``k-info-panel/link-info``
 
 Changed
 =======
@@ -23,6 +31,70 @@ Fixed
 
 Security
 ========
+
+[2022.1.0] - 2022-01-25
+***********************
+
+Changed
+=======
+- Hooked ``notify_topology_update`` to be called at least once if an interface goes up or down
+- Updated rest endpoints that disable entities to notify topology update
+- Updated rest endpoints that enable entities to notify topology update
+- Changed status code from 409 to 404 when interfaces aren't found
+
+[3.10.1] - 2022-01-20
+*********************
+
+Changed
+=======
+- ``handle_link_down`` to publish link_down
+- ``add_links`` to also notify link_up
+- ``last_status_is_active`` metadata to ensure single notification
+
+
+[3.10.0] - 2022-01-19
+*********************
+
+Changed
+=======
+- Changed ``_load_link`` to try to also load interface available tags
+- Changed ``save_status_on_storehouse`` to also store interface available_tags
+
+Added
+=====
+- Subscribed to ``kytos/.*.link_available_tags`` events
+- Added ``_load_intf_available_tags`` to try to load and set available_Tags
+- Added ``_get_links_dict_with_tags`` to also have interface available_tags
+- Hooked ``_load_intf_available_tags`` to be called for interface_created
+
+[3.9.0] - 2021-12-22
+********************
+
+Changed
+=======
+- Changed ``on_interface_created`` to try also handle as a link up
+- Changed ``add_links`` to update the interface object reference.
+- Changed ``handle_link_up`` to first activate an interface, and used the ``_links_lock``
+
+Added
+=====
+- Added ``_links_lock`` to avoid race conditions on ``links`` dict
+
+
+[3.8.0] - 2021-12-22
+********************
+
+Changed
+=======
+- Fixed ``handle_link_down`` to also deactivate the interface
+
+[3.7.3] - 2021-12.21
+********************
+
+Changed
+=======
+- Changed ``add_links`` to only notify a topology update if a link has been created. 
+- Changed ``_get_link_or_create`` to also return whether or not a new link has been created.
 
 
 [3.7.2] - 2021-04-01

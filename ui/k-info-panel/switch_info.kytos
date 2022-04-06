@@ -1,5 +1,6 @@
 <template>
     <k-accordion>
+      <k-button :on_click="bt_state_toggle" :title="next_state"></k-button>
       <k-accordion-item title="Usage Radar" v-if="this.metadata.id">
         <k-switch-radar :dpid="metadata.id" :showGrid="true" :showAxis="true" :showLabels="true" :showLegend="false"></k-switch-radar>
       </k-accordion-item>
@@ -22,6 +23,57 @@
       <k-accordion-item title="Flows" v-if="this.flows">
          <k-flow :content="flow" :key="flow.id" v-for="flow in this.flows"></k-flow>
       </k-accordion-item>
+      <k-accordion-item title="Metadata" v-if="this.metadata_items.length !== 0">
+         <div class="metadata_table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Value</th>  
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(value, key) in this.metadata_items">
+                  <td >{{key}}</td>
+                  <td >{{value}}</td>
+                </tr>
+              </tbody>
+            </table>
+         </div>
+      </k-accordion-item>
+      <k-accordion-item title="Links" v-if="this.table_link_body.length > 0">
+        <div class="link-table">
+          <table id="link-table-id">
+            <thead>
+              <tr v-for="header in this.table_link_header">
+                <th>{{header}}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="link in this.table_link_body"
+                @click="rowClicked(link)">
+                <td v-if="link.metadata.link_name !== undefined && link.metadata.link_name.length !== 0">{{link.metadata.link_name}}</td>
+                <td v-else>{{link.id}}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </k-accordion-item>            
+      <k-accordion-item title="Metadata actions"> 
+         <k-textarea title="Add metadata" icon="arrow-right" placeholder='Eg. {"node_name": "some_name", "address": "some_address"}' :value.sync="to_add"></k-textarea>
+         <div class="metadata_container">
+              <k-button title="Add metadata" :on_click="bt_add_metadata"></k-button>
+         </div>
+         <k-input title="Delete metadata" icon="arrow-right" placeholder="Eg. node_name" :value.sync="to_delete"></k-input>
+         <div class="metadata_container">
+              <k-button title="Remove metadata" :on_click="bt_rmv_metadata"></k-button>
+         </div>
+      </k-accordion-item>
+      <k-accordion-item title="LLDP Packets">
+        <k-select title="Interfaces:" :options="get_interfaces" :value.sync ="chosen_interfaces"></k-select>
+        <k-dropdown title="Action:" :options="get_actions" :value.sync="chosen_action"></k-dropdown>
+        <k-button title="Request" :on_click="bt_request"></k-button>
+      </k-accordion-item>
     </k-accordion>
 </template>
 
@@ -30,8 +82,18 @@
    props: ["content"],
    data () {
      return {
+       chosen_action: '',
+       chosen_interfaces: '',
+       table_link_header: ['Links'],
+       table_link_body: [],
+       next_state: '',
        display: false,
-       metadata: {'id': '',
+       metadata_items: [],
+       to_add: '',
+       to_delete: '',
+       metadata: {'enabled': '',
+                  'active': '',
+                  'id': '',
                   'name': '',
                   'dpid': '',
                   'connection': '',
@@ -39,16 +101,19 @@
                   'manufacturer': '',
                   'serial': '',
                   'hardware': '',
-                  'software': ''},
+                  'software': '',},
        interfaces: [],
        custom_properties: {},
        flows: [],
+       links: [],
+       headers: ['Links'],
      }
    },
    methods: {
      update_switch_content () {
        if(this.content === undefined) return
        this.interfaces = this.content.interfaces
+       
        this.custom_properties = this.content.custom_properties
        var self = this
        Object.keys(this.metadata).forEach(function (key) {
@@ -56,6 +121,38 @@
          self.metadata[key] = String(value)
        });
        this.get_flows()
+       this.get_metadata()
+       this.get_links()
+       this.get_enabled_value()
+     },
+     get_links_success(data){
+       this.links = data['topology']['links']
+       this.table_link_body = []
+       var id = ""
+       for (interface in this.interfaces){
+         id = this.interfaces[interface].link
+  
+         if (id != ""){
+          this.table_link_body.push(this.links[id])
+         }
+       }
+     },
+     get_links_failure(data){
+       let notification = {
+         icon: 'gear',
+         title: 'Could not reach links data (' + data.status + '):',
+         description: data.responseJSON.description,
+       }
+       this.$kytos.$emit("setNotification", notification);
+     },
+     get_links(){
+       var self = this
+       let request = $.ajax({
+                      async: true,
+                      dataType: "json",
+                      url: this.$kytos_server_api + "kytos/topology/v3/",})
+       request.done(this.get_links_success)
+       request.fail(this.get_links_failure)
      },
      get_flows() {
        var dpid = this.metadata.dpid
@@ -63,6 +160,149 @@
        var self = this
        window.d3.json(endpoint, function(error, result) {
          self.flows = result[dpid].flows
+       })
+     },
+     get_metadata() {
+       if(this.content === undefined) return
+       this.metadata_items = this.content.metadata
+     },
+     bt_add_metadata() {
+       var _this = this
+       let request = $.ajax({
+                        type: "POST",
+                        url: this.$kytos_server_api + "kytos/topology/v3/switches/" + this.metadata.dpid
+                              + "/metadata",
+                        async: true,
+                        data: this.to_add,
+                        dataType: "json",
+                        contentType: "application/json; charset=utf-8",
+       });
+       request.done(function() {
+         let notification = {
+              icon: 'gear',
+              title: 'Add metadata: Success',
+              description: '"' + _this.to_add + '" was added to the metadata. Switch: ' + _this.metadata.id,
+         }
+         _this.$kytos.$emit("setNotification", notification)
+         let temp = JSON.parse(_this.to_add)
+         for (key in temp){
+           _this.content.metadata[key] = temp[key]
+         }
+         _this.to_add = ''
+       });
+       request.fail(function(data) {
+         let notification = {
+              icon: 'gear',
+              title: 'Add metadata: Failure',
+              description: data.status + ': ' + data.responseJSON.description + ' "' + _this.to_add + '" was not added to the metadata. Switch: ' + _this.metadata.id,
+         }
+         _this.$kytos.$emit("setNotification", notification)
+       });
+     },
+     bt_rmv_metadata() {
+       var _this = this
+       let request = $.ajax({
+                        type: "DELETE",
+                        url: this.$kytos_server_api + "kytos/topology/v3/switches/" + this.metadata.dpid
+                              + "/metadata/" + this.to_delete,
+                        async: true,
+       });
+       request.done(function() {
+         let notification = {
+              icon: 'gear',
+              title: 'Delete metadata: Success',
+              description: '"' + _this.to_delete + '" was deleted from the metadata. Switch: ' + _this.metadata.id,
+         }
+         _this.$kytos.$emit("setNotification", notification)
+         delete _this.content.metadata[_this.to_delete]
+         _this.to_delete = ''
+       });
+       request.fail(function(data) {
+         let notification = {
+              icon: 'gear',
+              title: 'Delete metadata: Failure',
+              description: data.status + ': ' + data.responseJSON.description + ' "' + _this.to_delete + '" was not deleted from the metadata. Switch: ' + _this.metadata.id,
+         }
+         _this.$kytos.$emit("setNotification", notification)
+       });
+     },
+     rowClicked (link) {
+       var subtitle = ""
+       if(link.metadata.link_name !== undefined && link.metadata.link_name.length !== 0){
+         subtitle = link.metadata.link_name
+       }
+       else{
+         subtitle = link.id
+         if(subtitle.length > 16) subtitle=subtitle.substr(0,16) + "..."         
+         
+       }
+       var content = {
+                      "component": 'kytos-topology-k-info-panel-link_info',
+                      
+                      "icon": "home",
+                      "title": "Link Details",
+                      "subtitle": subtitle,
+                      "content": link,
+       }
+       this.$kytos.$emit("showInfoPanel", content)
+     },
+     get_enabled_value() {
+       this.next_state = this.metadata.enabled == 'true'? 'Disable' : 'Enable'
+     },
+     msg_state_success(data){
+       let notification = {
+         title: 'Switch ' + this.next_state + 'd: Succeed',
+         description: 'The switch ' + this.metadata.dpid + ' was ' + this.next_state.toLowerCase() + 'd.',
+         icon: 'gear',
+       }
+       this.next_state = this.next_state == 'Enable'? 'Disable' : 'Enable'
+       this.content['enabled'] = this.next_state == 'Enable'? 'false' : 'true'
+       this.metadata['enabled'] = this.content['enabled']
+       this.$kytos.$emit("setNotification", notification)
+     },
+     msg_state_failure(data){
+       let notification = {
+         title: 'Switch ' + this.next_state + 'd: Failed',
+         description: data.status + ': ' + data.responseJSON.description + '. The switch ' + this.metadata.dpid + ' was not ' + this.next_state.toLowerCase() + 'd.',
+         icon: 'gear',
+       }
+       this.$kytos.$emit("setNotification", notification)
+     },
+     bt_state_toggle(){
+       let request = $.ajax({
+                        type:"POST",
+                        url: this.$kytos_server_api + "kytos/topology/v3/switches/" + this.metadata.dpid
+                              + "/" + this.next_state.toLowerCase(),
+                        async: true,});       
+       request.done(this.msg_state_success)
+       request.fail(this.msg_state_failure)
+     },
+     bt_request(){
+       var interfaces = {}
+       interfaces["interfaces"] = this.chosen_interfaces
+       let request = $.ajax({
+                        type: "POST",
+                        url: this.$kytos_server_api + "kytos/of_lldp/v1/interfaces/" + this.chosen_action.toLowerCase(),
+                        async: true,
+                        contentType: "application/json",
+                        data: JSON.stringify(interfaces),
+       });
+       var _this = this
+       request.done(function(data){
+         let notification = {
+           title: 'Interfaces LLDP ' + _this.chosen_action + 'd: Success',
+           description: 'The interfaces ' + interfaces["interfaces"] + ' is/are ' + _this.chosen_action.toLowerCase() + 'd to send lldp packet',
+           icon: 'gear',
+         }
+         _this.$kytos.$emit("setNotification", notification)
+       })
+       request.fail(function(data){
+         let notification = {
+           title: 'Interfaces LLDP ' + _this.chosen_action + 'd: Failed',
+           description: data.status + ': ' + data.responseJSON.description + ' The interfaces ' + interfaces["interfaces"] + ' is/are not ' + _this.chosen_action.toLowerCase() + 'd to send lldp packet',
+           icon: 'gear',
+           }
+         _this.$kytos.$emit("setNotification", notification)
        })
      }
    },
@@ -75,7 +315,133 @@
          this.update_switch_content()
        }
      }
-   }
+   },
+   computed: {
+     get_actions() {
+       var actions = []
+       actions.push({value: "Enable", description: "Enable"})
+       actions.push({value: "Disable", description: "Disable"})
+       return actions;
+     },
+     get_interfaces() {
+       var interfaces = []
+       $.each(this.interfaces, function(key, value){
+         if (value.metadata.port_name !== undefined && value.metadata.port_name.length !== 0){
+           interfaces.push({value:value.id, description:value.metadata.port_name})
+         }
+         else{
+           interfaces.push({value:value.id, description:value.id})
+         }
+       });
+       return interfaces;
+     }
+   },
  }
 </script>
-
+<style>
+.metadata_table {
+  color: #ccc;
+  max-height: 250px;
+  text-align: center;
+  margin: 0 auto;
+  display: block;
+  padding: 0.5em 0 1em 0.3em;
+  font-size: 0.8em;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.metadata_table table{
+  display: table;
+  width: 100%;
+}
+.metadata_table thead{
+  font-weight: bold;
+  background: #554077;
+}
+.metadata_table th{
+  padding: 0.6em 0 0.6em 0;
+}
+.metadata_table td{
+  vertical-align: middle;
+  padding: 0.45em 0 0.45em 0;
+  word-break: break-all;
+}
+.metadata_table tbody tr:nth-child(even) {
+  background: #313131;
+}
+.metadata_table tbody tr:hover {
+    color: #eee;
+    background-color: #666;
+    }
+.metadata_container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+.metadata_container .k-button{
+  width: 150px;
+}
+.link-table {
+  color: #ccc;
+  max-height: 250px;
+  text-align: center;
+  margin: 0 auto;
+  display: block;
+  padding: 0.5em 0 1em 0.3em;
+  font-size: .8em;
+  height: 190px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.link-table table {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+.link-table thead {
+  font-weight: bold;
+  background: #554077;
+}
+.link-table th {
+  padding: 0.6em 0 0.6em 0;
+}
+.link-table tr {
+  color: lightgray;
+}
+.link-table td {
+  padding: 0.6em 0 0.6em 0;
+  vertical-align: middle;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.link-table .header {
+  cursor: pointer;
+}
+.link-table .header-filter th{
+  padding: 0 0 0.5em 0;
+  background: #554077;
+}
+.link-table .header-filter input {
+  background: lightgray;
+  border: 1px solid gray;
+  border-radius: 3px;
+  font-size: 0.9em;
+  margin: 0 0.2em 0 0.2em;
+}
+.link-table tbody tr:nth-child(even) {
+  background: #313131;
+}
+.link-table tbody tr:hover {
+  color: #eee;
+  background-color: #666;
+  cursor: pointer;
+}
+.link-table tbody tr.inactive {
+  background-color: #600000;
+}
+.link-table-divisor {
+  height: 190px;
+}
+</style>
