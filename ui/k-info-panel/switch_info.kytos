@@ -81,7 +81,7 @@
    props: ["content"],
    data () {
      return {
-       content_switch: this.content,
+       content_switch: [],
        chosen_action: '',
        chosen_interfaces: '',
        table_link_header: ['Links'],
@@ -113,7 +113,7 @@
      update_switch_content () {
        if(this.content === undefined) return
        this.interfaces = this.content.interfaces
-       
+       this.content_switch = this.content
        this.custom_properties = this.content.custom_properties
        var self = this
        Object.keys(this.metadata).forEach(function (key) {
