@@ -1,5 +1,4 @@
 """TopoController."""
-import os
 
 from typing import List
 from typing import Optional
@@ -8,13 +7,12 @@ from threading import Lock
 
 from datetime import datetime
 
-from napps.kytos.topology.db.client import mongo_client
-from napps.kytos.topology.db.client import bootstrap_index
 from napps.kytos.topology.db.models import SwitchDoc
 from napps.kytos.topology.db.models import LinkDoc
 from napps.kytos.topology.db.models import InterfaceDetailDoc
 
 from kytos.core import log
+from kytos.core.db import Mongo
 import pymongo
 from pymongo.collection import ReturnDocument
 from pymongo.operations import UpdateOne
@@ -23,14 +21,11 @@ from pymongo.operations import UpdateOne
 class TopoController:
     """TopoController."""
 
-    def __init__(self, db_client=mongo_client, db_client_options=None) -> None:
+    def __init__(self, get_mongo=lambda: Mongo()) -> None:
         """Constructor of TopoController."""
-        client_kwargs = db_client_options or {}
-        db_name = client_kwargs.get("database") or os.environ.get(
-            "MONGO_DBNAME", "napps"
-        )
-        self.db_client = db_client(**client_kwargs)
-        self.db = self.db_client[db_name]
+        self.mongo = get_mongo()
+        self.db_client = self.mongo.client
+        self.db = self.db_client[self.mongo.db_name]
         self.interface_details_lock = Lock()
 
     def bootstrap_indexes(self) -> None:
@@ -40,7 +35,7 @@ class TopoController:
             ("links", "endpoints.id", pymongo.ASCENDING),
         ]
         for collection, index, direction in index_tuples:
-            if bootstrap_index(self.db, collection, index, direction):
+            if self.mongo.bootstrap_index(collection, index, direction):
                 log.info(
                     f"Created DB index ({index}, {direction}), "
                     f"collection: {collection})"
