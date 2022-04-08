@@ -9,7 +9,6 @@ from threading import Lock
 from typing import List
 
 from flask import jsonify, request
-from pymongo.errors import AutoReconnect
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 
 from kytos.core import KytosEvent, KytosNApp, log, rest
@@ -42,23 +41,14 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         self._lock = Lock()
         self._links_lock = Lock()
-        self.topo_controller = TopoController()
-        if self.ensure_db_or_core_shutdown():
-            self.topo_controller.bootstrap_indexes()
-            self.load_topology()
+        self.topo_controller = self.get_topo_controller()
+        self.topo_controller.bootstrap_indexes()
+        self.load_topology()
 
-    def ensure_db_or_core_shutdown(self) -> bool:
-        """Ensure db or core shutdown. This should only be used on NApps
-        like topology that is also responsible for part of kytos core entities.
-
-        It's meant to be used on KytosNApp.setup"""
-        try:
-            self.topo_controller.db.command("hello")
-            return True
-        except AutoReconnect as exc:
-            log.error(f"Failed to ensure DB. Exception: {str(exc)}")
-            self.controller.stop_controller()
-            return False
+    @staticmethod
+    def get_topo_controller() -> TopoController:
+        """Get TopoController."""
+        return TopoController()
 
     def execute(self):
         """Execute once when the napp is running."""
