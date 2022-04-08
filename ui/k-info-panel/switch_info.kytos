@@ -16,7 +16,8 @@
       </k-accordion-item>
       <k-accordion-item title="Interfaces" v-if="this.interfaces">
          <k-interface :interface_id="interface.id" :name="interface.name" :port_number="interface.port_number" :mac="interface.mac" 
-                      :speed="interface.speed" :key="interface.name" v-for="interface in this.interfaces">
+                      :speed="interface.speed" :key="interface.name" :enabled="interface.enabled" :metadata="interface.metadata"
+                      :active="interface.active" :lldp="interface.lldp" :nni="interface.nni" :uni="interface.uni" v-for="interface in this.interfaces">
          </k-interface>
       </k-accordion-item>
       <k-accordion-item title="Flows" v-if="this.flows">
