@@ -1,12 +1,11 @@
 """Module to TopoController."""
 
 from unittest import TestCase
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from pymongo.operations import UpdateOne
 
 from napps.kytos.topology.controllers import TopoController
-from napps.kytos.topology.db.client import bootstrap_index
 from napps.kytos.topology.db.models import LinkDoc, SwitchDoc
 
 
@@ -20,8 +19,7 @@ class TestTopoController(TestCase):  # pylint: disable=too-many-public-methods
         self.interface_id = f"{self.dpid}:1"
         self.link_id = "some_id"
 
-    @patch("napps.kytos.topology.controllers.bootstrap_index")
-    def test_boostrap_indexes(self, mock) -> None:
+    def test_boostrap_indexes(self) -> None:
         """Test_boostrap_indexes."""
         self.topo.bootstrap_indexes()
 
@@ -29,33 +27,10 @@ class TestTopoController(TestCase):  # pylint: disable=too-many-public-methods
             ("switches", "interfaces.id", 1),
             ("links", "endpoints.id", 1),
         ]
-        indexes = [(v[0][1], v[0][2], v[0][3]) for v in mock.call_args_list]
+        mock = self.topo.mongo.bootstrap_index
+        assert mock.call_count == len(expected_indexes)
+        indexes = [(v[0][0], v[0][1], v[0][2]) for v in mock.call_args_list]
         assert expected_indexes == indexes
-
-    @staticmethod
-    def test_boostrap_index_existent() -> None:
-        """test_boostrap_index.
-
-        This test will be moved to kytos core onde db client moves too.
-        """
-        db_mock = MagicMock()
-        db_mock["napps"].index_information.return_value = {
-            "_id_": {"v": 2, "key": [("_id", 1)]},
-            "interfaces.id_1": {"v": 2, "key": [("interfaces.id", 1)]},
-        }
-        bootstrap_index(db_mock, "napps", "interfaces.id", 1)
-        assert db_mock["napps"].create_index.call_count == 0
-
-    @staticmethod
-    def test_boostrap_index() -> None:
-        """test_boostrap_index.
-
-        This test will be moved to kytos core onde db client moves too.
-        """
-        db_mock = MagicMock()
-        db_mock["napps"].index_information.return_value = {}
-        bootstrap_index(db_mock, "switches", "interfaces.id", 1)
-        assert db_mock["napps"].create_index.call_count == 1
 
     def test_get_topology(self) -> None:
         """Test_get_topology."""
