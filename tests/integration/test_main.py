@@ -118,10 +118,10 @@ class TestMain(TestCase):
 
         patch('kytos.core.helpers.run_on_thread', lambda x: x).start()
         from napps.kytos.topology.main import Main
-        Main.ensure_db_or_core_shutdown = MagicMock(return_value=False)
+        Main.get_topo_controller = MagicMock()
         self.addCleanup(patch.stopall)
         self.napp = Main(get_controller_mock())
-        self.napp.topo_controller = MagicMock()
+        _ = self.napp.controller.buffers.app.get()
 
     def test_get_switches_dict(self):
         """Basic test for switch listing."""
