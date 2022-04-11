@@ -113,7 +113,6 @@
    methods: {
      update_switch_content () {
        if(this.content === undefined) return
-       this.interfaces = this.content.interfaces
        this.content_switch = this.content
        this.custom_properties = this.content.custom_properties
        var self = this
@@ -123,11 +122,12 @@
        });
        this.get_flows()
        this.get_metadata()
-       this.get_links()
+       this.get_links_and_interfaces()
        this.get_enabled_value()
      },
      get_links_success(data){
        this.links = data['topology']['links']
+       this.interfaces = data['topology']['switches'][this.metadata['id']]['interfaces']
        this.table_link_body = []
        var id = ""
        for (interface in this.interfaces){
@@ -146,7 +146,7 @@
        }
        this.$kytos.$emit("setNotification", notification);
      },
-     get_links(){
+     get_links_and_interfaces(){
        var self = this
        let request = $.ajax({
                       async: true,
