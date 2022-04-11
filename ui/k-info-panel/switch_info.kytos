@@ -17,7 +17,7 @@
       <k-accordion-item title="Interfaces" v-if="this.interfaces">
          <k-interface :interface_id="interface.id" :name="interface.name" :port_number="interface.port_number" :mac="interface.mac" 
                       :speed="interface.speed" :key="interface.name" :enabled="interface.enabled" :metadata="interface.metadata"
-                      :active="interface.active" :lldp="interface.lldp" :nni="interface.nni" :uni="interface.uni" v-for="interface in this.interfaces">
+                      :active="interface.active" :lldp="interface.lldp" :nni="interface.nni" :uni="interface.uni" :content_switch="content_switch" v-for="interface in this.interfaces">
          </k-interface>
       </k-accordion-item>
       <k-accordion-item title="Flows" v-if="this.flows">
@@ -82,6 +82,7 @@
    props: ["content"],
    data () {
      return {
+       content_switch: [],
        chosen_action: '',
        chosen_interfaces: '',
        table_link_header: ['Links'],
@@ -113,7 +114,7 @@
      update_switch_content () {
        if(this.content === undefined) return
        this.interfaces = this.content.interfaces
-       
+       this.content_switch = this.content
        this.custom_properties = this.content.custom_properties
        var self = this
        Object.keys(this.metadata).forEach(function (key) {
