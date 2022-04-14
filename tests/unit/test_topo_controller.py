@@ -24,12 +24,12 @@ class TestTopoController(TestCase):  # pylint: disable=too-many-public-methods
         self.topo.bootstrap_indexes()
 
         expected_indexes = [
-            ("switches", "interfaces.id", 1),
-            ("links", "endpoints.id", 1),
+            ("switches", [("interfaces.id", 1)]),
+            ("links", [("endpoints.id", 1)]),
         ]
         mock = self.topo.mongo.bootstrap_index
         assert mock.call_count == len(expected_indexes)
-        indexes = [(v[0][0], v[0][1], v[0][2]) for v in mock.call_args_list]
+        indexes = [(v[0][0], v[0][1]) for v in mock.call_args_list]
         assert expected_indexes == indexes
 
     def test_get_topology(self) -> None:

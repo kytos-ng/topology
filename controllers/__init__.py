@@ -31,13 +31,13 @@ class TopoController:
     def bootstrap_indexes(self) -> None:
         """Bootstrap all topology related indexes."""
         index_tuples = [
-            ("switches", "interfaces.id", pymongo.ASCENDING),
-            ("links", "endpoints.id", pymongo.ASCENDING),
+            ("switches", [("interfaces.id", pymongo.ASCENDING)]),
+            ("links", [("endpoints.id", pymongo.ASCENDING)]),
         ]
-        for collection, index, direction in index_tuples:
-            if self.mongo.bootstrap_index(collection, index, direction):
+        for collection, keys in index_tuples:
+            if self.mongo.bootstrap_index(collection, keys):
                 log.info(
-                    f"Created DB index ({index}, {direction}), "
+                    f"Created DB index {keys}, "
                     f"collection: {collection})"
                 )
 
