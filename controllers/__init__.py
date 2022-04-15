@@ -155,14 +155,6 @@ class TopoController:
             interface_id, {"$set": {"active": False}}
         )
 
-    def enable_interface_lldp(self, interface_id: str) -> Optional[dict]:
-        """Try to enable LLDP one interface."""
-        return self._update_interface(interface_id, {"$set": {"lldp": True}})
-
-    def disable_interface_lldp(self, interface_id: str) -> Optional[dict]:
-        """Try to disable LLDP one interface."""
-        return self._update_interface(interface_id, {"$set": {"lldp": False}})
-
     def add_interface_metadata(
         self, interface_id: str, metadata: dict
     ) -> Optional[dict]:

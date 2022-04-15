@@ -846,13 +846,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Handle of_lldp.network_status.updated from of_lldp."""
         self.handle_lldp_status_updated(event)
 
-    @listen_to("kytos/topology.upsert_switch")
-    def on_topology_upsert_switch(self, event) -> None:
-        """Listen to topology_upsert_switch."""
-        self.handle_topology_upsert_switch(event.content["switch"])
+    @listen_to(".*.topo_controller.upsert_switch")
+    def on_topo_controller_upsert_switch(self, event) -> None:
+        """Listen to topo_controller_upsert_switch."""
+        self.handle_topo_controller_upsert_switch(event.content["switch"])
 
-    def handle_topology_upsert_switch(self, switch) -> Optional[dict]:
-        """Handle topology_upsert_switch."""
+    def handle_topo_controller_upsert_switch(self, switch) -> Optional[dict]:
+        """Handle topo_controller_upsert_switch."""
         return self.topo_controller.upsert_switch(switch.id, switch.as_dict())
 
     def handle_lldp_status_updated(self, event) -> None:
@@ -866,7 +866,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             if switch:
                 switches.add(switch)
 
-        name = "kytos/topology.upsert_switch"
+        name = "kytos/topology.topo_controller.upsert_switch"
         for switch in switches:
             event = KytosEvent(name=name, content={"switch": switch})
             self.controller.buffers.app.put(event)
