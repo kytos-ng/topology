@@ -1,23 +1,29 @@
 """TopoController."""
 
-from typing import List
-from typing import Optional
-from typing import Tuple
-from threading import Lock
-
 from datetime import datetime
+from threading import Lock
+from typing import List, Optional, Tuple
 
-from napps.kytos.topology.db.models import SwitchDoc
-from napps.kytos.topology.db.models import LinkDoc
-from napps.kytos.topology.db.models import InterfaceDetailDoc
+import pymongo
+from pymongo.collection import ReturnDocument
+from pymongo.errors import AutoReconnect
+from pymongo.operations import UpdateOne
+from tenacity import retry_if_exception_type, stop_after_attempt, wait_random
 
 from kytos.core import log
 from kytos.core.db import Mongo
-import pymongo
-from pymongo.collection import ReturnDocument
-from pymongo.operations import UpdateOne
+from napps.kytos.topology.db.models import (InterfaceDetailDoc, LinkDoc,
+                                            SwitchDoc)
+from napps.kytos.topology.retry import before_fn, for_all_methods, retries
 
 
+@for_all_methods(
+    retries,
+    stop=stop_after_attempt(3),
+    wait=wait_random(min=0.1, max=1),
+    before_sleep=before_fn,
+    retry=retry_if_exception_type((AutoReconnect,)),
+)
 class TopoController:
     """TopoController."""
 
