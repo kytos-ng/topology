@@ -15,14 +15,14 @@ from kytos.core import log
 from kytos.core.db import Mongo
 from napps.kytos.topology.db.models import (InterfaceDetailDoc, LinkDoc,
                                             SwitchDoc)
-from napps.kytos.topology.retry import before_fn, for_all_methods, retries
+from napps.kytos.topology.retry import before_sleep, for_all_methods, retries
 
 
 @for_all_methods(
     retries,
     stop=stop_after_attempt(3),
     wait=wait_random(min=0.1, max=1),
-    before_sleep=before_fn,
+    before_sleep=before_sleep,
     retry=retry_if_exception_type((AutoReconnect,)),
 )
 class TopoController:

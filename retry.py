@@ -8,8 +8,8 @@ from tenacity import retry
 from kytos.core import log
 
 
-def before_fn(state) -> None:
-    """Before function for tenacity to also logs args and kwargs."""
+def before_sleep(state) -> None:
+    """Before sleep function for tenacity to also logs args and kwargs."""
     log.warning(
         f"Retry #{state.attempt_number} for {state.fn.__name__}, "
         f"args: {state.args}, kwargs: {state.kwargs}, "
