@@ -34,7 +34,8 @@ class TopoController:
         for collection, keys in index_tuples:
             if self.mongo.bootstrap_index(collection, keys):
                 log.info(
-                    f"Created DB index {keys}, " f"collection: {collection})"
+                    f"Created DB index {keys}, "
+                    f"collection: {collection})"
                 )
 
     def get_topology(self) -> dict:
