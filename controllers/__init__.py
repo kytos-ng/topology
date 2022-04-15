@@ -1,5 +1,6 @@
 """TopoController."""
 
+# pylint: disable=invalid-name
 from datetime import datetime
 from threading import Lock
 from typing import List, Optional, Tuple
@@ -85,7 +86,8 @@ class TopoController:
         )
         return {"interfaces": {value["id"]: value for value in interfaces}}
 
-    def _set_updated_at(self, update_expr: dict) -> None:
+    @staticmethod
+    def _set_updated_at(update_expr: dict) -> None:
         """Set updated_at on $set expression."""
         if "$set" in update_expr:
             update_expr["$set"].update({"updated_at": datetime.utcnow()})
@@ -100,7 +102,9 @@ class TopoController:
     def upsert_switch(self, dpid: str, switch_dict: dict) -> Optional[dict]:
         """Update or insert switch."""
         utc_now = datetime.utcnow()
-        model = SwitchDoc(**{**switch_dict, **{"_id": dpid, "updated_at": utc_now}})
+        model = SwitchDoc(
+            **{**switch_dict, **{"_id": dpid, "updated_at": utc_now}}
+        )
         updated = self.db.switches.find_one_and_update(
             {"_id": dpid},
             {
@@ -128,20 +132,28 @@ class TopoController:
 
     def add_switch_metadata(self, dpid: str, metadata: dict) -> Optional[dict]:
         """Try to find a switch and add to its metadata."""
-        update_expr = {"$set": {f"metadata.{k}": v for k, v in metadata.items()}}
+        update_expr = {
+            "$set": {f"metadata.{k}": v for k, v in metadata.items()}
+        }
         return self._update_switch(dpid, update_expr)
 
-    def delete_switch_metadata_key(self, dpid: str, key: str) -> Optional[dict]:
+    def delete_switch_metadata_key(
+        self, dpid: str, key: str
+    ) -> Optional[dict]:
         """Try to find a switch and delete a metadata key."""
         return self._update_switch(dpid, {"$unset": {f"metadata.{key}": ""}})
 
     def enable_interface(self, interface_id: str) -> Optional[dict]:
         """Try to enable one interface and its embedded object on links."""
-        return self._update_interface(interface_id, {"$set": {"enabled": True}})
+        return self._update_interface(
+            interface_id, {"$set": {"enabled": True}}
+        )
 
     def disable_interface(self, interface_id: str) -> Optional[dict]:
         """Try to disable one interface and its embedded object on links."""
-        return self._update_interface(interface_id, {"$set": {"enabled": False}})
+        return self._update_interface(
+            interface_id, {"$set": {"enabled": False}}
+        )
 
     def activate_interface(self, interface_id: str) -> Optional[dict]:
         """Try to activate one interface."""
@@ -149,7 +161,9 @@ class TopoController:
 
     def deactivate_interface(self, interface_id: str) -> Optional[dict]:
         """Try to deactivate one interface."""
-        return self._update_interface(interface_id, {"$set": {"active": False}})
+        return self._update_interface(
+            interface_id, {"$set": {"active": False}}
+        )
 
     def enable_interface_lldp(self, interface_id: str) -> Optional[dict]:
         """Try to enable LLDP one interface."""
@@ -163,16 +177,22 @@ class TopoController:
         self, interface_id: str, metadata: dict
     ) -> Optional[dict]:
         """Try to find an interface and add to its metadata."""
-        update_expr = {"$set": {f"metadata.{k}": v for k, v in metadata.items()}}
+        update_expr = {
+            "$set": {f"metadata.{k}": v for k, v in metadata.items()}
+        }
         return self._update_interface(interface_id, update_expr)
 
     def delete_interface_metadata_key(
         self, interface_id: str, key: str
     ) -> Optional[dict]:
         """Try to find an interface and delete a metadata key."""
-        return self._update_interface(interface_id, {"$unset": {f"metadata.{key}": ""}})
+        return self._update_interface(
+            interface_id, {"$unset": {f"metadata.{key}": ""}}
+        )
 
-    def _update_interface(self, interface_id: str, update_expr: dict) -> Optional[dict]:
+    def _update_interface(
+        self, interface_id: str, update_expr: dict
+    ) -> Optional[dict]:
         """Try to update one interface and its embedded object on links."""
         self._set_updated_at(update_expr)
         interfaces_expression = {}
@@ -246,12 +266,18 @@ class TopoController:
         """Try to find one link and disable it."""
         return self._update_link(link_id, {"$set": {"enabled": False}})
 
-    def add_link_metadata(self, link_id: str, metadata: dict) -> Optional[dict]:
+    def add_link_metadata(
+        self, link_id: str, metadata: dict
+    ) -> Optional[dict]:
         """Try to find link and add to its metadata."""
-        update_expr = {"$set": {f"metadata.{k}": v for k, v in metadata.items()}}
+        update_expr = {
+            "$set": {f"metadata.{k}": v for k, v in metadata.items()}
+        }
         return self._update_link(link_id, update_expr)
 
-    def delete_link_metadata_key(self, link_id: str, key: str) -> Optional[dict]:
+    def delete_link_metadata_key(
+        self, link_id: str, key: str
+    ) -> Optional[dict]:
         """Try to find a link and delete a metadata key."""
         return self._update_link(link_id, {"$unset": {f"metadata.{key}": ""}})
 
@@ -288,7 +314,9 @@ class TopoController:
                         ops, ordered=False, session=session
                     )
 
-    def get_interfaces_details(self, interface_ids: List[str]) -> Optional[dict]:
+    def get_interfaces_details(
+        self, interface_ids: List[str]
+    ) -> Optional[dict]:
         """Try to get interfaces details given a list of interface ids."""
         return self.db.interface_details.aggregate(
             [
