@@ -18,9 +18,10 @@ from kytos.core.interface import Interface
 from kytos.core.link import Link
 from kytos.core.switch import Switch
 from napps.kytos.topology import settings
-from napps.kytos.topology.controllers import TopoController
-from napps.kytos.topology.exceptions import RestoreError
-from napps.kytos.topology.models import Topology
+
+from .controllers import TopoController
+from .exceptions import RestoreError
+from .models import Topology
 
 DEFAULT_LINK_UP_TIMER = 10
 
@@ -34,7 +35,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def setup(self):
         """Initialize the NApp's links list."""
         self.links = {}
-        self.store_items = {}
         self.intf_available_tags = {}
         self.link_up_timer = getattr(settings, 'LINK_UP_TIMER',
                                      DEFAULT_LINK_UP_TIMER)

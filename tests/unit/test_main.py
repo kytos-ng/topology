@@ -907,7 +907,6 @@ class TestMain(TestCase):
         mock_interface.remove_metadata.side_effect = [True, False]
         mock_interface.metadata = {"A": "A"}
         mock_switch.interfaces = {1: mock_interface}
-        self.napp.store_items = {'interfaces': MagicMock()}
         self.napp.controller.switches = {'00:00:00:00:00:00:00:01':
                                          mock_switch}
         api = get_test_client(self.napp.controller, self.napp)
@@ -1129,10 +1128,7 @@ class TestMain(TestCase):
         mock_event = MagicMock()
         mock_interface = create_autospec(Interface)
         mock_interface.id = "1"
-        available_tags = [1, 2, 3]
-        mock_interface.available_tags = []
         mock_event.content = {'interface': mock_interface}
-        self.napp.intf_available_tags[mock_interface.id] = available_tags
         self.napp.handle_interface_created(mock_event)
         mock_link_up.assert_called()
 
