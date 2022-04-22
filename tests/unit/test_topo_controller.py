@@ -153,24 +153,6 @@ class TestTopoController(TestCase):  # pylint: disable=too-many-public-methods
         assert arg1 == {"interfaces.id": self.interface_id}
         assert not arg2["$set"]["interfaces.$.active"]
 
-    def test_enable_interface_lldp(self) -> None:
-        """test_enable_interface_lldp."""
-        self.topo.enable_interface_lldp(self.interface_id)
-
-        self.topo.db.switches.find_one_and_update.assert_called()
-        arg1, arg2 = self.topo.db.switches.find_one_and_update.call_args[0]
-        assert arg1 == {"interfaces.id": self.interface_id}
-        assert arg2["$set"]["interfaces.$.lldp"]
-
-    def test_disable_interface_lldp(self) -> None:
-        """test_disable_interface_lldp."""
-        self.topo.disable_interface_lldp(self.interface_id)
-
-        self.topo.db.switches.find_one_and_update.assert_called()
-        arg1, arg2 = self.topo.db.switches.find_one_and_update.call_args[0]
-        assert arg1 == {"interfaces.id": self.interface_id}
-        assert not arg2["$set"]["interfaces.$.lldp"]
-
     def test_add_interface_metadata(self) -> None:
         """test_add_interface_metadata."""
         metadata = {"some": "value"}

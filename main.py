@@ -6,7 +6,7 @@ Manage the network topology
 
 import time
 from threading import Lock
-from typing import List
+from typing import List, Optional
 
 from flask import jsonify, request
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
@@ -18,9 +18,10 @@ from kytos.core.interface import Interface
 from kytos.core.link import Link
 from kytos.core.switch import Switch
 from napps.kytos.topology import settings
-from napps.kytos.topology.controllers import TopoController
-from napps.kytos.topology.exceptions import RestoreError
-from napps.kytos.topology.models import Topology
+
+from .controllers import TopoController
+from .exceptions import RestoreError
+from .models import Topology
 
 DEFAULT_LINK_UP_TIMER = 10
 
@@ -34,7 +35,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def setup(self):
         """Initialize the NApp's links list."""
         self.links = {}
-        self.store_items = {}
         self.intf_available_tags = {}
         self.link_up_timer = getattr(settings, 'LINK_UP_TIMER',
                                      DEFAULT_LINK_UP_TIMER)
@@ -846,15 +846,30 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Handle of_lldp.network_status.updated from of_lldp."""
         self.handle_lldp_status_updated(event)
 
+    @listen_to(".*.topo_controller.upsert_switch")
+    def on_topo_controller_upsert_switch(self, event) -> None:
+        """Listen to topo_controller_upsert_switch."""
+        self.handle_topo_controller_upsert_switch(event.content["switch"])
+
+    def handle_topo_controller_upsert_switch(self, switch) -> Optional[dict]:
+        """Handle topo_controller_upsert_switch."""
+        return self.topo_controller.upsert_switch(switch.id, switch.as_dict())
+
     def handle_lldp_status_updated(self, event) -> None:
         """Handle .*.network_status.updated events from of_lldp."""
         content = event.content
         interface_ids = content["interface_ids"]
+        switches = set()
         for interface_id in interface_ids:
-            if content["state"] == "disabled":
-                self.topo_controller.disable_interface_lldp(interface_id)
-            elif content["state"] == "enabled":
-                self.topo_controller.enable_interface_lldp(interface_id)
+            dpid = ":".join(interface_id.split(":")[:-1])
+            switch = self.controller.get_switch_by_dpid(dpid)
+            if switch:
+                switches.add(switch)
+
+        name = "kytos/topology.topo_controller.upsert_switch"
+        for switch in switches:
+            event = KytosEvent(name=name, content={"switch": switch})
+            self.controller.buffers.app.put(event)
 
     def notify_switch_enabled(self, dpid):
         """Send an event to notify that a switch is enabled."""

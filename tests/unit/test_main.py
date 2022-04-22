@@ -2,7 +2,7 @@
 import json
 import time
 from unittest import TestCase
-from unittest.mock import MagicMock, call, create_autospec, patch
+from unittest.mock import MagicMock, create_autospec, patch
 # pylint: disable=import-error,no-name-in-module,wrong-import-order
 
 from kytos.core.interface import Interface
@@ -43,6 +43,7 @@ class TestMain(TestCase):
                            'kytos/maintenance.start_switch',
                            'kytos/maintenance.end_switch',
                            'kytos/.*.link_available_tags',
+                           '.*.topo_controller.upsert_switch',
                            '.*.of_lldp.network_status.updated',
                            '.*.interface.is.nni',
                            '.*.connection.lost',
@@ -906,7 +907,6 @@ class TestMain(TestCase):
         mock_interface.remove_metadata.side_effect = [True, False]
         mock_interface.metadata = {"A": "A"}
         mock_switch.interfaces = {1: mock_interface}
-        self.napp.store_items = {'interfaces': MagicMock()}
         self.napp.controller.switches = {'00:00:00:00:00:00:00:01':
                                          mock_switch}
         api = get_test_client(self.napp.controller, self.napp)
@@ -984,17 +984,30 @@ class TestMain(TestCase):
     def test_handle_lldp_status_updated(self):
         """Test handle_lldp_status_updated."""
         event = MagicMock()
-        interface_ids = ["1", "2"]
+        self.napp.controller.buffers.app.put = MagicMock()
+
+        dpid_a = "00:00:00:00:00:00:00:01"
+        dpid_b = "00:00:00:00:00:00:00:02"
+        dpids = [dpid_a, dpid_b]
+        interface_ids = [f"{dpid}:1" for dpid in dpids]
+
+        mock_switch_a = get_switch_mock(dpid_a, 0x04)
+        mock_switch_b = get_switch_mock(dpid_b, 0x04)
+        self.napp.controller.switches = {dpid_a: mock_switch_a,
+                                         dpid_b: mock_switch_b}
+
         event.content = {"interface_ids": interface_ids, "state": "disabled"}
         self.napp.handle_lldp_status_updated(event)
-        expected_calls = [call(ifid) for ifid in interface_ids]
-        lldp_mock = self.napp.topo_controller.disable_interface_lldp
-        assert lldp_mock.call_args_list == expected_calls
 
-        event.content["state"] = "enabled"
-        self.napp.handle_lldp_status_updated(event)
-        lldp_mock = self.napp.topo_controller.enable_interface_lldp
-        assert lldp_mock.call_args_list == expected_calls
+        mock_put = self.napp.controller.buffers.app.put
+        assert mock_put.call_count == len(interface_ids)
+
+    def test_handle_topo_controller_upsert_switch(self):
+        """Test handle_topo_controller_upsert_switch."""
+        event = MagicMock()
+        self.napp.handle_topo_controller_upsert_switch(event)
+        mock = self.napp.topo_controller.upsert_switch
+        mock.assert_called_with(event.id, event.as_dict())
 
     def test_get_link_metadata(self):
         """Test get_link_metadata."""
@@ -1115,10 +1128,7 @@ class TestMain(TestCase):
         mock_event = MagicMock()
         mock_interface = create_autospec(Interface)
         mock_interface.id = "1"
-        available_tags = [1, 2, 3]
-        mock_interface.available_tags = []
         mock_event.content = {'interface': mock_interface}
-        self.napp.intf_available_tags[mock_interface.id] = available_tags
         self.napp.handle_interface_created(mock_event)
         mock_link_up.assert_called()
 
