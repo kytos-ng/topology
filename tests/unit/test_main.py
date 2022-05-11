@@ -1221,10 +1221,12 @@ class TestMain(TestCase):
         mock_link.is_active.return_value = True
         mock_link_from_interface.return_value = mock_link
         self.napp.handle_link_down(mock_interface)
+        assert self.napp.topo_controller.deactivate_link.call_count == 1
         mock_interface.deactivate.assert_called()
         mock_link.deactivate.assert_called()
         assert mock_topology_update.call_count == 1
         mock_status_change.assert_called()
+        assert self.napp.topo_controller.deactivate_interface.call_count == 1
 
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
@@ -1238,11 +1240,13 @@ class TestMain(TestCase):
         mock_link = create_autospec(Link)
         mock_link.is_active.return_value = False
         mock_link_from_interface.return_value = mock_link
-        mock_link.get_metadata.return_value = True
+        mock_link.get_metadata.return_value = False
         self.napp.handle_link_down(mock_interface)
+        assert self.napp.topo_controller.deactivate_link.call_count == 0
         mock_interface.deactivate.assert_called()
         mock_topology_update.assert_called()
-        mock_status_change.assert_called()
+        mock_status_change.assert_not_called()
+        assert self.napp.topo_controller.deactivate_interface.call_count == 1
 
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
@@ -1257,6 +1261,7 @@ class TestMain(TestCase):
         mock_link.is_active.return_value = True
         mock_link_from_interface.return_value = mock_link
         self.napp.handle_link_up(mock_interface)
+        assert self.napp.topo_controller.activate_link.call_count == 1
         mock_interface.activate.assert_called()
         assert mock_topology_update.call_count == 2
         mock_status_change.assert_called()
@@ -1277,6 +1282,7 @@ class TestMain(TestCase):
         mock_link_from_interface.return_value = mock_link
         self.napp.handle_link_up(mock_interface)
         mock_interface.activate.assert_called()
+        assert self.napp.topo_controller.activate_link.call_count == 0
         assert mock_topology_update.call_count == 1
         mock_status_change.assert_not_called()
 

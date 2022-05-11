@@ -705,16 +705,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             if link.is_active() and \
                     now - last_status_change >= self.link_up_timer:
                 link.update_metadata('last_status_is_active', True)
-                self.topo_controller._update_link(
-                    link.id,
-                    {
-                        "$set": {
-                            "metadata.last_status_change": last_status_change,
-                            "metadata.last_status_is_active": True,
-                            "active": True,
-                        }
-                    },
-                )
+                self.topo_controller.activate_link(link.id, last_status_change,
+                                                   last_status_is_active=True)
                 self.notify_topology_update()
                 self.notify_link_status_change(link, reason='link up')
         else:
@@ -722,17 +714,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             metadata = {'last_status_change': last_status_change,
                         'last_status_is_active': True}
             link.extend_metadata(metadata)
-            self.topo_controller.add_link_metadata(link.id, metadata)
-            self.topo_controller._update_link(
-                link.id,
-                {
-                    "$set": {
-                        "metadata.last_status_change": last_status_change,
-                        "metadata.last_status_is_active": True,
-                        "active": True,
-                    }
-                },
-            )
+            self.topo_controller.activate_link(link.id, last_status_change,
+                                               last_status_is_active=True)
             self.notify_topology_update()
             self.notify_link_status_change(link, reason='link up')
 
@@ -771,19 +754,14 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if link and link.is_active():
             link.deactivate()
             last_status_change = time.time()
+            last_status_is_active = False
             metadata = {
                 "last_status_change": last_status_change,
-                "last_status_is_active": False,
+                "last_status_is_active": last_status_is_active,
             }
             link.extend_metadata(metadata)
-            update_expr = {
-                "$set": {
-                    "active": False,
-                    "metadata.last_status_change": last_status_change,
-                    "metadata.last_status_is_active": False,
-                }
-            }
-            self.topo_controller._update_link(link.id, update_expr)
+            self.topo_controller.deactivate_link(link.id, last_status_change,
+                                                 last_status_is_active)
             self.notify_link_status_change(link, reason="link down")
         if link and not link.is_active():
             with self._links_lock:
@@ -795,14 +773,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 }
                 if last_status:
                     link.extend_metadata(metadata)
-                    update_expr = {
-                        "$set": {
-                            "active": False,
-                            "metadata.last_status_change": last_status_change,
-                            "metadata.last_status_is_active": last_status,
-                        }
-                    }
-                    self.topo_controller._update_link(link.id, update_expr)
+                    self.topo_controller.deactivate_link(link.id,
+                                                         last_status_change,
+                                                         last_status)
                     self.notify_link_status_change(link, reason='link down')
         interface.deactivate()
         self.topo_controller.deactivate_interface(interface.id)
