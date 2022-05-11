@@ -153,6 +153,40 @@ class TestTopoController(TestCase):  # pylint: disable=too-many-public-methods
         assert arg1 == {"interfaces.id": self.interface_id}
         assert not arg2["$set"]["interfaces.$.active"]
 
+    def test_activate_link(self) -> None:
+        """test activate_link."""
+        mock = MagicMock()
+        self.topo._update_link = mock
+        self.topo.activate_link(self.link_id, last_status_change=1,
+                                last_status_is_active=True)
+        self.topo._update_link.assert_called_with(
+            self.link_id,
+            {
+                "$set": {
+                    "metadata.last_status_change": 1,
+                    "metadata.last_status_is_active": True,
+                    "active": True,
+                }
+            },
+        )
+
+    def test_deactivate_link(self) -> None:
+        """test deactivate_link."""
+        mock = MagicMock()
+        self.topo._update_link = mock
+        self.topo.deactivate_link(self.link_id, last_status_change=1,
+                                  last_status_is_active=False)
+        self.topo._update_link.assert_called_with(
+            self.link_id,
+            {
+                "$set": {
+                    "metadata.last_status_change": 1,
+                    "metadata.last_status_is_active": False,
+                    "active": False,
+                }
+            },
+        )
+
     def test_add_interface_metadata(self) -> None:
         """test_add_interface_metadata."""
         metadata = {"some": "value"}
