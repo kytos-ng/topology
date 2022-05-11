@@ -1,5 +1,6 @@
 """TopoController."""
 
+import time
 # pylint: disable=invalid-name
 from datetime import datetime
 from threading import Lock
@@ -247,6 +248,42 @@ class TopoController:
     def disable_link(self, link_id: str) -> Optional[dict]:
         """Try to find one link and disable it."""
         return self._update_link(link_id, {"$set": {"enabled": False}})
+
+    def deactivate_link(self, link_id: str,
+                        last_status_change: Optional[float] = None,
+                        last_status_is_active=False
+                        ) -> Optional[dict]:
+        """Try to find one link and deactivate it."""
+        # It might be worth using datetime in the future
+        last_status_change = last_status_change or time.time()
+        return self._update_link(
+            link_id,
+            {
+                "$set": {
+                    "metadata.last_status_change": last_status_change,
+                    "metadata.last_status_is_active": last_status_is_active,
+                    "active": False,
+                }
+            },
+        )
+
+    def activate_link(self, link_id: str,
+                      last_status_change: Optional[float] = None,
+                      last_status_is_active=True
+                      ) -> Optional[dict]:
+        """Try to find one link and activate it."""
+        # It might be worth using datetime in the future
+        last_status_change = last_status_change or time.time()
+        return self._update_link(
+            link_id,
+            {
+                "$set": {
+                    "metadata.last_status_change": last_status_change,
+                    "metadata.last_status_is_active": last_status_is_active,
+                    "active": True,
+                }
+            },
+        )
 
     def add_link_metadata(
         self, link_id: str, metadata: dict
