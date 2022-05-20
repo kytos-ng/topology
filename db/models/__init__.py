@@ -1,12 +1,10 @@
 """DB models."""
+# pylint: disable=unused-argument,no-self-use,no-self-argument,invalid-name
 
-from typing import List, Optional
 from datetime import datetime
+from typing import List, Optional
 
-from pydantic import BaseModel
-from pydantic import conlist
-from pydantic import Field
-from pydantic import validator
+from pydantic import BaseModel, Field, conlist, validator
 
 
 class DocumentBaseModel(BaseModel):
