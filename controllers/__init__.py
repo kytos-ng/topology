@@ -1,8 +1,8 @@
 """TopoController."""
 
-import time
 # pylint: disable=invalid-name
 import os
+import time
 from datetime import datetime
 from threading import Lock
 from typing import List, Optional, Tuple
@@ -15,9 +15,9 @@ from tenacity import retry_if_exception_type, stop_after_attempt, wait_random
 
 from kytos.core import log
 from kytos.core.db import Mongo
+from kytos.core.retry import before_sleep, for_all_methods, retries
 from napps.kytos.topology.db.models import (InterfaceDetailDoc, LinkDoc,
                                             SwitchDoc)
-from napps.kytos.topology.retry import before_sleep, for_all_methods, retries
 
 
 @for_all_methods(
