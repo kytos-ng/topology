@@ -57,3 +57,11 @@ And then, to insert (or update) the entire topology:
 ```
 CMD=insert_topology python3 scripts/storehouse_to_mongo.py
 ```
+
+If the topology you're migrating has metadata saved on `kytos.topology.(switches|interfaces|links).metadata` namespaces, you'll also have to run these commands:
+
+```
+CMD=insert_links_metadata python3 scripts/storehouse_to_mongo.py
+CMD=insert_switches_metadata python3 scripts/storehouse_to_mongo.py
+CMD=insert_interfaces_metadata python3 scripts/storehouse_to_mongo.py
+```
