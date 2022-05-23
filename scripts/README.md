@@ -22,7 +22,7 @@ export MONGO_HOST_SEEDS="mongo1:27017,mongo2:27018,mongo3:27099"
 
 #### How to use
 
-- Export these two environment variables, based on where storehouse and kytos is installed, if you're running `amlight/latest` docker image they should be:
+- Export these two environment variables, based on where storehouse and kytos are installed, if you're running `amlight/kytos:latest` docker image they should be:
  
 ```
 export STOREHOUSE_NAMESPACES_DIR=/var/tmp/kytos/storehouse/
@@ -49,11 +49,11 @@ The `load_*` commands are meant to be used to double check what would actually b
 For example, to double check what would be loaded in the topology from storehouse namespace `kytos.topology.status`:
 
 ```
-CMD=load_topology python scripts/storehouse_to_mongo.py
+CMD=load_topology python3 scripts/storehouse_to_mongo.py
 ```
 
 And then, to insert (or update) the entire topology:
 
 ```
-CMD=insert_topology python scripts/storehouse_to_mongo.py
+CMD=insert_topology python3 scripts/storehouse_to_mongo.py
 ```
