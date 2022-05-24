@@ -1,5 +1,6 @@
 """DB models."""
-# pylint: disable=unused-argument,no-self-use,no-self-argument,invalid-name
+# pylint: disable=unused-argument,no-self-use,no-self-argument,invalid-name,
+# pylint: disable=no-name-in-module
 
 from datetime import datetime
 from typing import List, Optional
@@ -15,6 +16,7 @@ class DocumentBaseModel(BaseModel):
     updated_at: Optional[datetime]
 
     def dict(self, **kwargs) -> dict:
+        """Model to dict."""
         values = super().dict(**kwargs)
         if "id" in values and values["id"]:
             values["_id"] = values["id"]
