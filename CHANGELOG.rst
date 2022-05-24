@@ -19,6 +19,7 @@ Added
 - MongoDB integration with pymongo
 - TopoController and DB models
 - ``storehouse_to_mongo.py`` script to migrate data from storehouse to MongoDB
+- Retries to handle database ``AutoReconnect`` exception.
 
 Changed
 =======

@@ -1,21 +1,37 @@
 """TopoController."""
 
-import time
 # pylint: disable=invalid-name
+import os
+import time
 from datetime import datetime
 from threading import Lock
 from typing import List, Optional, Tuple
 
 import pymongo
 from pymongo.collection import ReturnDocument
+from pymongo.errors import AutoReconnect
 from pymongo.operations import UpdateOne
+from tenacity import retry_if_exception_type, stop_after_attempt, wait_random
 
 from kytos.core import log
 from kytos.core.db import Mongo
+from kytos.core.retry import before_sleep, for_all_methods, retries
 from napps.kytos.topology.db.models import (InterfaceDetailDoc, LinkDoc,
                                             SwitchDoc)
 
 
+@for_all_methods(
+    retries,
+    stop=stop_after_attempt(
+        int(os.environ.get("MONGO_AUTO_RETRY_STOP_AFTER_ATTEMPT", 3))
+    ),
+    wait=wait_random(
+        min=int(os.environ.get("MONGO_AUTO_RETRY_WAIT_RANDOM_MIN", 0.1)),
+        max=int(os.environ.get("MONGO_AUTO_RETRY_WAIT_RANDOM_MAX", 1)),
+    ),
+    before_sleep=before_sleep,
+    retry=retry_if_exception_type((AutoReconnect,)),
+)
 class TopoController:
     """TopoController."""
 
@@ -35,8 +51,7 @@ class TopoController:
         for collection, keys in index_tuples:
             if self.mongo.bootstrap_index(collection, keys):
                 log.info(
-                    f"Created DB index {keys}, "
-                    f"collection: {collection})"
+                    f"Created DB index {keys}, collection: {collection})"
                 )
 
     def get_topology(self) -> dict:

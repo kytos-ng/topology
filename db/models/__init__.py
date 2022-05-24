@@ -1,12 +1,11 @@
 """DB models."""
+# pylint: disable=unused-argument,no-self-use,no-self-argument,invalid-name,
+# pylint: disable=no-name-in-module
 
-from typing import List, Optional
 from datetime import datetime
+from typing import List, Optional
 
-from pydantic import BaseModel
-from pydantic import conlist
-from pydantic import Field
-from pydantic import validator
+from pydantic import BaseModel, Field, conlist, validator
 
 
 class DocumentBaseModel(BaseModel):
@@ -17,6 +16,7 @@ class DocumentBaseModel(BaseModel):
     updated_at: Optional[datetime]
 
     def dict(self, **kwargs) -> dict:
+        """Model to dict."""
         values = super().dict(**kwargs)
         if "id" in values and values["id"]:
             values["_id"] = values["id"]
