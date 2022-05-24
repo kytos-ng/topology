@@ -16,15 +16,21 @@ Added
 - Added a new accordion to ``k-info-panel/switch_info`` to enable and disable LLDP on interfaces
 - Added a toggle button to enable and disable a link in the ``k-info-panel/link_info`` component
 - Added functionality to add and remove metadata from a link on ``k-info-panel/link-info``
+- MongoDB integration with pymongo
+- TopoController and DB models
+- ``storehouse_to_mongo.py`` script to migrate data from storehouse to MongoDB
 
 Changed
 =======
+- Refactored API and event handlers to also update MongoDB accordingly.
 
 Deprecated
 ==========
+- Storehouse file system backend
 
 Removed
 =======
+- Storehouse backend
 
 Fixed
 =====
