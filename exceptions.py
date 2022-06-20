@@ -2,4 +2,4 @@
 
 
 class RestoreError(Exception):
-    """Error restoring entity data from Storehouse."""
+    """Error restoring entity data from the database."""
