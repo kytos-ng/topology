@@ -36,6 +36,7 @@ Requirements
 ============
 
 - `kytos/of_core <https://github.com/kytos-ng/of_core.git>`_
+- `MongoDB <https://github.com/kytos-ng/kytos#how-to-use-with-mongodb>`_
 
 Events
 ======
@@ -43,7 +44,6 @@ Events
 Subscribed
 ----------
 
-- ``kytos/storehouse.loaded``
 - ``.*.switch.(new|reconnected)``
 - ``.*.connection.lost``
 - ``.*.switch.interface.created``
@@ -68,7 +68,7 @@ Published
 kytos/topology.topology_loaded
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Event reporting that the topology was loaded from storehouse. It contains the
+Event reporting that the topology was loaded from the database. It contains the
 most updated topology.
 
 Content:
