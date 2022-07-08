@@ -537,7 +537,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.notify_metadata_changes(link, 'removed')
         return jsonify("Operation successful"), 200
 
-    @listen_to("kytos/.*.liveness.(up|down|init)")
+    @listen_to("kytos/.*.liveness.(up|down)")
     def on_link_liveness(self, event) -> None:
         """Handle link liveness up event."""
         link = Link(event.content["interface_a"], event.content["interface_b"])
@@ -730,8 +730,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 link.update_metadata('last_status_is_active', True)
                 self.topo_controller.activate_link(link.id, last_status_change,
                                                    last_status_is_active=True)
-                self.notify_topology_update()
-                self.notify_link_status_change(link, reason='link up')
+                if link.status == EntityStatus.UP:
+                    self.notify_topology_update()
+                    self.notify_link_status_change(link, reason='link up')
         else:
             last_status_change = time.time()
             metadata = {'last_status_change': last_status_change,
@@ -739,8 +740,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             link.extend_metadata(metadata)
             self.topo_controller.activate_link(link.id, last_status_change,
                                                last_status_is_active=True)
-            self.notify_topology_update()
-            self.notify_link_status_change(link, reason='link up')
+            if link.status == EntityStatus.UP:
+                self.notify_topology_update()
+                self.notify_link_status_change(link, reason='link up')
 
     @listen_to('.*.switch.interface.link_down')
     def on_interface_link_down(self, event):

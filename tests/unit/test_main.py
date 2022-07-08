@@ -7,6 +7,7 @@ import time
 from unittest import TestCase
 from unittest.mock import MagicMock, create_autospec, patch
 
+from kytos.core.common import EntityStatus
 from kytos.core.interface import Interface
 from kytos.core.link import Link
 from kytos.core.switch import Switch
@@ -78,7 +79,7 @@ class TestMain(TestCase):
                            '.*.switch.interface.link_down',
                            '.*.switch.interface.link_up',
                            '.*.switch.(new|reconnected)',
-                           'kytos/.*.liveness.(up|down|init)',
+                           'kytos/.*.liveness.(up|down)',
                            '.*.switch.port.created']
         actual_events = self.napp.listeners()
         self.assertCountEqual(expected_events, actual_events)
@@ -1211,6 +1212,7 @@ class TestMain(TestCase):
         mock_link.endpoint_a = mock_interface_a
         mock_link.endpoint_b = mock_interface_b
         mock_link_from_interface.return_value = mock_link
+        mock_link.status = EntityStatus.UP
         self.napp.link_up_timer = 1
         self.napp.handle_interface_link_up(mock_interface_a)
         mock_topology_update.assert_called()
@@ -1283,7 +1285,7 @@ class TestMain(TestCase):
          mock_link_from_interface) = args
 
         mock_interface = create_autospec(Interface)
-        mock_link = MagicMock()
+        mock_link = MagicMock(status=EntityStatus.UP)
         mock_link.is_active.return_value = True
         mock_link_from_interface.return_value = mock_link
         self.napp.handle_link_up(mock_interface)
