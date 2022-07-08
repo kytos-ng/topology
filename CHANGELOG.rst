@@ -20,10 +20,12 @@ Added
 - TopoController and DB models
 - ``storehouse_to_mongo.py`` script to migrate data from storehouse to MongoDB
 - Retries to handle database ``AutoReconnect`` exception.
+- Topology now reacts to link liveness detection events.
 
 Changed
 =======
 - Refactored API and event handlers to also update MongoDB accordingly.
+- ``kytos/topology.link_up`` is only published if link.status is EntityStatus.UP, which takes into account other protocol logical states.
 
 Deprecated
 ==========
