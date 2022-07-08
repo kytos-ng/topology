@@ -18,7 +18,7 @@ from tests.unit.helpers import get_controller_mock, get_napp_urls
 
 
 @pytest.mark.parametrize("liveness_status", ("up", "down", "init"))
-def test_handle_link_liveness(liveness_status) -> None:
+def test_handle_link_liveness_status(liveness_status) -> None:
     """Test handle link liveness."""
     from napps.kytos.topology.main import Main
     Main.get_topo_controller = MagicMock()
@@ -27,7 +27,7 @@ def test_handle_link_liveness(liveness_status) -> None:
     napp.notify_link_status_change = MagicMock()
 
     link = MagicMock(id="some_id")
-    napp.handle_link_liveness(link, liveness_status)
+    napp.handle_link_liveness_status(link, liveness_status)
 
     add_link_meta = napp.topo_controller.add_link_metadata
     add_link_meta.assert_called_with(link.id, {"liveness_status":

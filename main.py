@@ -538,8 +538,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         return jsonify("Operation successful"), 200
 
     @listen_to("kytos/.*.liveness.(up|down)")
-    def on_link_liveness(self, event) -> None:
-        """Handle link liveness up|down event."""
+    def on_link_liveness_status(self, event) -> None:
+        """Handle link liveness up|down status event."""
         link = Link(event.content["interface_a"], event.content["interface_b"])
         try:
             link = self.links[link.id]
@@ -547,9 +547,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             log.error(f"Link id {link.id} not found, {link}")
             return
         liveness_status = event.name.split(".")[-1]
-        self.handle_link_liveness(self.links[link.id], liveness_status)
+        self.handle_link_liveness_status(self.links[link.id], liveness_status)
 
-    def handle_link_liveness(self, link, liveness_status) -> None:
+    def handle_link_liveness_status(self, link, liveness_status) -> None:
         """Handle link liveness."""
         metadata = {"liveness_status": liveness_status}
         log.info(f"Link liveness {liveness_status}: {link}")
