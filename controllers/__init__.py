@@ -315,6 +315,15 @@ class TopoController:
         """Try to find a link and delete a metadata key."""
         return self._update_link(link_id, {"$unset": {f"metadata.{key}": ""}})
 
+    def bulk_delete_link_metadata_key(
+        self, link_ids: List[str], key: str
+    ) -> Optional[dict]:
+        """Bulk delelete link metadata key."""
+        update_expr = {"$unset": {f"metadata.{key}": 1}}
+        self._set_updated_at(update_expr)
+        return self.db.links.update_many({"_id": {"$in": link_ids}},
+                                         update_expr)
+
     def bulk_upsert_interface_details(
         self, ids_details: List[Tuple[str, dict]]
     ) -> Optional[dict]:

@@ -539,7 +539,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     @listen_to("kytos/.*.liveness.(up|down)")
     def on_link_liveness(self, event) -> None:
-        """Handle link liveness up event."""
+        """Handle link liveness up|down event."""
         link = Link(event.content["interface_a"], event.content["interface_b"])
         try:
             link = self.links[link.id]
@@ -558,6 +558,38 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.notify_topology_update()
         self.notify_link_status_change(link,
                                        reason=f"liveness_{liveness_status}")
+
+    @listen_to("kytos/.*.liveness.disabled")
+    def on_link_liveness_disabled(self, event) -> None:
+        """Handle link liveness disabled event."""
+        interfaces = event.content["interfaces"]
+        self.handle_link_liveness_disabled(interfaces)
+
+    def get_links_from_interfaces(self, interfaces) -> dict:
+        """Get links from interfaces."""
+        links = {}
+        for interface in interfaces:
+            for link in self.links.values():
+                if any((
+                    interface.id == link.endpoint_a.id,
+                    interface.id == link.endpoint_b.id,
+                )):
+                    links[link.id] = link
+        return links
+
+    def handle_link_liveness_disabled(self, interfaces) -> None:
+        """Handle link liveness disabled."""
+        log.info(f"Link liveness disabled interfaces: {interfaces}")
+
+        key = "liveness_status"
+        links = self.get_links_from_interfaces(interfaces)
+        for link in links.values():
+            link.remove_metadata(key)
+        link_ids = list(links.keys())
+        self.topo_controller.bulk_delete_link_metadata_key(link_ids, key)
+        self.notify_topology_update()
+        for link in links.values():
+            self.notify_link_status_change(link, reason="liveness_disabled")
 
     @listen_to("kytos/.*.link_available_tags")
     def on_link_available_tags(self, event):
