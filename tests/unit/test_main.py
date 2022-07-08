@@ -1,9 +1,11 @@
 """Module to test the main napp file."""
+# pylint: disable=import-error,no-name-in-module,wrong-import-order
+# pylint: disable=import-outside-toplevel
+import pytest
 import json
 import time
 from unittest import TestCase
 from unittest.mock import MagicMock, create_autospec, patch
-# pylint: disable=import-error,no-name-in-module,wrong-import-order
 
 from kytos.core.interface import Interface
 from kytos.core.link import Link
@@ -12,6 +14,29 @@ from kytos.lib.helpers import (get_interface_mock, get_link_mock,
                                get_switch_mock, get_test_client)
 from napps.kytos.topology.exceptions import RestoreError
 from tests.unit.helpers import get_controller_mock, get_napp_urls
+
+
+@pytest.mark.parametrize("liveness_status", ("up", "down", "init"))
+def test_handle_link_liveness(liveness_status) -> None:
+    """Test handle link liveness."""
+    from napps.kytos.topology.main import Main
+    Main.get_topo_controller = MagicMock()
+    napp = Main(get_controller_mock())
+    napp.notify_topology_update = MagicMock()
+    napp.notify_link_status_change = MagicMock()
+
+    link = MagicMock(id="some_id")
+    napp.handle_link_liveness(link, liveness_status)
+
+    add_link_meta = napp.topo_controller.add_link_metadata
+    add_link_meta.assert_called_with(link.id, {"liveness_status":
+                                               liveness_status})
+    link.extend_metadata.assert_called_with({"liveness_status":
+                                             liveness_status})
+    assert napp.notify_topology_update.call_count == 1
+    assert napp.notify_link_status_change.call_count == 1
+    reason = f"liveness_{liveness_status}"
+    napp.notify_link_status_change.assert_called_with(link, reason=reason)
 
 
 # pylint: disable=too-many-public-methods
@@ -53,6 +78,7 @@ class TestMain(TestCase):
                            '.*.switch.interface.link_down',
                            '.*.switch.interface.link_up',
                            '.*.switch.(new|reconnected)',
+                           'kytos/.*.liveness.(up|down|init)',
                            '.*.switch.port.created']
         actual_events = self.napp.listeners()
         self.assertCountEqual(expected_events, actual_events)

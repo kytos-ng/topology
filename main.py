@@ -12,6 +12,7 @@ from flask import jsonify, request
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 
 from kytos.core import KytosEvent, KytosNApp, log, rest
+from kytos.core.common import EntityStatus
 from kytos.core.exceptions import KytosLinkCreationError
 from kytos.core.helpers import listen_to
 from kytos.core.interface import Interface
@@ -536,6 +537,28 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.notify_metadata_changes(link, 'removed')
         return jsonify("Operation successful"), 200
 
+    @listen_to("kytos/.*.liveness.(up|down|init)")
+    def on_link_liveness(self, event) -> None:
+        """Handle link liveness up event."""
+        link = Link(event.content["interface_a"], event.content["interface_b"])
+        try:
+            link = self.links[link.id]
+        except KeyError:
+            log.error(f"Link id {link.id} not found, {link}")
+            return
+        liveness_status = event.name.split(".")[-1]
+        self.handle_link_liveness(self.links[link.id], liveness_status)
+
+    def handle_link_liveness(self, link, liveness_status) -> None:
+        """Handle link liveness."""
+        metadata = {"liveness_status": liveness_status}
+        log.info(f"Link liveness {liveness_status}: {link}")
+        self.topo_controller.add_link_metadata(link.id, metadata)
+        link.extend_metadata(metadata)
+        self.notify_topology_update()
+        self.notify_link_status_change(link,
+                                       reason=f"liveness_{liveness_status}")
+
     @listen_to("kytos/.*.link_available_tags")
     def on_link_available_tags(self, event):
         """Handle on_link_available_tags."""
@@ -866,7 +889,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def notify_link_status_change(self, link, reason='not given'):
         """Send an event to notify about a status change on a link."""
         name = 'kytos/topology.'
-        if link.is_active() and link.is_enabled():
+        if link.status == EntityStatus.UP:
             status = 'link_up'
         else:
             status = 'link_down'
