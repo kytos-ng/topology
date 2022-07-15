@@ -17,8 +17,10 @@ from napps.kytos.topology.exceptions import RestoreError
 from tests.unit.helpers import get_controller_mock, get_napp_urls
 
 
-@pytest.mark.parametrize("liveness_status", ("up", "down", "init"))
-def test_handle_link_liveness_status(liveness_status) -> None:
+@pytest.mark.parametrize("liveness_status, status",
+                         [("up", EntityStatus.UP),
+                          ("down", EntityStatus.DOWN)])
+def test_handle_link_liveness_status(liveness_status, status) -> None:
     """Test handle link liveness."""
     from napps.kytos.topology.main import Main
     Main.get_topo_controller = MagicMock()
@@ -26,7 +28,7 @@ def test_handle_link_liveness_status(liveness_status) -> None:
     napp.notify_topology_update = MagicMock()
     napp.notify_link_status_change = MagicMock()
 
-    link = MagicMock(id="some_id")
+    link = MagicMock(id="some_id", status=status)
     napp.handle_link_liveness_status(link, liveness_status)
 
     add_link_meta = napp.topo_controller.add_link_metadata
