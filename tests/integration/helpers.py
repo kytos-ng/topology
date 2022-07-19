@@ -31,7 +31,7 @@ def get_switch_mock(of_version, connection_state=ConnectionState.NEW,
 
 def get_interface_mock(interface_name, port, *args, **kwargs):
     """Return a interface mock."""
-    switch = get_switch_mock
+    switch = get_switch_mock(0x04)
     switch.connection = Mock()
     switch.connection.protocol.version = 0x04
     iface = Interface(interface_name, port, switch, *args, **kwargs)
