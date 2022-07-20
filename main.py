@@ -558,7 +558,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.notify_topology_update()
         if link.status == EntityStatus.UP and liveness_status == "up":
             self.notify_link_status_change(link, reason="liveness_up")
-        if link.status != EntityStatus.UP and liveness_status == "down":
+        if link.status == EntityStatus.DOWN and liveness_status == "down":
             self.notify_link_status_change(link, reason="liveness_down")
 
     @listen_to("kytos/.*.liveness.disabled")
