@@ -60,6 +60,8 @@ Subscribed
 - ``kytos/maintenance.end_link``
 - ``kytos/maintenance.start_switch``
 - ``kytos/maintenance.end_switch``
+- ``kytos/.*.liveness.(up|down)``
+- ``kytos/.*.liveness.disabled``
 
 
 Published

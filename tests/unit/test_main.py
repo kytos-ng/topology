@@ -1,10 +1,13 @@
 """Module to test the main napp file."""
+# pylint: disable=import-error,no-name-in-module,wrong-import-order
+# pylint: disable=import-outside-toplevel
+import pytest
 import json
 import time
 from unittest import TestCase
 from unittest.mock import MagicMock, create_autospec, patch
-# pylint: disable=import-error,no-name-in-module,wrong-import-order
 
+from kytos.core.common import EntityStatus
 from kytos.core.interface import Interface
 from kytos.core.link import Link
 from kytos.core.switch import Switch
@@ -12,6 +15,31 @@ from kytos.lib.helpers import (get_interface_mock, get_link_mock,
                                get_switch_mock, get_test_client)
 from napps.kytos.topology.exceptions import RestoreError
 from tests.unit.helpers import get_controller_mock, get_napp_urls
+
+
+@pytest.mark.parametrize("liveness_status, status",
+                         [("up", EntityStatus.UP),
+                          ("down", EntityStatus.DOWN)])
+def test_handle_link_liveness_status(liveness_status, status) -> None:
+    """Test handle link liveness."""
+    from napps.kytos.topology.main import Main
+    Main.get_topo_controller = MagicMock()
+    napp = Main(get_controller_mock())
+    napp.notify_topology_update = MagicMock()
+    napp.notify_link_status_change = MagicMock()
+
+    link = MagicMock(id="some_id", status=status)
+    napp.handle_link_liveness_status(link, liveness_status)
+
+    add_link_meta = napp.topo_controller.add_link_metadata
+    add_link_meta.assert_called_with(link.id, {"liveness_status":
+                                               liveness_status})
+    link.extend_metadata.assert_called_with({"liveness_status":
+                                             liveness_status})
+    assert napp.notify_topology_update.call_count == 1
+    assert napp.notify_link_status_change.call_count == 1
+    reason = f"liveness_{liveness_status}"
+    napp.notify_link_status_change.assert_called_with(link, reason=reason)
 
 
 # pylint: disable=too-many-public-methods
@@ -53,6 +81,8 @@ class TestMain(TestCase):
                            '.*.switch.interface.link_down',
                            '.*.switch.interface.link_up',
                            '.*.switch.(new|reconnected)',
+                           'kytos/.*.liveness.(up|down)',
+                           'kytos/.*.liveness.disabled',
                            '.*.switch.port.created']
         actual_events = self.napp.listeners()
         self.assertCountEqual(expected_events, actual_events)
@@ -1185,6 +1215,7 @@ class TestMain(TestCase):
         mock_link.endpoint_a = mock_interface_a
         mock_link.endpoint_b = mock_interface_b
         mock_link_from_interface.return_value = mock_link
+        mock_link.status = EntityStatus.UP
         self.napp.link_up_timer = 1
         self.napp.handle_interface_link_up(mock_interface_a)
         mock_topology_update.assert_called()
@@ -1257,7 +1288,7 @@ class TestMain(TestCase):
          mock_link_from_interface) = args
 
         mock_interface = create_autospec(Interface)
-        mock_link = MagicMock()
+        mock_link = MagicMock(status=EntityStatus.UP)
         mock_link.is_active.return_value = True
         mock_link_from_interface.return_value = mock_link
         self.napp.handle_link_up(mock_interface)
@@ -1376,6 +1407,45 @@ class TestMain(TestCase):
         self.napp.notify_port_created(mock_event)
         mock_kytos_event.assert_called()
         mock_buffers_put.assert_called()
+
+    def test_get_links_from_interfaces(self) -> None:
+        """Test get_links_from_interfaces."""
+        interfaces = [MagicMock(id=f"intf{n}") for n in range(4)]
+        links = {
+            "link1": MagicMock(id="link1",
+                               endpoint_a=interfaces[0],
+                               endpoint_b=interfaces[1]),
+            "link2": MagicMock(id="link2",
+                               endpoint_a=interfaces[2],
+                               endpoint_b=interfaces[3]),
+        }
+        self.napp.links = links
+        response = self.napp.get_links_from_interfaces(interfaces)
+        assert links == response
+        response = self.napp.get_links_from_interfaces(interfaces[:2])
+        assert response == {"link1": links["link1"]}
+
+    def test_handle_link_liveness_disabled(self) -> None:
+        """Test handle_link_liveness_disabled."""
+        interfaces = [MagicMock(id=f"intf{n}") for n in range(4)]
+        links = {
+            "link1": MagicMock(id="link1",
+                               endpoint_a=interfaces[0],
+                               endpoint_b=interfaces[1]),
+            "link2": MagicMock(id="link2",
+                               endpoint_a=interfaces[2],
+                               endpoint_b=interfaces[3]),
+        }
+        self.napp.links = links
+        self.napp.notify_topology_update = MagicMock()
+        self.napp.notify_link_status_change = MagicMock()
+
+        self.napp.handle_link_liveness_disabled(interfaces)
+
+        bulk_delete = self.napp.topo_controller.bulk_delete_link_metadata_key
+        assert bulk_delete.call_count == 1
+        assert self.napp.notify_topology_update.call_count == 1
+        assert self.napp.notify_link_status_change.call_count == len(links)
 
     @patch('napps.kytos.topology.main.Main.notify_link_status_change')
     def test_handle_link_maintenance_start(self, status_change_mock):

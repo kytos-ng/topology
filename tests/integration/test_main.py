@@ -141,6 +141,8 @@ class TestMain(TestCase):
                            'kytos/maintenance.start_switch',
                            'kytos/maintenance.end_switch',
                            'kytos/.*.link_available_tags',
+                           'kytos/.*.liveness.(up|down)',
+                           'kytos/.*.liveness.disabled',
                            '.*.topo_controller.upsert_switch',
                            '.*.of_lldp.network_status.updated',
                            '.*.interface.is.nni',
