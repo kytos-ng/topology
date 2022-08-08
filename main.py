@@ -120,7 +120,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def _get_topology(self):
         """Return an object representing the topology."""
-        return Topology(self.controller.switches, self.links)
+        return Topology(dict(self.controller.switches), dict(self.links))
 
     def _get_link_from_interface(self, interface):
         """Return the link of the interface, or None if it does not exist."""
