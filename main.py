@@ -98,7 +98,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def _get_switches_dict(self):
         """Return a dictionary with the known switches."""
         switches = {'switches': {}}
-        for idx, switch in enumerate(self.controller.switches.values()):
+        for idx, switch in enumerate(dict(self.controller.switches).values()):
             switch_data = switch.as_dict()
             if not all(key in switch_data['metadata']
                        for key in ('lat', 'lng')):
@@ -111,7 +111,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def _get_links_dict(self):
         """Return a dictionary with the known links."""
         return {'links': {link.id: link.as_dict() for link in
-                          self.links.values()}}
+                          dict(self.links).values()}}
 
     def _get_topology_dict(self):
         """Return a dictionary with the known topology."""
@@ -124,7 +124,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def _get_link_from_interface(self, interface):
         """Return the link of the interface, or None if it does not exist."""
-        for link in self.links.values():
+        for link in dict(self.links).values():
             if interface in (link.endpoint_a, link.endpoint_b):
                 return link
         return None
@@ -356,7 +356,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 msg = f"Switch {dpid} interface {interface_number} not found"
                 return jsonify(msg), 404
         else:
-            for interface in switch.interfaces.values():
+            for interface in dict(switch.interfaces).values():
                 interface.enable()
             self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         self.notify_topology_update()
@@ -384,7 +384,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 msg = f"Switch {dpid} interface {interface_number} not found"
                 return jsonify(msg), 404
         else:
-            for interface in switch.interfaces.values():
+            for interface in dict(switch.interfaces).values():
                 interface.disable()
             self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         self.notify_topology_update()
@@ -569,15 +569,16 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def get_links_from_interfaces(self, interfaces) -> dict:
         """Get links from interfaces."""
-        links = {}
+        links_found = {}
+        links = dict(self.links)
         for interface in interfaces:
-            for link in self.links.values():
+            for link in links.values():
                 if any((
                     interface.id == link.endpoint_a.id,
                     interface.id == link.endpoint_b.id,
                 )):
-                    links[link.id] = link
-        return links
+                    links_found[link.id] = link
+        return links_found
 
     def handle_link_liveness_disabled(self, interfaces) -> None:
         """Handle link liveness disabled."""
