@@ -120,7 +120,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def _get_topology(self):
         """Return an object representing the topology."""
-        return Topology(self.controller.switches, self.links)
+        return Topology(dict(self.controller.switches), dict(self.links))
 
     def _get_link_from_interface(self, interface):
         """Return the link of the interface, or None if it does not exist."""
@@ -955,7 +955,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         name = f'kytos/topology.{entities}.metadata.{action}'
         event = KytosEvent(name=name, content={entity: obj,
-                                               'metadata': obj.metadata})
+                                               'metadata': dict(obj.metadata)})
         self.controller.buffers.app.put(event)
         log.debug(f'Metadata from {obj.id} was {action}.')
 
