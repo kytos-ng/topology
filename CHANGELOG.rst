@@ -37,6 +37,8 @@ Removed
 
 Fixed
 =====
+- Send topology.switches and topology.links shallow copy on ``kytos/topology.topology_loaded`` and ``kytos/topology.updated`` events
+- Send object metadata shallow copy on ``kytos/topology.{entities}.metadata.{action}`` event
 
 Security
 ========

@@ -1390,7 +1390,7 @@ class TestMain(TestCase):
         count = 0
         for spec in [Switch, Interface, Link]:
             mock_obj = create_autospec(spec)
-            mock_obj.metadata = "A"
+            mock_obj.metadata = {"some_key": "some_value"}
             self.napp.notify_metadata_changes(mock_obj, 'added')
             self.assertEqual(mock_event.call_count, count+1)
             self.assertEqual(mock_buffers_put.call_count, count+1)
