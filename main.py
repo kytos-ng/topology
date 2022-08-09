@@ -955,8 +955,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             )
 
         name = f'kytos/topology.{entities}.metadata.{action}'
-        event = KytosEvent(name=name, content={entity: obj,
-                                               'metadata': obj.metadata.copy()})
+        content = {entity: obj, 'metadata': obj.metadata.copy()}
+        event = KytosEvent(name=name, content=content)
         self.controller.buffers.app.put(event)
         log.debug(f'Metadata from {obj.id} was {action}.')
 
