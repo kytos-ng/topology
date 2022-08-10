@@ -124,10 +124,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def _get_link_from_interface(self, interface):
         """Return the link of the interface, or None if it does not exist."""
-        for link in self.links.copy().values():
-            if interface in (link.endpoint_a, link.endpoint_b):
-                return link
-        return None
+        with self._links_lock:
+            for link in self.links.values():
+                if interface in (link.endpoint_a, link.endpoint_b):
+                    return link
+            return None
 
     def _load_link(self, link_att):
         endpoint_a = link_att['endpoint_a']['id']
@@ -570,14 +571,14 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def get_links_from_interfaces(self, interfaces) -> dict:
         """Get links from interfaces."""
         links_found = {}
-        links = self.links.copy()
-        for interface in interfaces:
-            for link in links.values():
-                if any((
-                    interface.id == link.endpoint_a.id,
-                    interface.id == link.endpoint_b.id,
-                )):
-                    links_found[link.id] = link
+        with self._links_lock:
+            for interface in interfaces:
+                for link in self.links.values():
+                    if any((
+                        interface.id == link.endpoint_a.id,
+                        interface.id == link.endpoint_b.id,
+                    )):
+                        links_found[link.id] = link
         return links_found
 
     def handle_link_liveness_disabled(self, interfaces) -> None:
@@ -740,8 +741,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface.activate()
         self.topo_controller.activate_interface(interface.id)
         self.notify_topology_update()
-        with self._links_lock:
-            link = self._get_link_from_interface(interface)
+        link = self._get_link_from_interface(interface)
         if not link:
             return
         if link.endpoint_a == interface:
