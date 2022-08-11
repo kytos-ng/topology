@@ -8,19 +8,39 @@ All notable changes to the ``topology`` project will be documented in this file.
 ********************************
 Added
 =====
-- Added a table on ``k-info-panel/switch_info`` to display switch metadata
-- Added functionality to add and remove metadata from a switch on ``k-info-panel/switch-info``
-- Added a table of links to ``k-info-panel/switch_info``
-- Added the new ``k-info-panel/link_info`` to display link attributes
-- Added a toggle button to enable and disable a switch in the ``k-info-panel/switch_info`` component
-- Added a new accordion to ``k-info-panel/switch_info`` to enable and disable LLDP on interfaces
-- Added a toggle button to enable and disable a link in the ``k-info-panel/link_info`` component
-- Added functionality to add and remove metadata from a link on ``k-info-panel/link-info``
-- MongoDB integration with pymongo
+
+Changed
+=======
+
+Deprecated
+==========
+
+Removed
+=======
+
+Fixed
+=====
+
+Security
+========
+
+[2022.2.0] - 2022-08-05
+***********************
+
+Added
+=====
+- UI table on ``k-info-panel/switch_info`` to display switch metadata
+- UI functionality to add and remove metadata from a switch on ``k-info-panel/switch-info``
+- UI table of links to ``k-info-panel/switch_info``
+- UI ``k-info-panel/link_info`` to display link attributes
+- UI toggle button to enable and disable a switch in the ``k-info-panel/switch_info`` component
+- UI accordion to ``k-info-panel/switch_info`` to enable and disable LLDP on interfaces
+- UI toggle button to enable and disable a link in the ``k-info-panel/link_info`` component
+- UI functionality to add and remove metadata from a link on ``k-info-panel/link-info``
+- MongoDB integration with ``pymongo``
 - TopoController and DB models
-- ``storehouse_to_mongo.py`` script to migrate data from storehouse to MongoDB
-- Retries to handle database ``AutoReconnect`` exception.
-- Topology now reacts to link liveness detection events.
+- Retries to handle database ``AutoReconnect`` exception
+- Topology now reacts to link liveness detection events
 
 Changed
 =======
@@ -41,8 +61,9 @@ Fixed
 - Send object metadata shallow copy on ``kytos/topology.{entities}.metadata.{action}`` event
 - Shallow copy shared iterables that are used on REST endpoints
 
-Security
-========
+General Information
+===================
+- ``scripts/storehouse_to_mongo.py`` can be used to migrate data from storehouse to MongoDB
 
 [2022.1.0] - 2022-01-25
 ***********************
