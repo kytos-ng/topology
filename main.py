@@ -98,7 +98,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def _get_switches_dict(self):
         """Return a dictionary with the known switches."""
         switches = {'switches': {}}
-        for idx, switch in enumerate(self.controller.switches.values()):
+        for idx, switch in enumerate(self.controller.switches.copy().values()):
             switch_data = switch.as_dict()
             if not all(key in switch_data['metadata']
                        for key in ('lat', 'lng')):
@@ -111,7 +111,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def _get_links_dict(self):
         """Return a dictionary with the known links."""
         return {'links': {link.id: link.as_dict() for link in
-                          self.links.values()}}
+                          self.links.copy().values()}}
 
     def _get_topology_dict(self):
         """Return a dictionary with the known topology."""
@@ -120,14 +120,15 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def _get_topology(self):
         """Return an object representing the topology."""
-        return Topology(dict(self.controller.switches), dict(self.links))
+        return Topology(self.controller.switches.copy(), self.links.copy())
 
     def _get_link_from_interface(self, interface):
         """Return the link of the interface, or None if it does not exist."""
-        for link in self.links.values():
-            if interface in (link.endpoint_a, link.endpoint_b):
-                return link
-        return None
+        with self._links_lock:
+            for link in self.links.values():
+                if interface in (link.endpoint_a, link.endpoint_b):
+                    return link
+            return None
 
     def _load_link(self, link_att):
         endpoint_a = link_att['endpoint_a']['id']
@@ -356,7 +357,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 msg = f"Switch {dpid} interface {interface_number} not found"
                 return jsonify(msg), 404
         else:
-            for interface in switch.interfaces.values():
+            for interface in switch.interfaces.copy().values():
                 interface.enable()
             self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         self.notify_topology_update()
@@ -384,7 +385,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 msg = f"Switch {dpid} interface {interface_number} not found"
                 return jsonify(msg), 404
         else:
-            for interface in switch.interfaces.values():
+            for interface in switch.interfaces.copy().values():
                 interface.disable()
             self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         self.notify_topology_update()
@@ -569,15 +570,16 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def get_links_from_interfaces(self, interfaces) -> dict:
         """Get links from interfaces."""
-        links = {}
-        for interface in interfaces:
-            for link in self.links.values():
-                if any((
-                    interface.id == link.endpoint_a.id,
-                    interface.id == link.endpoint_b.id,
-                )):
-                    links[link.id] = link
-        return links
+        links_found = {}
+        with self._links_lock:
+            for interface in interfaces:
+                for link in self.links.values():
+                    if any((
+                        interface.id == link.endpoint_a.id,
+                        interface.id == link.endpoint_b.id,
+                    )):
+                        links_found[link.id] = link
+        return links_found
 
     def handle_link_liveness_disabled(self, interfaces) -> None:
         """Handle link liveness disabled."""
@@ -739,8 +741,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface.activate()
         self.topo_controller.activate_interface(interface.id)
         self.notify_topology_update()
-        with self._links_lock:
-            link = self._get_link_from_interface(interface)
+        link = self._get_link_from_interface(interface)
         if not link:
             return
         if link.endpoint_a == interface:
@@ -954,8 +955,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             )
 
         name = f'kytos/topology.{entities}.metadata.{action}'
-        event = KytosEvent(name=name, content={entity: obj,
-                                               'metadata': dict(obj.metadata)})
+        content = {entity: obj, 'metadata': obj.metadata.copy()}
+        event = KytosEvent(name=name, content=content)
         self.controller.buffers.app.put(event)
         log.debug(f'Metadata from {obj.id} was {action}.')
 
