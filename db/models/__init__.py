@@ -1,5 +1,5 @@
 """DB models."""
-# pylint: disable=unused-argument,no-self-use,no-self-argument,invalid-name,
+# pylint: disable=unused-argument,no-self-argument,invalid-name,
 # pylint: disable=no-name-in-module
 
 from datetime import datetime

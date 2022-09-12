@@ -4,8 +4,8 @@ from unittest.mock import Mock, patch, MagicMock
 
 # pylint: disable=import-error,no-name-in-module
 from kytos.core.events import KytosEvent
-from tests.integration.helpers import (get_controller_mock, get_interface_mock,
-                                       get_switch_mock)
+from kytos.lib.helpers import get_controller_mock
+from tests.integration.helpers import (get_interface_mock, get_switch_mock)
 
 LINK_DATA = {
     "active": False,
