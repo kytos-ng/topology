@@ -16,7 +16,7 @@ asgiref==3.5.2
     # via
     #   flask
     #   kytos
-astroid==2.9.3
+astroid==2.12.9
     # via pylint
 asttokens==2.0.8
     # via
@@ -54,6 +54,8 @@ decorator==4.4.2
     # via
     #   ipython
     #   kytos
+dill==0.3.4
+    # via pylint
 distlib==0.3.4
     # via virtualenv
 docopt==0.6.2
@@ -182,7 +184,7 @@ pygments==2.13.0
     #   kytos
 pyjwt==2.4.0
     # via kytos
-pylint==2.12.2
+pylint==2.15.0
     # via yala
 pymongo==4.1.0
     # via kytos
@@ -221,15 +223,16 @@ stack-data==0.5.0
 tenacity==8.0.1
     # via kytos
 toml==0.10.2
-    # via
-    #   pylint
-    #   tox
+    # via tox
 tomli==1.2.3
     # via
     #   black
     #   coverage
     #   pep517
+    #   pylint
     #   pytest
+tomlkit==0.11.4
+    # via pylint
 tox==3.24.5
     # via kytos-topology
 traitlets==5.3.0
