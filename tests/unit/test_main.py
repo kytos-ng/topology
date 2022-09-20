@@ -12,9 +12,10 @@ from kytos.core.interface import Interface
 from kytos.core.link import Link
 from kytos.core.switch import Switch
 from kytos.lib.helpers import (get_interface_mock, get_link_mock,
-                               get_switch_mock, get_test_client)
+                               get_controller_mock, get_switch_mock,
+                               get_test_client)
 from napps.kytos.topology.exceptions import RestoreError
-from tests.unit.helpers import get_controller_mock, get_napp_urls
+from tests.unit.helpers import get_napp_urls
 
 
 @pytest.mark.parametrize("liveness_status, status",
