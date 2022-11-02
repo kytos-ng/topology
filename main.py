@@ -546,7 +546,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.controller.buffers.app.put(event)
 
     @listen_to("kytos/topology.get")
-    def on_get_topology(self, event) -> None:
+    def on_get_topology(self, _event) -> None:
+        """Handle kytos/topology.get."""
         self.notify_current_topology()
 
     @listen_to("kytos/.*.liveness.(up|down)")
