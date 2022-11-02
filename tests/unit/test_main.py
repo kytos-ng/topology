@@ -7,6 +7,7 @@ import time
 from unittest import TestCase
 from unittest.mock import MagicMock, create_autospec, patch
 
+from kytos.core import KytosEvent
 from kytos.core.common import EntityStatus
 from kytos.core.interface import Interface
 from kytos.core.link import Link
@@ -84,6 +85,7 @@ class TestMain(TestCase):
                            '.*.switch.(new|reconnected)',
                            'kytos/.*.liveness.(up|down)',
                            'kytos/.*.liveness.disabled',
+                           'kytos/topology.get',
                            '.*.switch.port.created']
         actual_events = self.napp.listeners()
         self.assertCountEqual(expected_events, actual_events)
@@ -1372,6 +1374,16 @@ class TestMain(TestCase):
         self.napp.notify_topology_update()
         mock_event.assert_called()
         mock_buffers_put.assert_called()
+
+    @patch('kytos.core.buffers.KytosEventBuffer.put')
+    def test_notify_current_topology(self, mock_buffers_put):
+        """Test notify_current_topology."""
+        self.napp.notify_current_topology()
+        mock_buffers_put.assert_called()
+        args = mock_buffers_put.call_args
+        expected_event = args[0][0]
+        assert expected_event.name == "kytos/topology.current"
+        assert "topology" in expected_event.content
 
     @patch('napps.kytos.topology.main.KytosEvent')
     @patch('kytos.core.buffers.KytosEventBuffer.put')
