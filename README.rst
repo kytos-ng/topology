@@ -62,6 +62,7 @@ Subscribed
 - ``kytos/maintenance.end_switch``
 - ``kytos/.*.liveness.(up|down)``
 - ``kytos/.*.liveness.disabled``
+- ``kytos/topology.get``
 
 
 Published
@@ -88,6 +89,20 @@ kytos/topology.updated
 
 Event reporting that the topology was updated. It contains the most updated
 topology.
+
+Content:
+
+.. code-block:: python3
+
+   {
+     'topology': <Topology object>
+   }
+
+kytos/topology.current
+~~~~~~~~~~~~~~~~~~~~~~
+
+Event reporting the current topology, this is meant as a broadcast response when
+a subscriber needs it for reconciliation.
 
 Content:
 
