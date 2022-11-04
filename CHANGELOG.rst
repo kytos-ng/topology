@@ -6,8 +6,11 @@ All notable changes to the ``topology`` project will be documented in this file.
 
 [UNRELEASED] - Under development
 ********************************
+
 Added
 =====
+- Publish event ``kytos/topology.current`` for topology reconciliation
+- Subscribed to event ``kytos/topology.get`` to publish the current topology
 
 Changed
 =======

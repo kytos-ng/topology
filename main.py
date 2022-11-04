@@ -538,6 +538,18 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.notify_metadata_changes(link, 'removed')
         return jsonify("Operation successful"), 200
 
+    def notify_current_topology(self) -> None:
+        """Notify current topology."""
+        name = "kytos/topology.current"
+        event = KytosEvent(name=name, content={"topology":
+                                               self._get_topology()})
+        self.controller.buffers.app.put(event)
+
+    @listen_to("kytos/topology.get")
+    def on_get_topology(self, _event) -> None:
+        """Handle kytos/topology.get."""
+        self.notify_current_topology()
+
     @listen_to("kytos/.*.liveness.(up|down)")
     def on_link_liveness_status(self, event) -> None:
         """Handle link liveness up|down status event."""

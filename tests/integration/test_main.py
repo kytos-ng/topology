@@ -143,6 +143,7 @@ class TestMain(TestCase):
                            'kytos/.*.link_available_tags',
                            'kytos/.*.liveness.(up|down)',
                            'kytos/.*.liveness.disabled',
+                           'kytos/topology.get',
                            '.*.topo_controller.upsert_switch',
                            '.*.of_lldp.network_status.updated',
                            '.*.interface.is.nni',
