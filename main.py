@@ -5,6 +5,7 @@ Manage the network topology
 # pylint: disable=wrong-import-order
 
 import time
+from collections import defaultdict
 from threading import Lock
 from typing import List, Optional
 
@@ -14,7 +15,7 @@ from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 from kytos.core import KytosEvent, KytosNApp, log, rest
 from kytos.core.common import EntityStatus
 from kytos.core.exceptions import KytosLinkCreationError
-from kytos.core.helpers import listen_to
+from kytos.core.helpers import listen_to, now
 from kytos.core.interface import Interface
 from kytos.core.link import Link
 from kytos.core.switch import Switch
@@ -40,9 +41,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.link_up_timer = getattr(settings, 'LINK_UP_TIMER',
                                      DEFAULT_LINK_UP_TIMER)
 
-        self._lock = Lock()
         self._links_lock = Lock()
+        self._links_notify_lock = defaultdict(Lock)
         self.topo_controller = self.get_topo_controller()
+        Link.register_status_func(f"{self.napp_id}_link_up_timer",
+                                  self.link_status_hook_link_up_timer)
         self.topo_controller.bootstrap_indexes()
         self.load_topology()
 
@@ -748,8 +751,40 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 interface.enable()
                 self.handle_link_up(interface)
 
+    def link_status_hook_link_up_timer(self, link) -> Optional[EntityStatus]:
+        """Link status hook link up timer."""
+        tnow = time.time()
+        if (
+            link.is_active()
+            and link.is_enabled()
+            and "last_status_change" in link.metadata
+            and tnow - link.metadata['last_status_change'] < self.link_up_timer
+        ):
+            return EntityStatus.DOWN
+        return None
+
+    def notify_link_up_if_status(self, link) -> None:
+        """Tries to notify link up and topology changes based on its status
+
+        Currently, it needs to wait up to a timer."""
+        time.sleep(self.link_up_timer)
+        if link.status != EntityStatus.UP:
+            return
+        with self._links_notify_lock[link.id]:
+            notified_up_at = link.get_metadata("notified_up_at")
+            if (
+                notified_up_at
+                and (now() - notified_up_at).seconds < self.link_up_timer
+            ):
+                return
+            key, notified_at = "notified_up_at", now()
+            link.update_metadata(key, now())
+            self.topo_controller.add_link_metadata(link.id, {key: notified_at})
+            self.notify_topology_update()
+            self.notify_link_status_change(link, reason="link up")
+
     def handle_link_up(self, interface):
-        """Notify a link is up."""
+        """Handle link up for an interface."""
         interface.activate()
         self.topo_controller.activate_interface(interface.id)
         self.notify_topology_update()
@@ -762,34 +797,14 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             other_interface = link.endpoint_a
         if other_interface.is_active() is False:
             return
-        if link.is_active() is False:
-            link.update_metadata('last_status_change', time.time())
-            link.activate()
-
-            # As each run of this method uses a different thread,
-            # there is no risk this sleep will lock the NApp.
-            time.sleep(self.link_up_timer)
-
-            last_status_change = link.get_metadata('last_status_change')
-            now = time.time()
-            if link.is_active() and \
-                    now - last_status_change >= self.link_up_timer:
-                link.update_metadata('last_status_is_active', True)
-                self.topo_controller.activate_link(link.id, last_status_change,
-                                                   last_status_is_active=True)
-                if link.status == EntityStatus.UP:
-                    self.notify_topology_update()
-                    self.notify_link_status_change(link, reason='link up')
-        else:
-            last_status_change = time.time()
-            metadata = {'last_status_change': last_status_change,
-                        'last_status_is_active': True}
-            link.extend_metadata(metadata)
-            self.topo_controller.activate_link(link.id, last_status_change,
-                                               last_status_is_active=True)
-            if link.status == EntityStatus.UP:
-                self.notify_topology_update()
-                self.notify_link_status_change(link, reason='link up')
+        metadata = {
+            'last_status_change': time.time(),
+            'last_status_is_active': True
+        }
+        link.extend_metadata(metadata)
+        link.activate()
+        self.topo_controller.activate_link(link.id, **metadata)
+        self.notify_link_up_if_status(link)
 
     @listen_to('.*.switch.interface.link_down')
     def on_interface_link_down(self, event):
@@ -880,11 +895,20 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             log.error(f'Error creating link: {err}.')
             return
 
-        if created:
-            link.update_metadata('last_status_is_active', True)
-            self.notify_link_status_change(link, reason='link up')
-            self.notify_topology_update()
-            self.topo_controller.upsert_link(link.id, link.as_dict())
+        if not created:
+            return
+
+        self.notify_topology_update()
+        if not link.is_active():
+            return
+
+        metadata = {
+            'last_status_change': time.time(),
+            'last_status_is_active': True
+        }
+        link.extend_metadata(metadata)
+        self.topo_controller.upsert_link(link.id, link.as_dict())
+        self.notify_link_up_if_status(link)
 
     @listen_to('.*.of_lldp.network_status.updated')
     def on_lldp_status_updated(self, event):
