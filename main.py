@@ -6,6 +6,7 @@ Manage the network topology
 
 import time
 from collections import defaultdict
+from datetime import timezone
 from threading import Lock
 from typing import List, Optional
 
@@ -771,10 +772,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if link.status != EntityStatus.UP:
             return
         with self._links_notify_lock[link.id]:
-            notified_up_at = link.get_metadata("notified_up_at")
+            notified_at = link.get_metadata("notified_up_at")
             if (
-                notified_up_at
-                and (now() - notified_up_at).seconds < self.link_up_timer
+                notified_at
+                and (now() - notified_at.replace(tzinfo=timezone.utc)).seconds
+                < self.link_up_timer
             ):
                 return
             key, notified_at = "notified_up_at", now()
