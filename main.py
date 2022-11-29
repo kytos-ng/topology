@@ -983,7 +983,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.controller.buffers.app.put(event)
 
     def notify_interface_link_enable(self, interface):
-        """Send an event to notify the status of a link from 
+        """Send an event to notify the status of a link from
         an interface."""
         link = self._get_link_from_interface(interface)
         if link:
@@ -991,7 +991,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 self.notify_link_status_change(link, reason="link up")
 
     def notify_interface_link_disable(self, interface):
-        """Send an event to notify the status of a link from 
+        """Send an event to notify the status of a link from
         an interface."""
         link = self._get_link_from_interface(interface)
         if link:
