@@ -269,6 +269,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         self.notify_switch_enabled(dpid)
         self.notify_topology_update()
+        self.notify_switch_links_enable(switch)
         return jsonify("Operation successful"), 201
 
     @rest('v3/switches/<dpid>/disable', methods=['POST'])
@@ -283,6 +284,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         self.notify_switch_disabled(dpid)
         self.notify_topology_update()
+        self.notify_switch_links_disable(switch)
         return jsonify("Operation successful"), 201
 
     @rest('v3/switches/<dpid>/metadata')
@@ -357,12 +359,14 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 interface = switch.interfaces[interface_number]
                 self.topo_controller.enable_interface(interface.id)
                 interface.enable()
+                self.notify_interface_link_enable(interface)
             except KeyError:
                 msg = f"Switch {dpid} interface {interface_number} not found"
                 return jsonify(msg), 404
         else:
             for interface in switch.interfaces.copy().values():
                 interface.enable()
+                self.notify_interface_link_enable(interface)
             self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         self.notify_topology_update()
         return jsonify("Operation successful"), 200
@@ -385,12 +389,14 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 interface = switch.interfaces[interface_number]
                 self.topo_controller.disable_interface(interface.id)
                 interface.disable()
+                self.notify_interface_link_disable(interface)
             except KeyError:
                 msg = f"Switch {dpid} interface {interface_number} not found"
                 return jsonify(msg), 404
         else:
             for interface in switch.interfaces.copy().values():
                 interface.disable()
+                self.notify_interface_link_disable(interface)
             self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         self.notify_topology_update()
         return jsonify("Operation successful"), 200
@@ -948,11 +954,26 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         event = KytosEvent(name=name, content={'dpid': dpid})
         self.controller.buffers.app.put(event)
 
+    def notify_switch_links_enable(self, switch):
+        """Send an event to notify the status of a link in a switch"""
+        for interface in switch.interfaces.values():
+            link = self._get_link_from_interface(interface)
+            if link:
+                if link.status == EntityStatus.UP:
+                    self.notify_link_status_change(link, reason="link up")
+
     def notify_switch_disabled(self, dpid):
         """Send an event to notify that a switch is disabled."""
         name = 'kytos/topology.switch.disabled'
         event = KytosEvent(name=name, content={'dpid': dpid})
         self.controller.buffers.app.put(event)
+
+    def notify_switch_links_disable(self, switch):
+        """Send an event to notify the status of a link in a switch"""
+        for interface in switch.interfaces.values():
+            link = self._get_link_from_interface(interface)
+            if link:
+                self.notify_link_status_change(link, reason="link down")
 
     def notify_topology_update(self):
         """Send an event to notify about updates on the topology."""
@@ -960,6 +981,21 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         event = KytosEvent(name=name, content={'topology':
                                                self._get_topology()})
         self.controller.buffers.app.put(event)
+
+    def notify_interface_link_enable(self, interface):
+        """Send an event to notify the status of a link from 
+        an interface."""
+        link = self._get_link_from_interface(interface)
+        if link:
+            if link.status == EntityStatus.UP:
+                self.notify_link_status_change(link, reason="link up")
+
+    def notify_interface_link_disable(self, interface):
+        """Send an event to notify the status of a link from 
+        an interface."""
+        link = self._get_link_from_interface(interface)
+        if link:
+            self.notify_link_status_change(link, reason="link down")
 
     def notify_link_status_change(self, link, reason='not given'):
         """Send an event to notify about a status change on a link."""
