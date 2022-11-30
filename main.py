@@ -775,7 +775,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         Currently, it needs to wait up to a timer."""
         time.sleep(self.link_up_timer)
-        if link.status != EntityStatus.UP and reason != "link disable":
+        if link.status != EntityStatus.UP:
             return
         with self._links_notify_lock[link.id]:
             notified_at = link.get_metadata("notified_up_at")
@@ -959,7 +959,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         with self._links_lock:
             for link in self.links.values():
                 if switch in (link.endpoint_a.switch, link.endpoint_b.switch):
-                    self.notify_link_up_if_status(link, reason)
+                    if reason == "link enable":
+                        self.notify_link_up_if_status(link, reason)
+                    else:
+                        self.notify_link_status_change(link, reason)
 
     def notify_switch_disabled(self, dpid):
         """Send an event to notify that a switch is disabled."""
@@ -979,7 +982,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         an interface."""
         link = self._get_link_from_interface(interface)
         if link:
-            self.notify_link_up_if_status(link, reason)
+            if reason == "link enable":
+                self.notify_link_up_if_status(link, reason)
+            else:
+                self.notify_link_status_change(link, reason)
 
     def notify_link_status_change(self, link, reason='not given'):
         """Send an event to notify about a status change on a link."""
