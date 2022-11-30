@@ -189,6 +189,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 interface.disable()
             interface.lldp = iface_att['lldp']
             interface.extend_metadata(iface_att["metadata"])
+            interface.deactivate()
             name = 'kytos/topology.port.created'
             event = KytosEvent(name=name, content={
                                               'switch': switch_id,

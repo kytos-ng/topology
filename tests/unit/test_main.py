@@ -362,6 +362,7 @@ class TestMain(TestCase):
             'interfaces': {
                 iface_a: {
                     'enabled': True,
+                    'active': True,
                     'lldp': True,
                     'id': iface_a,
                     'switch': dpid_a,
@@ -397,6 +398,7 @@ class TestMain(TestCase):
         self.assertEqual(interface.switch.id, dpid_a)
         self.assertEqual(interface.port_number, 1)
         self.assertTrue(interface.is_enabled())
+        self.assertFalse(interface.is_active())
         self.assertTrue(interface.lldp)
         self.assertTrue(interface.uni)
         self.assertFalse(interface.nni)
