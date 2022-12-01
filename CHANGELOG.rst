@@ -11,9 +11,11 @@ Added
 =====
 - Publish event ``kytos/topology.current`` for topology reconciliation
 - Subscribed to event ``kytos/topology.get`` to publish the current topology
+- Added ``notified_up_at`` internal reserved metadata
 
 Changed
 =======
+- Hooked ``link_status_hook_link_up_timer`` to update ``status`` accordingly.
 
 Deprecated
 ==========
@@ -23,6 +25,7 @@ Removed
 
 Fixed
 =====
+- Fixed link up to only notify when ``LINK_UP_TIMER`` has passed
 
 Security
 ========
