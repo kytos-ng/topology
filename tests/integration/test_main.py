@@ -154,7 +154,8 @@ class TestMain(TestCase):
                            '.*.switch.interface.link_down',
                            '.*.switch.interface.link_up',
                            '.*.switch.(new|reconnected)',
-                           '.*.switch.port.created']
+                           '.*.switch.port.created',
+                           'kytos/topology.notify_link_up_if_status']
         self.assertCountEqual(expected_events, actual_events)
 
     def test_verify_api_urls(self):

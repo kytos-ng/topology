@@ -87,7 +87,8 @@ class TestMain(TestCase):
                            'kytos/.*.liveness.(up|down)',
                            'kytos/.*.liveness.disabled',
                            'kytos/topology.get',
-                           '.*.switch.port.created']
+                           '.*.switch.port.created',
+                           'kytos/topology.notify_link_up_if_status']
         actual_events = self.napp.listeners()
         self.assertCountEqual(expected_events, actual_events)
 
@@ -1587,50 +1588,49 @@ class TestMain(TestCase):
         assert mock_sleep.call_count == 2
 
     @patch('napps.kytos.topology.main.Main.notify_link_status_change')
-    @patch('napps.kytos.topology.main.Main.notify_link_up_if_status')
-    def test_notify_switch_links_status(self, *args):
+    def test_notify_switch_links_status(self, mock_notify_link_status_change):
         """Test switch links notification when switch status change"""
-        (mock_notify_link_up_if_status,
-         mock_notify_link_status_change) = args
+        buffers_app_mock = MagicMock()
+        self.napp.controller.buffers.app = buffers_app_mock
         dpid = "00:00:00:00:00:00:00:01"
         mock_switch = get_switch_mock(dpid)
         link1 = MagicMock()
         link1.endpoint_a.switch = mock_switch
         self.napp.links = {1: link1}
 
-        self.napp.notify_switch_links_status(mock_switch, "link enable")
-        assert mock_notify_link_up_if_status.call_count == 1
+        self.napp.notify_switch_links_status(mock_switch, "link enabled")
+        assert self.napp.controller.buffers.app.put.call_count == 1
 
-        self.napp.notify_switch_links_status(mock_switch, "link disable")
-        assert mock_notify_link_up_if_status.call_count == 1
+        self.napp.notify_switch_links_status(mock_switch, "link disabled")
+        assert self.napp.controller.buffers.app.put.call_count == 1
         assert mock_notify_link_status_change.call_count == 1
 
         # Without notification
         link1.endpoint_a.switch = None
-        self.napp.notify_switch_links_status(mock_switch, "link enable")
-        assert mock_notify_link_up_if_status.call_count == 1
+        self.napp.notify_switch_links_status(mock_switch, "link enabled")
+        assert self.napp.controller.buffers.app.put.call_count == 1
 
     @patch('napps.kytos.topology.main.Main.notify_link_status_change')
-    @patch('napps.kytos.topology.main.Main.notify_link_up_if_status')
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
     def test_notify_interface_link_status(self, *args):
         """Test interface links notification when enable"""
         (mock_get_link_from_interface,
-         mock_notify_link_up_if_status,
          mock_notify_link_status_change) = args
+        buffers_app_mock = MagicMock()
+        self.napp.controller.buffers.app = buffers_app_mock
         mock_link = MagicMock()
         mock_get_link_from_interface.return_value = mock_link
-        self.napp.notify_interface_link_status(MagicMock(), "link enable")
+        self.napp.notify_interface_link_status(MagicMock(), "link enabled")
         assert mock_get_link_from_interface.call_count == 1
-        assert mock_notify_link_up_if_status.call_count == 1
+        assert self.napp.controller.buffers.app.put.call_count == 1
 
-        self.napp.notify_interface_link_status(MagicMock(), "link disable")
+        self.napp.notify_interface_link_status(MagicMock(), "link disabled")
         assert mock_get_link_from_interface.call_count == 2
-        assert mock_notify_link_up_if_status.call_count == 1
         assert mock_notify_link_status_change.call_count == 1
+        assert self.napp.controller.buffers.app.put.call_count == 1
 
         # Without notification
         mock_get_link_from_interface.return_value = None
-        self.napp.notify_interface_link_status(MagicMock(), "link enable")
+        self.napp.notify_interface_link_status(MagicMock(), "link enabled")
         assert mock_get_link_from_interface.call_count == 3
-        assert mock_notify_link_up_if_status.call_count == 1
+        assert self.napp.controller.buffers.app.put.call_count == 1

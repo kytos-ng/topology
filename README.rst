@@ -63,6 +63,7 @@ Subscribed
 - ``kytos/.*.liveness.(up|down)``
 - ``kytos/.*.liveness.disabled``
 - ``kytos/topology.get``
+- ``kytos/topology.notify_link_up_if_status``
 
 
 Published
@@ -196,3 +197,18 @@ Content:
    :target: https://github.com/kytos-ng/topology
 .. |Tag| image:: https://img.shields.io/github/tag/kytos-ng/topology.svg
    :target: https://github.com/kytos-ng/topology/tags
+
+
+kytos/topology.notify_link_up_if_status
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Event reporting that the link was changed to 'down'. It contains the link instance.
+
+Content:
+
+.. code-block:: python3
+
+   {
+     'reason': 'link_enabled'
+     'link': <Link object>
+   }
