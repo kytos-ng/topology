@@ -87,7 +87,8 @@ class TestMain(TestCase):
                            'kytos/.*.liveness.(up|down)',
                            'kytos/.*.liveness.disabled',
                            'kytos/topology.get',
-                           '.*.switch.port.created']
+                           '.*.switch.port.created',
+                           'kytos/topology.notify_link_up_if_status']
         actual_events = self.napp.listeners()
         self.assertCountEqual(expected_events, actual_events)
 
@@ -625,8 +626,9 @@ class TestMain(TestCase):
         with self.assertRaises(RestoreError):
             self.napp._load_link(link_attrs_fail)
 
+    @patch('napps.kytos.topology.main.Main.notify_switch_links_status')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
-    def test_enable_switch(self, mock_notify_topo):
+    def test_enable_switch(self, mock_notify_topo, mock_sw_l_status):
         """Test enable_switch."""
         dpid = "00:00:00:00:00:00:00:01"
         mock_switch = get_switch_mock(dpid)
@@ -639,6 +641,7 @@ class TestMain(TestCase):
         self.assertEqual(mock_switch.enable.call_count, 1)
         self.napp.topo_controller.enable_switch.assert_called_once_with(dpid)
         mock_notify_topo.assert_called()
+        mock_sw_l_status.assert_called()
 
         # fail case
         mock_switch.enable.call_count = 0
@@ -648,8 +651,9 @@ class TestMain(TestCase):
         self.assertEqual(response.status_code, 404, response.data)
         self.assertEqual(mock_switch.enable.call_count, 0)
 
+    @patch('napps.kytos.topology.main.Main.notify_switch_links_status')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
-    def test_disable_switch(self, mock_notify_topo):
+    def test_disable_switch(self, mock_notify_topo, mock_sw_l_status):
         """Test disable_switch."""
         dpid = "00:00:00:00:00:00:00:01"
         mock_switch = get_switch_mock(dpid)
@@ -662,6 +666,7 @@ class TestMain(TestCase):
         self.assertEqual(mock_switch.disable.call_count, 1)
         self.napp.topo_controller.disable_switch.assert_called_once_with(dpid)
         mock_notify_topo.assert_called()
+        mock_sw_l_status.assert_called()
 
         # fail case
         mock_switch.disable.call_count = 0
@@ -1569,17 +1574,65 @@ class TestMain(TestCase):
 
         link = MagicMock(status=EntityStatus.UP)
         link.get_metadata.return_value = now()
-        assert not self.napp.notify_link_up_if_status(link)
+        assert not self.napp.notify_link_up_if_status(link, "link up")
         link.update_metadata.assert_not_called()
         mock_notify_topo.assert_not_called()
         mock_notify_link.assert_not_called()
 
         link = MagicMock(status=EntityStatus.UP)
         link.get_metadata.return_value = now() - timedelta(seconds=60)
-        assert not self.napp.notify_link_up_if_status(link)
+        assert not self.napp.notify_link_up_if_status(link, "link up")
         link.update_metadata.assert_called()
         self.napp.topo_controller.add_link_metadata.assert_called()
         mock_notify_topo.assert_called()
         mock_notify_link.assert_called()
 
         assert mock_sleep.call_count == 2
+
+    @patch('napps.kytos.topology.main.Main.notify_link_status_change')
+    def test_notify_switch_links_status(self, mock_notify_link_status_change):
+        """Test switch links notification when switch status change"""
+        buffers_app_mock = MagicMock()
+        self.napp.controller.buffers.app = buffers_app_mock
+        dpid = "00:00:00:00:00:00:00:01"
+        mock_switch = get_switch_mock(dpid)
+        link1 = MagicMock()
+        link1.endpoint_a.switch = mock_switch
+        self.napp.links = {1: link1}
+
+        self.napp.notify_switch_links_status(mock_switch, "link enabled")
+        assert self.napp.controller.buffers.app.put.call_count == 1
+
+        self.napp.notify_switch_links_status(mock_switch, "link disabled")
+        assert self.napp.controller.buffers.app.put.call_count == 1
+        assert mock_notify_link_status_change.call_count == 1
+
+        # Without notification
+        link1.endpoint_a.switch = None
+        self.napp.notify_switch_links_status(mock_switch, "link enabled")
+        assert self.napp.controller.buffers.app.put.call_count == 1
+
+    @patch('napps.kytos.topology.main.Main.notify_link_status_change')
+    @patch('napps.kytos.topology.main.Main._get_link_from_interface')
+    def test_notify_interface_link_status(self, *args):
+        """Test interface links notification when enable"""
+        (mock_get_link_from_interface,
+         mock_notify_link_status_change) = args
+        buffers_app_mock = MagicMock()
+        self.napp.controller.buffers.app = buffers_app_mock
+        mock_link = MagicMock()
+        mock_get_link_from_interface.return_value = mock_link
+        self.napp.notify_interface_link_status(MagicMock(), "link enabled")
+        assert mock_get_link_from_interface.call_count == 1
+        assert self.napp.controller.buffers.app.put.call_count == 1
+
+        self.napp.notify_interface_link_status(MagicMock(), "link disabled")
+        assert mock_get_link_from_interface.call_count == 2
+        assert mock_notify_link_status_change.call_count == 1
+        assert self.napp.controller.buffers.app.put.call_count == 1
+
+        # Without notification
+        mock_get_link_from_interface.return_value = None
+        self.napp.notify_interface_link_status(MagicMock(), "link enabled")
+        assert mock_get_link_from_interface.call_count == 3
+        assert self.napp.controller.buffers.app.put.call_count == 1

@@ -270,6 +270,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         self.notify_switch_enabled(dpid)
         self.notify_topology_update()
+        self.notify_switch_links_status(switch, "link enabled")
         return jsonify("Operation successful"), 201
 
     @rest('v3/switches/<dpid>/disable', methods=['POST'])
@@ -284,6 +285,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         self.notify_switch_disabled(dpid)
         self.notify_topology_update()
+        self.notify_switch_links_status(switch, "link disabled")
         return jsonify("Operation successful"), 201
 
     @rest('v3/switches/<dpid>/metadata')
@@ -358,12 +360,14 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 interface = switch.interfaces[interface_number]
                 self.topo_controller.enable_interface(interface.id)
                 interface.enable()
+                self.notify_interface_link_status(interface, "link enabled")
             except KeyError:
                 msg = f"Switch {dpid} interface {interface_number} not found"
                 return jsonify(msg), 404
         else:
             for interface in switch.interfaces.copy().values():
                 interface.enable()
+                self.notify_interface_link_status(interface, "link enabled")
             self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         self.notify_topology_update()
         return jsonify("Operation successful"), 200
@@ -386,12 +390,14 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 interface = switch.interfaces[interface_number]
                 self.topo_controller.disable_interface(interface.id)
                 interface.disable()
+                self.notify_interface_link_status(interface, "link disabled")
             except KeyError:
                 msg = f"Switch {dpid} interface {interface_number} not found"
                 return jsonify(msg), 404
         else:
             for interface in switch.interfaces.copy().values():
                 interface.disable()
+                self.notify_interface_link_status(interface, "link disabled")
             self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         self.notify_topology_update()
         return jsonify("Operation successful"), 200
@@ -765,7 +771,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             return EntityStatus.DOWN
         return None
 
-    def notify_link_up_if_status(self, link) -> None:
+    def notify_link_up_if_status(self, link, reason="link up") -> None:
         """Tries to notify link up and topology changes based on its status
 
         Currently, it needs to wait up to a timer."""
@@ -784,7 +790,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             link.update_metadata(key, now())
             self.topo_controller.add_link_metadata(link.id, {key: notified_at})
             self.notify_topology_update()
-            self.notify_link_status_change(link, reason="link up")
+            self.notify_link_status_change(link, reason)
 
     def handle_link_up(self, interface):
         """Handle link up for an interface."""
@@ -807,7 +813,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         link.extend_metadata(metadata)
         link.activate()
         self.topo_controller.activate_link(link.id, **metadata)
-        self.notify_link_up_if_status(link)
+        self.notify_link_up_if_status(link, "link up")
 
     @listen_to('.*.switch.interface.link_down')
     def on_interface_link_down(self, event):
@@ -911,7 +917,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         }
         link.extend_metadata(metadata)
         self.topo_controller.upsert_link(link.id, link.as_dict())
-        self.notify_link_up_if_status(link)
+        self.notify_link_up_if_status(link, "link up")
 
     @listen_to('.*.of_lldp.network_status.updated')
     def on_lldp_status_updated(self, event):
@@ -949,6 +955,19 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         event = KytosEvent(name=name, content={'dpid': dpid})
         self.controller.buffers.app.put(event)
 
+    def notify_switch_links_status(self, switch, reason):
+        """Send an event to notify the status of a link in a switch"""
+        with self._links_lock:
+            for link in self.links.values():
+                if switch in (link.endpoint_a.switch, link.endpoint_b.switch):
+                    if reason == "link enabled":
+                        name = 'kytos/topology.notify_link_up_if_status'
+                        content = {'reason': reason, "link": link}
+                        event = KytosEvent(name=name, content=content)
+                        self.controller.buffers.app.put(event)
+                    else:
+                        self.notify_link_status_change(link, reason)
+
     def notify_switch_disabled(self, dpid):
         """Send an event to notify that a switch is disabled."""
         name = 'kytos/topology.switch.disabled'
@@ -961,6 +980,19 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         event = KytosEvent(name=name, content={'topology':
                                                self._get_topology()})
         self.controller.buffers.app.put(event)
+
+    def notify_interface_link_status(self, interface, reason):
+        """Send an event to notify the status of a link from
+        an interface."""
+        link = self._get_link_from_interface(interface)
+        if link:
+            if reason == "link enabled":
+                name = 'kytos/topology.notify_link_up_if_status'
+                content = {'reason': reason, "link": link}
+                event = KytosEvent(name=name, content=content)
+                self.controller.buffers.app.put(event)
+            else:
+                self.notify_link_status_change(link, reason)
 
     def notify_link_status_change(self, link, reason='not given'):
         """Send an event to notify about a status change on a link."""
@@ -998,6 +1030,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         event = KytosEvent(name=name, content=content)
         self.controller.buffers.app.put(event)
         log.debug(f'Metadata from {obj.id} was {action}.')
+
+    @listen_to('kytos/topology.notify_link_up_if_status')
+    def on_notify_link_up_if_status(self, event):
+        """Tries to notify link up and topology changes"""
+        link = event.content["link"]
+        reason = event.content["reason"]
+        self.notify_link_up_if_status(link, reason)
 
     @listen_to('.*.switch.port.created')
     def on_notify_port_created(self, event):

@@ -12,6 +12,7 @@ Added
 - Publish event ``kytos/topology.current`` for topology reconciliation
 - Subscribed to event ``kytos/topology.get`` to publish the current topology
 - Added ``notified_up_at`` internal reserved metadata
+- Enabling/disabling a switch or an interface will send ``link_up`` and ``link_down`` notifications
 
 Changed
 =======
