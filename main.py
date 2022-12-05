@@ -696,6 +696,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         created event again and it can be belong to a link.
         """
         interface = event.content['interface']
+        if not interface.is_active():
+            return
         self.handle_interface_link_up(interface)
 
     @listen_to('.*.topology.switch.interface.created')

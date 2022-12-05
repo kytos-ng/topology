@@ -1173,6 +1173,17 @@ class TestMain(TestCase):
         self.napp.handle_interface_created(mock_event)
         mock_link_up.assert_called()
 
+    @patch('napps.kytos.topology.main.Main.handle_interface_link_up')
+    def test_handle_interface_created_inactive(self, mock_link_up):
+        """Test handle_interface_created inactive."""
+        mock_event = MagicMock()
+        mock_interface = create_autospec(Interface)
+        mock_interface.id = "1"
+        mock_event.content = {'interface': mock_interface}
+        mock_interface.is_active.return_value = False
+        self.napp.handle_interface_created(mock_event)
+        mock_link_up.assert_not_called()
+
     def test_handle_interfaces_created(self):
         """Test handle_interfaces_created."""
         buffers_app_mock = MagicMock()
