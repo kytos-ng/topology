@@ -27,6 +27,7 @@ Removed
 Fixed
 =====
 - Fixed link up to only notify when ``LINK_UP_TIMER`` has passed
+- Load interfaces as inactive
 
 Security
 ========
