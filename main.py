@@ -864,16 +864,17 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if link and not link.is_active():
             with self._links_lock:
                 last_status = link.get_metadata('last_status_is_active')
-                last_status_change = link.get_metadata('last_status_change')
+                last_status_change = time.time()
+                last_status_is_active = False
                 metadata = {
                     "last_status_change": last_status_change,
-                    "last_status_is_active": last_status,
+                    "last_status_is_active": last_status_is_active,
                 }
                 if last_status:
                     link.extend_metadata(metadata)
                     self.topo_controller.deactivate_link(link.id,
                                                          last_status_change,
-                                                         last_status)
+                                                         last_status_is_active)
                     self.notify_link_status_change(link, reason='link down')
         interface.deactivate()
         self.topo_controller.deactivate_interface(interface.id)
