@@ -28,6 +28,8 @@ Fixed
 =====
 - Fixed link up to only notify when ``LINK_UP_TIMER`` has passed
 - Load interfaces as inactive
+- Created interface should only be activated if it's active
+- Fixed last_status_is_active when both interfaces go down to notify only once
 
 Security
 ========

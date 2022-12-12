@@ -1173,6 +1173,17 @@ class TestMain(TestCase):
         self.napp.handle_interface_created(mock_event)
         mock_link_up.assert_called()
 
+    @patch('napps.kytos.topology.main.Main.handle_interface_link_up')
+    def test_handle_interface_created_inactive(self, mock_link_up):
+        """Test handle_interface_created inactive."""
+        mock_event = MagicMock()
+        mock_interface = create_autospec(Interface)
+        mock_interface.id = "1"
+        mock_event.content = {'interface': mock_interface}
+        mock_interface.is_active.return_value = False
+        self.napp.handle_interface_created(mock_event)
+        mock_link_up.assert_not_called()
+
     def test_handle_interfaces_created(self):
         """Test handle_interfaces_created."""
         buffers_app_mock = MagicMock()
@@ -1291,6 +1302,29 @@ class TestMain(TestCase):
         mock_interface.deactivate.assert_called()
         mock_topology_update.assert_called()
         mock_status_change.assert_not_called()
+        assert self.napp.topo_controller.deactivate_interface.call_count == 1
+
+    @patch('napps.kytos.topology.main.Main._get_link_from_interface')
+    @patch('napps.kytos.topology.main.Main.notify_topology_update')
+    @patch('napps.kytos.topology.main.Main.notify_link_status_change')
+    def test_handle_link_down_not_active_last_status(self, *args):
+        """Test interface link down with link not active."""
+        (mock_status_change, mock_topology_update,
+         mock_link_from_interface) = args
+
+        mock_interface = create_autospec(Interface)
+        mock_link = create_autospec(Link)
+        mock_link.is_active.return_value = False
+        mock_link_from_interface.return_value = mock_link
+        mock_link.get_metadata.return_value = True
+        self.napp.handle_link_down(mock_interface)
+        deactivate_link = self.napp.topo_controller.deactivate_link
+        assert deactivate_link.call_count == 1
+        assert deactivate_link.call_args[0][0] == mock_link.id
+        assert not deactivate_link.call_args[0][2]
+        mock_interface.deactivate.assert_called()
+        mock_topology_update.assert_called()
+        mock_status_change.assert_called()
         assert self.napp.topo_controller.deactivate_interface.call_count == 1
 
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
