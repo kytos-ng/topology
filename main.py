@@ -729,7 +729,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def handle_switch_maintenance_end(self, event):
         """Handle the end of the maintenance of a switch."""
         switches = event.content['switches']
-        for switch in switches:
+        for switch_id in switches:
+            try:
+                switch = self.controller.switches[switch_id]
+            except KeyError:
+                continue
             switch.enable()
             switch.activate()
             for interface in switch.interfaces.values():
@@ -800,7 +804,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def handle_switch_maintenance_start(self, event):
         """Handle the start of the maintenance of a switch."""
         switches = event.content['switches']
-        for switch in switches:
+        for switch_id in switches:
+            try:
+                switch = self.controller.switches[switch_id]
+            except KeyError:
+                continue
             switch.disable()
             switch.deactivate()
             for interface in switch.interfaces.values():
