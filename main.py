@@ -1006,9 +1006,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Deals with the start of links maintenance."""
         notify_links = []
         maintenance_links = event.content['links']
-        for maintenance_link in maintenance_links:
+        for maintenance_link_id in maintenance_links:
             try:
-                link = self.links[maintenance_link.id]
+                link = self.links[maintenance_link_id]
             except KeyError:
                 continue
             notify_links.append(link)
@@ -1031,9 +1031,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Deals with the end of links maintenance."""
         notify_links = []
         maintenance_links = event.content['links']
-        for maintenance_link in maintenance_links:
+        for maintenance_link_id in maintenance_links:
             try:
-                link = self.links[maintenance_link.id]
+                link = self.links[maintenance_link_id]
             except KeyError:
                 continue
             notify_links.append(link)
