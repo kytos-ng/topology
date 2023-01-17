@@ -1512,7 +1512,7 @@ class TestMain(TestCase):
         link2.id = 3
         link3 = MagicMock()
         link3.id = 4
-        content = {'links': [link1, link2]}
+        content = {'links': [link1.id, link2.id]}
         event = MagicMock()
         event.content = content
         self.napp.links = {2: link1, 4: link3}
@@ -1528,7 +1528,7 @@ class TestMain(TestCase):
         link2.id = 3
         link3 = MagicMock()
         link3.id = 4
-        content = {'links': [link1, link2]}
+        content = {'links': [link1.id, link2.id]}
         event = MagicMock()
         event.content = content
         self.napp.links = {2: link1, 4: link3}
@@ -1539,6 +1539,7 @@ class TestMain(TestCase):
     def test_handle_switch_maintenance_start(self, handle_link_down_mock):
         """Test handle_switch_maintenance_start."""
         switch1 = MagicMock()
+        switch1.id = 'a'
         interface1 = MagicMock()
         interface1.is_active.return_value = True
         interface2 = MagicMock()
@@ -1547,14 +1548,16 @@ class TestMain(TestCase):
         interface3.is_active.return_value = True
         switch1.interfaces = {1: interface1, 2: interface2, 3: interface3}
         switch2 = MagicMock()
+        switch2.id = 'b'
         interface4 = MagicMock()
         interface4.is_active.return_value = False
         interface5 = MagicMock()
         interface5.is_active.return_value = True
         switch2.interfaces = {1: interface4, 2: interface5}
-        content = {'switches': [switch1, switch2]}
+        content = {'switches': [switch1.id, switch2.id]}
         event = MagicMock()
         event.content = content
+        self.napp.controller.switches = {'a': switch1, 'b': switch2}
         self.napp.handle_switch_maintenance_start(event)
         self.assertEqual(handle_link_down_mock.call_count, 3)
 
@@ -1562,6 +1565,7 @@ class TestMain(TestCase):
     def test_handle_switch_maintenance_end(self, handle_link_up_mock):
         """Test handle_switch_maintenance_end."""
         switch1 = MagicMock()
+        switch1.id = 'a'
         interface1 = MagicMock()
         interface1.is_active.return_value = True
         interface2 = MagicMock()
@@ -1570,14 +1574,16 @@ class TestMain(TestCase):
         interface3.is_active.return_value = True
         switch1.interfaces = {1: interface1, 2: interface2, 3: interface3}
         switch2 = MagicMock()
+        switch2.id = 'b'
         interface4 = MagicMock()
         interface4.is_active.return_value = False
         interface5 = MagicMock()
         interface5.is_active.return_value = True
         switch2.interfaces = {1: interface4, 2: interface5}
-        content = {'switches': [switch1, switch2]}
+        content = {'switches': [switch1.id, switch2.id]}
         event = MagicMock()
         event.content = content
+        self.napp.controller.switches = {'a': switch1, 'b': switch2}
         self.napp.handle_switch_maintenance_end(event)
         self.assertEqual(handle_link_up_mock.call_count, 5)
 
