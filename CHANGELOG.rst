@@ -7,6 +7,9 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2022.3.0] - 2022-12-15
+***********************
+
 Added
 =====
 - Publish event ``kytos/topology.current`` for topology reconciliation
@@ -18,21 +21,12 @@ Changed
 =======
 - Hooked ``link_status_hook_link_up_timer`` to update ``status`` accordingly.
 
-Deprecated
-==========
-
-Removed
-=======
-
 Fixed
 =====
 - Fixed link up to only notify when ``LINK_UP_TIMER`` has passed
 - Load interfaces as inactive
 - Created interface should only be activated if it's active
-- Fixed last_status_is_active when both interfaces go down to notify only once
-
-Security
-========
+- Fixed ``last_status_is_active`` when both interfaces go down to notify only once
 
 [2022.2.0] - 2022-08-05
 ***********************
