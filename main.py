@@ -283,7 +283,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         dpid = request.path_params["dpid"]
         try:
             metadata = self.controller.switches[dpid].metadata
-            return JSONResponse({"metadata": metadata}, status_code=200)
+            return JSONResponse({"metadata": metadata})
         except KeyError:
             raise HTTPException(404, detail="Switch not found")
 
@@ -320,7 +320,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.topo_controller.delete_switch_metadata_key(dpid, key)
         switch.remove_metadata(key)
         self.notify_metadata_changes(switch, 'removed')
-        return JSONResponse("Operation successful", status_code=200)
+        return JSONResponse("Operation successful")
 
     # Interface related methods
     @rest('v3/interfaces')
@@ -364,7 +364,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 self.notify_interface_link_status(interface, "link enabled")
             self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         self.notify_topology_update()
-        return JSONResponse("Operation successful", status_code=201)
+        return JSONResponse("Operation successful")
 
     @rest('v3/interfaces/switch/{dpid}/disable', methods=['POST'])
     @rest('v3/interfaces/{interface_disable_id}/disable', methods=['POST'])
