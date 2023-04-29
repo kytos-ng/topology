@@ -62,11 +62,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Do nothing."""
         log.info('NApp kytos/topology shutting down.')
 
-    @staticmethod
-    def _get_metadata(request: Request) -> dict:
+    def _get_metadata(self, request: Request) -> dict:
         """Return a JSON with metadata."""
         content_type_json_or_415(request)
-        metadata = get_json_or_400(request)
+        metadata = get_json_or_400(request, self.controller.loop)
         if not isinstance(metadata, dict):
             raise HTTPException(400, "Invalid metadata value: {metadata}")
         return metadata
