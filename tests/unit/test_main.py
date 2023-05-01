@@ -638,8 +638,11 @@ class TestMain:
         assert response.status_code == 404
 
     @patch('napps.kytos.topology.main.Main.notify_metadata_changes')
-    async def test_add_switch_metadata(self, mock_metadata_changes):
+    async def test_add_switch_metadata(
+        self, mock_metadata_changes, event_loop
+    ):
         """Test add_switch_metadata."""
+        self.napp.controller.loop = event_loop
         dpid = "00:00:00:00:00:00:00:01"
         mock_switch = get_switch_mock(dpid)
         self.napp.controller.switches = {dpid: mock_switch}
@@ -660,8 +663,9 @@ class TestMain:
         response = await self.api_client.post(endpoint, json=payload)
         assert response.status_code == 404
 
-    async def test_add_switch_metadata_wrong_format(self):
+    async def test_add_switch_metadata_wrong_format(self, event_loop):
         """Test add_switch_metadata_wrong_format."""
+        self.napp.controller.loop = event_loop
         dpid = "00:00:00:00:00:00:00:01"
         payload = 'A'
 
@@ -674,8 +678,11 @@ class TestMain:
         assert response.status_code == 415
 
     @patch('napps.kytos.topology.main.Main.notify_metadata_changes')
-    async def test_delete_switch_metadata(self, mock_metadata_changes):
+    async def test_delete_switch_metadata(
+        self, mock_metadata_changes, event_loop
+    ):
         """Test delete_switch_metadata."""
+        self.napp.controller.loop = event_loop
         dpid = "00:00:00:00:00:00:00:01"
         mock_switch = get_switch_mock(dpid)
         mock_switch.metadata = {"A": "A"}
@@ -833,8 +840,11 @@ class TestMain:
         assert response.status_code == 404
 
     @patch('napps.kytos.topology.main.Main.notify_metadata_changes')
-    async def test_add_interface_metadata(self, mock_metadata_changes):
+    async def test_add_interface_metadata(
+        self, mock_metadata_changes, event_loop
+    ):
         """Test add_interface_metadata."""
+        self.napp.controller.loop = event_loop
         interface_id = '00:00:00:00:00:00:00:01:1'
         dpid = '00:00:00:00:00:00:00:01'
         mock_switch = get_switch_mock(dpid)
@@ -860,8 +870,9 @@ class TestMain:
         response = await self.api_client.post(endpoint, json=payload)
         assert response.status_code == 404
 
-    async def test_add_interface_metadata_wrong_format(self):
+    async def test_add_interface_metadata_wrong_format(self, event_loop):
         """Test add_interface_metadata_wrong_format."""
+        self.napp.controller.loop = event_loop
         interface_id = "00:00:00:00:00:00:00:01:1"
         endpoint = f"{self.base_endpoint}/interfaces/{interface_id}/metadata"
         response = await self.api_client.post(endpoint, json='A')
@@ -869,8 +880,9 @@ class TestMain:
         response = await self.api_client.post(endpoint, json=None)
         assert response.status_code == 415
 
-    async def test_delete_interface_metadata(self):
+    async def test_delete_interface_metadata(self, event_loop):
         """Test delete_interface_metadata."""
+        self.napp.controller.loop = event_loop
         interface_id = '00:00:00:00:00:00:00:01:1'
         dpid = '00:00:00:00:00:00:00:01'
         mock_switch = get_switch_mock(dpid)
@@ -998,8 +1010,9 @@ class TestMain:
         assert response.status_code == 404
 
     @patch('napps.kytos.topology.main.Main.notify_metadata_changes')
-    async def test_add_link_metadata(self, mock_metadata_changes):
+    async def test_add_link_metadata(self, mock_metadata_changes, event_loop):
         """Test add_link_metadata."""
+        self.napp.controller.loop = event_loop
         mock_link = MagicMock(Link)
         mock_link.metadata = "A"
         self.napp.links = {'1': mock_link}
@@ -1017,8 +1030,9 @@ class TestMain:
         response = await self.api_client.post(endpoint, json=payload)
         assert response.status_code == 404
 
-    async def test_add_link_metadata_wrong_format(self):
+    async def test_add_link_metadata_wrong_format(self, event_loop):
         """Test add_link_metadata_wrong_format."""
+        self.napp.controller.loop = event_loop
         link_id = 'cf0f4071be426b3f745027f5d22'
         payload = "A"
         endpoint = f"{self.base_endpoint}/links/{link_id}/metadata"
