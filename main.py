@@ -10,15 +10,14 @@ from datetime import timezone
 from threading import Lock
 from typing import List, Optional
 
-from flask import jsonify, request
-from werkzeug.exceptions import BadRequest, UnsupportedMediaType
-
 from kytos.core import KytosEvent, KytosNApp, log, rest
 from kytos.core.common import EntityStatus
 from kytos.core.exceptions import KytosLinkCreationError
 from kytos.core.helpers import listen_to, now
 from kytos.core.interface import Interface
 from kytos.core.link import Link
+from kytos.core.rest_api import (HTTPException, JSONResponse, Request,
+                                 content_type_json_or_415, get_json_or_400)
 from kytos.core.switch import Switch
 from napps.kytos.topology import settings
 
@@ -63,25 +62,12 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Do nothing."""
         log.info('NApp kytos/topology shutting down.')
 
-    @staticmethod
-    def _get_metadata():
+    def _get_metadata(self, request: Request) -> dict:
         """Return a JSON with metadata."""
-        try:
-            metadata = request.get_json()
-            content_type = request.content_type
-        except BadRequest as err:
-            result = 'The request body is not a well-formed JSON.'
-            raise BadRequest(result) from err
-        if content_type is None:
-            result = 'The request body is empty.'
-            raise BadRequest(result)
-        if metadata is None:
-            if content_type != 'application/json':
-                result = ('The content type must be application/json '
-                          f'(received {content_type}).')
-            else:
-                result = 'Metadata is empty.'
-            raise UnsupportedMediaType(result)
+        content_type_json_or_415(request)
+        metadata = get_json_or_400(request, self.controller.loop)
+        if not isinstance(metadata, dict):
+            raise HTTPException(400, "Invalid metadata value: {metadata}")
         return metadata
 
     def _get_link_or_create(self, endpoint_a, endpoint_b):
@@ -245,94 +231,99 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.controller.buffers.app.put(event)
 
     @rest('v3/')
-    def get_topology(self):
+    def get_topology(self, _request: Request) -> JSONResponse:
         """Return the latest known topology.
 
         This topology is updated when there are network events.
         """
-        return jsonify(self._get_topology_dict())
+        return JSONResponse(self._get_topology_dict())
 
     # Switch related methods
     @rest('v3/switches')
-    def get_switches(self):
+    def get_switches(self, _request: Request) -> JSONResponse:
         """Return a json with all the switches in the topology."""
-        return jsonify(self._get_switches_dict())
+        return JSONResponse(self._get_switches_dict())
 
-    @rest('v3/switches/<dpid>/enable', methods=['POST'])
-    def enable_switch(self, dpid):
+    @rest('v3/switches/{dpid}/enable', methods=['POST'])
+    def enable_switch(self, request: Request) -> JSONResponse:
         """Administratively enable a switch in the topology."""
+        dpid = request.path_params["dpid"]
         try:
             switch = self.controller.switches[dpid]
             self.topo_controller.enable_switch(dpid)
             switch.enable()
         except KeyError:
-            return jsonify("Switch not found"), 404
+            raise HTTPException(404, detail="Switch not found")
 
         self.notify_switch_enabled(dpid)
         self.notify_topology_update()
         self.notify_switch_links_status(switch, "link enabled")
-        return jsonify("Operation successful"), 201
+        return JSONResponse("Operation successful", status_code=201)
 
-    @rest('v3/switches/<dpid>/disable', methods=['POST'])
-    def disable_switch(self, dpid):
+    @rest('v3/switches/{dpid}/disable', methods=['POST'])
+    def disable_switch(self, request: Request) -> JSONResponse:
         """Administratively disable a switch in the topology."""
+        dpid = request.path_params["dpid"]
         try:
             switch = self.controller.switches[dpid]
             self.topo_controller.disable_switch(dpid)
             switch.disable()
         except KeyError:
-            return jsonify("Switch not found"), 404
+            raise HTTPException(404, detail="Switch not found")
 
         self.notify_switch_disabled(dpid)
         self.notify_topology_update()
         self.notify_switch_links_status(switch, "link disabled")
-        return jsonify("Operation successful"), 201
+        return JSONResponse("Operation successful", status_code=201)
 
-    @rest('v3/switches/<dpid>/metadata')
-    def get_switch_metadata(self, dpid):
+    @rest('v3/switches/{dpid}/metadata')
+    def get_switch_metadata(self, request: Request) -> JSONResponse:
         """Get metadata from a switch."""
+        dpid = request.path_params["dpid"]
         try:
-            return jsonify({"metadata":
-                            self.controller.switches[dpid].metadata}), 200
+            metadata = self.controller.switches[dpid].metadata
+            return JSONResponse({"metadata": metadata})
         except KeyError:
-            return jsonify("Switch not found"), 404
+            raise HTTPException(404, detail="Switch not found")
 
-    @rest('v3/switches/<dpid>/metadata', methods=['POST'])
-    def add_switch_metadata(self, dpid):
+    @rest('v3/switches/{dpid}/metadata', methods=['POST'])
+    def add_switch_metadata(self, request: Request) -> JSONResponse:
         """Add metadata to a switch."""
-        metadata = self._get_metadata()
-
+        dpid = request.path_params["dpid"]
+        metadata = self._get_metadata(request)
         try:
             switch = self.controller.switches[dpid]
         except KeyError:
-            return jsonify("Switch not found"), 404
+            raise HTTPException(404, detail="Switch not found")
 
         self.topo_controller.add_switch_metadata(dpid, metadata)
         switch.extend_metadata(metadata)
         self.notify_metadata_changes(switch, 'added')
-        return jsonify("Operation successful"), 201
+        return JSONResponse("Operation successful", status_code=201)
 
-    @rest('v3/switches/<dpid>/metadata/<key>', methods=['DELETE'])
-    def delete_switch_metadata(self, dpid, key):
+    @rest('v3/switches/{dpid}/metadata/{key}', methods=['DELETE'])
+    def delete_switch_metadata(self, request: Request) -> JSONResponse:
         """Delete metadata from a switch."""
+        dpid = request.path_params["dpid"]
+        key = request.path_params["key"]
         try:
             switch = self.controller.switches[dpid]
         except KeyError:
-            return jsonify("Switch not found"), 404
+            raise HTTPException(404, detail="Switch not found")
 
         try:
             _ = switch.metadata[key]
         except KeyError:
-            return jsonify("Metadata not found"), 404
+            raise HTTPException(404, "Metadata not found")
 
         self.topo_controller.delete_switch_metadata_key(dpid, key)
         switch.remove_metadata(key)
         self.notify_metadata_changes(switch, 'removed')
-        return jsonify("Operation successful"), 200
+        return JSONResponse("Operation successful")
 
     # Interface related methods
     @rest('v3/interfaces')
-    def get_interfaces(self):
+    def get_interfaces(self, _request: Request) -> JSONResponse:
         """Return a json with all the interfaces in the topology."""
         interfaces = {}
         switches = self._get_switches_dict()
@@ -340,18 +331,20 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             for interface_id, interface in switch['interfaces'].items():
                 interfaces[interface_id] = interface
 
-        return jsonify({'interfaces': interfaces})
+        return JSONResponse({'interfaces': interfaces})
 
-    @rest('v3/interfaces/switch/<dpid>/enable', methods=['POST'])
-    @rest('v3/interfaces/<interface_enable_id>/enable', methods=['POST'])
-    def enable_interface(self, interface_enable_id=None, dpid=None):
+    @rest('v3/interfaces/switch/{dpid}/enable', methods=['POST'])
+    @rest('v3/interfaces/{interface_enable_id}/enable', methods=['POST'])
+    def enable_interface(self, request: Request) -> JSONResponse:
         """Administratively enable interfaces in the topology."""
+        interface_enable_id = request.path_params.get("interface_enable_id")
+        dpid = request.path_params.get("dpid")
         if dpid is None:
             dpid = ":".join(interface_enable_id.split(":")[:-1])
         try:
             switch = self.controller.switches[dpid]
-        except KeyError as exc:
-            return jsonify(f"Switch not found: {exc}"), 404
+        except KeyError:
+            raise HTTPException(404, detail="Switch not found")
 
         if interface_enable_id:
             interface_number = int(interface_enable_id.split(":")[-1])
@@ -363,25 +356,27 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 self.notify_interface_link_status(interface, "link enabled")
             except KeyError:
                 msg = f"Switch {dpid} interface {interface_number} not found"
-                return jsonify(msg), 404
+                raise HTTPException(404, detail=msg)
         else:
             for interface in switch.interfaces.copy().values():
                 interface.enable()
                 self.notify_interface_link_status(interface, "link enabled")
             self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         self.notify_topology_update()
-        return jsonify("Operation successful"), 200
+        return JSONResponse("Operation successful")
 
-    @rest('v3/interfaces/switch/<dpid>/disable', methods=['POST'])
-    @rest('v3/interfaces/<interface_disable_id>/disable', methods=['POST'])
-    def disable_interface(self, interface_disable_id=None, dpid=None):
+    @rest('v3/interfaces/switch/{dpid}/disable', methods=['POST'])
+    @rest('v3/interfaces/{interface_disable_id}/disable', methods=['POST'])
+    def disable_interface(self, request: Request) -> JSONResponse:
         """Administratively disable interfaces in the topology."""
+        interface_disable_id = request.path_params.get("interface_disable_id")
+        dpid = request.path_params.get("dpid")
         if dpid is None:
             dpid = ":".join(interface_disable_id.split(":")[:-1])
         try:
             switch = self.controller.switches[dpid]
-        except KeyError as exc:
-            return jsonify(f"Switch not found: {exc}"), 404
+        except KeyError:
+            raise HTTPException(404, detail="Switch not found")
 
         if interface_disable_id:
             interface_number = int(interface_disable_id.split(":")[-1])
@@ -393,161 +388,175 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 self.notify_interface_link_status(interface, "link disabled")
             except KeyError:
                 msg = f"Switch {dpid} interface {interface_number} not found"
-                return jsonify(msg), 404
+                raise HTTPException(404, detail=msg)
         else:
             for interface in switch.interfaces.copy().values():
                 interface.disable()
                 self.notify_interface_link_status(interface, "link disabled")
             self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         self.notify_topology_update()
-        return jsonify("Operation successful"), 200
+        return JSONResponse("Operation successful")
 
-    @rest('v3/interfaces/<interface_id>/metadata')
-    def get_interface_metadata(self, interface_id):
+    @rest('v3/interfaces/{interface_id}/metadata')
+    def get_interface_metadata(self, request: Request) -> JSONResponse:
         """Get metadata from an interface."""
+        interface_id = request.path_params["interface_id"]
         switch_id = ":".join(interface_id.split(":")[:-1])
         interface_number = int(interface_id.split(":")[-1])
         try:
             switch = self.controller.switches[switch_id]
         except KeyError:
-            return jsonify("Switch not found"), 404
+            raise HTTPException(404, detail="Switch not found")
 
         try:
             interface = switch.interfaces[interface_number]
         except KeyError:
-            return jsonify("Interface not found"), 404
+            raise HTTPException(404, detail="Interface not found")
 
-        return jsonify({"metadata": interface.metadata}), 200
+        return JSONResponse({"metadata": interface.metadata})
 
-    @rest('v3/interfaces/<interface_id>/metadata', methods=['POST'])
-    def add_interface_metadata(self, interface_id):
+    @rest('v3/interfaces/{interface_id}/metadata', methods=['POST'])
+    def add_interface_metadata(self, request: Request) -> JSONResponse:
         """Add metadata to an interface."""
-        metadata = self._get_metadata()
+        interface_id = request.path_params["interface_id"]
+        metadata = self._get_metadata(request)
         switch_id = ":".join(interface_id.split(":")[:-1])
         interface_number = int(interface_id.split(":")[-1])
         try:
             switch = self.controller.switches[switch_id]
         except KeyError:
-            return jsonify("Switch not found"), 404
+            raise HTTPException(404, detail="Switch not found")
 
         try:
             interface = switch.interfaces[interface_number]
             self.topo_controller.add_interface_metadata(interface.id, metadata)
         except KeyError:
-            return jsonify("Interface not found"), 404
+            raise HTTPException(404, detail="Interface not found")
 
         interface.extend_metadata(metadata)
         self.notify_metadata_changes(interface, 'added')
-        return jsonify("Operation successful"), 201
+        return JSONResponse("Operation successful", status_code=201)
 
-    @rest('v3/interfaces/<interface_id>/metadata/<key>', methods=['DELETE'])
-    def delete_interface_metadata(self, interface_id, key):
+    @rest('v3/interfaces/{interface_id}/metadata/{key}', methods=['DELETE'])
+    def delete_interface_metadata(self, request: Request) -> JSONResponse:
         """Delete metadata from an interface."""
+        interface_id = request.path_params["interface_id"]
+        key = request.path_params["key"]
         switch_id = ":".join(interface_id.split(":")[:-1])
-        interface_number = int(interface_id.split(":")[-1])
+        try:
+            interface_number = int(interface_id.split(":")[-1])
+        except ValueError:
+            detail = f"Invalid interface_id {interface_id}"
+            raise HTTPException(400, detail=detail)
 
         try:
             switch = self.controller.switches[switch_id]
         except KeyError:
-            return jsonify("Switch not found"), 404
+            raise HTTPException(404, detail="Switch not found")
 
         try:
             interface = switch.interfaces[interface_number]
         except KeyError:
-            return jsonify("Interface not found"), 404
+            raise HTTPException(404, detail="Interface not found")
 
         try:
             _ = interface.metadata[key]
         except KeyError:
-            return jsonify("Metadata not found"), 404
+            raise HTTPException(404, detail="Metadata not found")
 
         self.topo_controller.delete_interface_metadata_key(interface.id, key)
         interface.remove_metadata(key)
         self.notify_metadata_changes(interface, 'removed')
-        return jsonify("Operation successful"), 200
+        return JSONResponse("Operation successful")
 
     # Link related methods
     @rest('v3/links')
-    def get_links(self):
+    def get_links(self, _request: Request) -> JSONResponse:
         """Return a json with all the links in the topology.
 
         Links are connections between interfaces.
         """
-        return jsonify(self._get_links_dict()), 200
+        return JSONResponse(self._get_links_dict())
 
-    @rest('v3/links/<link_id>/enable', methods=['POST'])
-    def enable_link(self, link_id):
+    @rest('v3/links/{link_id}/enable', methods=['POST'])
+    def enable_link(self, request: Request) -> JSONResponse:
         """Administratively enable a link in the topology."""
+        link_id = request.path_params["link_id"]
         try:
             with self._links_lock:
                 link = self.links[link_id]
                 self.topo_controller.enable_link(link_id)
                 link.enable()
         except KeyError:
-            return jsonify("Link not found"), 404
+            raise HTTPException(404, detail="Link not found")
         self.notify_link_status_change(
             self.links[link_id],
             reason='link enabled'
         )
         self.notify_topology_update()
-        return jsonify("Operation successful"), 201
+        return JSONResponse("Operation successful", status_code=201)
 
-    @rest('v3/links/<link_id>/disable', methods=['POST'])
-    def disable_link(self, link_id):
+    @rest('v3/links/{link_id}/disable', methods=['POST'])
+    def disable_link(self, request: Request) -> JSONResponse:
         """Administratively disable a link in the topology."""
+        link_id = request.path_params["link_id"]
         try:
             with self._links_lock:
                 link = self.links[link_id]
                 self.topo_controller.disable_link(link_id)
                 link.disable()
         except KeyError:
-            return jsonify("Link not found"), 404
+            raise HTTPException(404, detail="Link not found")
         self.notify_link_status_change(
             self.links[link_id],
             reason='link disabled'
         )
         self.notify_topology_update()
-        return jsonify("Operation successful"), 201
+        return JSONResponse("Operation successful", status_code=201)
 
-    @rest('v3/links/<link_id>/metadata')
-    def get_link_metadata(self, link_id):
+    @rest('v3/links/{link_id}/metadata')
+    def get_link_metadata(self, request: Request) -> JSONResponse:
         """Get metadata from a link."""
+        link_id = request.path_params["link_id"]
         try:
-            return jsonify({"metadata": self.links[link_id].metadata}), 200
+            return JSONResponse({"metadata": self.links[link_id].metadata})
         except KeyError:
-            return jsonify("Link not found"), 404
+            raise HTTPException(404, detail="Link not found")
 
-    @rest('v3/links/<link_id>/metadata', methods=['POST'])
-    def add_link_metadata(self, link_id):
+    @rest('v3/links/{link_id}/metadata', methods=['POST'])
+    def add_link_metadata(self, request: Request) -> JSONResponse:
         """Add metadata to a link."""
-        metadata = self._get_metadata()
+        link_id = request.path_params["link_id"]
+        metadata = self._get_metadata(request)
         try:
             link = self.links[link_id]
         except KeyError:
-            return jsonify("Link not found"), 404
+            raise HTTPException(404, detail="Link not found")
 
         self.topo_controller.add_link_metadata(link_id, metadata)
         link.extend_metadata(metadata)
         self.notify_metadata_changes(link, 'added')
-        return jsonify("Operation successful"), 201
+        return JSONResponse("Operation successful", status_code=201)
 
-    @rest('v3/links/<link_id>/metadata/<key>', methods=['DELETE'])
-    def delete_link_metadata(self, link_id, key):
+    @rest('v3/links/{link_id}/metadata/{key}', methods=['DELETE'])
+    def delete_link_metadata(self, request: Request) -> JSONResponse:
         """Delete metadata from a link."""
+        link_id = request.path_params["link_id"]
+        key = request.path_params["key"]
         try:
             link = self.links[link_id]
         except KeyError:
-            return jsonify("Link not found"), 404
+            raise HTTPException(404, detail="Link not found")
 
         try:
             _ = link.metadata[key]
         except KeyError:
-            return jsonify("Metadata not found"), 404
+            raise HTTPException(404, detail="Metadata not found")
 
         self.topo_controller.delete_link_metadata_key(link.id, key)
         link.remove_metadata(key)
         self.notify_metadata_changes(link, 'removed')
-        return jsonify("Operation successful"), 200
+        return JSONResponse("Operation successful")
 
     def notify_current_topology(self) -> None:
         """Notify current topology."""
