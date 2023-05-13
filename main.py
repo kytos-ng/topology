@@ -44,6 +44,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         self._links_lock = Lock()
         self._links_notify_lock = defaultdict(Lock)
+        # to keep track of potential unorded scheduled interface events
+        self._intfs_lock = defaultdict(Lock)
+        self._intfs_updated_at = {}
         self.topo_controller = self.get_topo_controller()
         Link.register_status_func(f"{self.napp_id}_link_up_timer",
                                   self.link_status_hook_link_up_timer)
@@ -698,7 +701,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface = event.content['interface']
         if not interface.is_active():
             return
-        self.handle_interface_link_up(interface)
+        self.handle_interface_link_up(interface, event)
 
     @listen_to('.*.topology.switch.interface.created')
     def on_interface_created(self, event):
@@ -722,7 +725,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface = event.content['interface']
         interface.deactivate()
         self.topo_controller.deactivate_interface(interface.id)
-        self.handle_interface_link_down(interface)
+        self.handle_interface_link_down(interface, event)
 
     @listen_to('.*.switch.interface.deleted')
     def on_interface_deleted(self, event):
@@ -740,10 +743,17 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         The event notifies that an interface's link was changed to 'up'.
         """
         interface = event.content['interface']
-        self.handle_interface_link_up(interface)
+        self.handle_interface_link_up(interface, event)
 
-    def handle_interface_link_up(self, interface):
+    def handle_interface_link_up(self, interface, event):
         """Update the topology based on a Port Modify event."""
+        with self._intfs_lock[interface.id]:
+            if (
+                interface.id in self._intfs_updated_at
+                and self._intfs_updated_at[interface.id] > event.timestamp
+            ):
+                return
+            self._intfs_updated_at[interface.id] = event.timestamp
         self.handle_link_up(interface)
 
     @listen_to('kytos/maintenance.end_switch')
@@ -828,10 +838,17 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         The event notifies that an interface's link was changed to 'down'.
         """
         interface = event.content['interface']
-        self.handle_interface_link_down(interface)
+        self.handle_interface_link_down(interface, event)
 
-    def handle_interface_link_down(self, interface):
+    def handle_interface_link_down(self, interface, event):
         """Update the topology based on an interface."""
+        with self._intfs_lock[interface.id]:
+            if (
+                interface.id in self._intfs_updated_at
+                and self._intfs_updated_at[interface.id] > event.timestamp
+            ):
+                return
+            self._intfs_updated_at[interface.id] = event.timestamp
         self.handle_link_down(interface)
 
     @listen_to('kytos/maintenance.start_switch')
