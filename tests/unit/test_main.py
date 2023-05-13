@@ -1197,13 +1197,11 @@ class TestMain:
         mock_topology_update.assert_called()
         mock_status_change.assert_called()
 
-    @patch('napps.kytos.topology.main.Main._get_link_from_interface')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.notify_link_status_change')
     def test_interface_link_down_unordered_event(self, *args):
         """Test interface link down unordered event."""
-        (mock_status_change, mock_topology_update,
-         mock_link_from_interface) = args
+        (mock_status_change, mock_topology_update) = args
 
         mock_interface = create_autospec(Interface)
         mock_interface.id = "1"
@@ -1215,13 +1213,11 @@ class TestMain:
         mock_topology_update.assert_not_called()
         mock_status_change.assert_not_called()
 
-    @patch('napps.kytos.topology.main.Main._get_link_from_interface')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.notify_link_status_change')
     def test_interface_link_up_unordered_event(self, *args):
         """Test interface link up unordered event."""
-        (mock_status_change, mock_topology_update,
-         mock_link_from_interface) = args
+        (mock_status_change, mock_topology_update) = args
 
         mock_interface = create_autospec(Interface)
         mock_interface.id = "1"
