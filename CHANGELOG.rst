@@ -7,6 +7,10 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+Fixed
+=====
+- Rejected unordered late preempted interface events to avoid state inconsistencies
+
 General Information
 ===================
 - ``@rest`` endpoints are now run by ``starlette/uvicorn`` instead of ``flask/werkzeug``.

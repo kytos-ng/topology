@@ -1172,7 +1172,8 @@ class TestMain:
         mock_link.endpoint_b = mock_interface_b
         mock_link_from_interface.return_value = mock_link
         mock_link.status = EntityStatus.UP
-        self.napp.handle_interface_link_up(mock_interface_a)
+        event = KytosEvent("kytos.of_core.switch.interface.down")
+        self.napp.handle_interface_link_up(mock_interface_a, event)
         mock_notify_topology_update.assert_called()
         mock_link.extend_metadata.assert_called()
         mock_link.activate.assert_called()
@@ -1187,15 +1188,46 @@ class TestMain:
         (mock_status_change, mock_topology_update,
          mock_link_from_interface) = args
 
-        mock_event = MagicMock()
         mock_interface = create_autospec(Interface)
         mock_link = create_autospec(Link)
         mock_link.is_active.return_value = True
         mock_link_from_interface.return_value = mock_link
-        mock_event.content['interface'] = mock_interface
-        self.napp.handle_interface_link_down(mock_event)
+        event = KytosEvent("kytos.of_core.switch.interface.link_up")
+        self.napp.handle_interface_link_down(mock_interface, event)
         mock_topology_update.assert_called()
         mock_status_change.assert_called()
+
+    @patch('napps.kytos.topology.main.Main.notify_topology_update')
+    @patch('napps.kytos.topology.main.Main.notify_link_status_change')
+    def test_interface_link_down_unordered_event(self, *args):
+        """Test interface link down unordered event."""
+        (mock_status_change, mock_topology_update) = args
+
+        mock_interface = create_autospec(Interface)
+        mock_interface.id = "1"
+        event_2 = KytosEvent("kytos.of_core.switch.interface.down")
+        event_1 = KytosEvent("kytos.of_core.switch.interface.up")
+        assert event_1.timestamp > event_2.timestamp
+        self.napp._intfs_updated_at[mock_interface.id] = event_1.timestamp
+        self.napp.handle_interface_link_down(mock_interface, event_2)
+        mock_topology_update.assert_not_called()
+        mock_status_change.assert_not_called()
+
+    @patch('napps.kytos.topology.main.Main.notify_topology_update')
+    @patch('napps.kytos.topology.main.Main.notify_link_status_change')
+    def test_interface_link_up_unordered_event(self, *args):
+        """Test interface link up unordered event."""
+        (mock_status_change, mock_topology_update) = args
+
+        mock_interface = create_autospec(Interface)
+        mock_interface.id = "1"
+        event_2 = KytosEvent("kytos.of_core.switch.interface.up")
+        event_1 = KytosEvent("kytos.of_core.switch.interface.down")
+        assert event_1.timestamp > event_2.timestamp
+        self.napp._intfs_updated_at[mock_interface.id] = event_1.timestamp
+        self.napp.handle_interface_link_up(mock_interface, event_2)
+        mock_topology_update.assert_not_called()
+        mock_status_change.assert_not_called()
 
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
