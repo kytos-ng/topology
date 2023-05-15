@@ -7,6 +7,14 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2022.3.1] - 2023-05-13
+***********************
+
+Fixed
+=====
+- Rejected unordered late preempted interface events to avoid state inconsistencies
+
+
 [2022.3.0] - 2022-12-15
 ***********************
 
