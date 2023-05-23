@@ -10,6 +10,7 @@ All notable changes to the ``topology`` project will be documented in this file.
 Fixed
 =====
 - Rejected unordered late preempted interface events to avoid state inconsistencies
+- Updated Link liveness log message to also include ``link.id``
 
 General Information
 ===================
