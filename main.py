@@ -588,7 +588,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def handle_link_liveness_status(self, link, liveness_status) -> None:
         """Handle link liveness."""
         metadata = {"liveness_status": liveness_status}
-        log.info(f"Link liveness {liveness_status}: {link.id}")
+        log.info(f"Link liveness {liveness_status}: {link}, id: {link.id}")
         self.topo_controller.add_link_metadata(link.id, metadata)
         link.extend_metadata(metadata)
         self.notify_topology_update()
