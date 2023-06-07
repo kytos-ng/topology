@@ -1152,3 +1152,45 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             link.endpoint_a.enable()
             link.endpoint_b.enable()
             self.notify_link_status_change(link, reason='maintenance')
+
+    @listen_to('topology.interruption.start')
+    def on_interruption_start(self, event: KytosEvent):
+        """Deals with the start of service interruption."""
+        with self._links_lock:
+            self.handle_interruption_start(event)
+
+    def handle_interruption_start(self, event: KytosEvent):
+        """Deals with the start of service interruption."""
+        interrupt_type = event.content['type']
+        # switches = event.content.get('switches', [])
+        # interfaces = event.content.get('interfaces', [])
+        links = event.content.get('links', [])
+        # for switch_id in switches:
+        #     pass
+        # for interface_id in interfaces:
+        #     pass
+        for link_id in links:
+            link = self.links[link_id]
+            self.notify_link_status_change(link, interrupt_type)
+        self.notify_topology_update()
+
+    @listen_to('topology.interruption.end')
+    def on_interruption_end(self, event: KytosEvent):
+        """Deals with the end of service interruption."""
+        with self._links_lock:
+            self.handle_interruption_end(event)
+
+    def handle_interruption_end(self, event: KytosEvent):
+        """Deals with the end of service interruption."""
+        interrupt_type = event.content['type']
+        # switches = event.content.get('switches', [])
+        # interfaces = event.content.get('interfaces', [])
+        links = event.content.get('links', [])
+        # for switch_id in switches:
+        #     pass
+        # for interface_id in interfaces:
+        #     pass
+        for link_id in links:
+            link = self.links[link_id]
+            self.notify_link_status_change(link, interrupt_type)
+        self.notify_topology_update()
