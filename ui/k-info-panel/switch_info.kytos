@@ -120,7 +120,6 @@
        var self = this
        Object.keys(this.metadata).forEach(function (key) {
          let value = self.content[key]
-         console.log(value)
          self.metadata[key] = String(value)
        });
        this.get_flows()
