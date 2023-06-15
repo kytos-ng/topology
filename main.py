@@ -51,6 +51,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                                   self.link_status_hook_link_up_timer)
         self.topo_controller.bootstrap_indexes()
         self.load_topology()
+        self.link_down = set()
 
     @staticmethod
     def get_topo_controller() -> TopoController:
@@ -1033,17 +1034,27 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def notify_link_status_change(self, link, reason='not given'):
         """Send an event to notify about a status change on a link."""
-        name = 'kytos/topology.'
-        if link.status == EntityStatus.UP:
-            status = 'link_up'
+        link_id = link.id
+        if not link.status_reason and link_id in self.link_down:
+            self.link_down.remove(link_id)
+            event = KytosEvent(
+                name='kytos/topology.link_up',
+                content={
+                    'link': link,
+                    'reason': reason
+                },
+            )
+        elif link.status_reason and link_id not in self.link_down:
+            self.link_down.add(link_id)
+            event = KytosEvent(
+                name='kytos/topology.link_down',
+                content={
+                    'link': link,
+                    'reason': reason
+                },
+            )
         else:
-            status = 'link_down'
-        event = KytosEvent(
-            name=name+status,
-            content={
-                'link': link,
-                'reason': reason
-            })
+            return
         self.controller.buffers.app.put(event)
 
     def notify_metadata_changes(self, obj, action):
@@ -1170,8 +1181,15 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         # for interface_id in interfaces:
         #     pass
         for link_id in links:
-            link = self.links[link_id]
-            self.notify_link_status_change(link, interrupt_type)
+            link = self.links.get(link_id)
+            if link is None:
+                log.error(
+                    "Invalid link id '%s' for interruption of type '%s;",
+                    link_id,
+                    interrupt_type
+                )
+            else:
+                self.notify_link_status_change(link, interrupt_type)
         self.notify_topology_update()
 
     @listen_to('topology.interruption.end')
@@ -1191,6 +1209,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         # for interface_id in interfaces:
         #     pass
         for link_id in links:
-            link = self.links[link_id]
-            self.notify_link_status_change(link, interrupt_type)
+            link = self.links.get(link_id)
+            if link is None:
+                log.error(
+                    "Invalid link id '%s' for interruption of type '%s;",
+                    link_id,
+                    interrupt_type
+                )
+            else:
+                self.notify_link_status_change(link, interrupt_type)
         self.notify_topology_update()
