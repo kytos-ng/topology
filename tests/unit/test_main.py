@@ -1399,8 +1399,34 @@ class TestMain:
         mock_buffers_put = MagicMock()
         self.napp.controller.buffers.app.put = mock_buffers_put
         mock_link = create_autospec(Link)
-        self.napp.notify_link_status_change(mock_link)
-        mock_buffers_put.assert_called()
+        mock_link.id = 'test_link'
+        mock_link.status_reason = frozenset()
+        mock_link.status = EntityStatus.UP
+
+        # Check when switching to up
+        self.napp.notify_link_status_change(mock_link, 'test')
+        assert mock_buffers_put.call_count == 1
+        args, kwargs = mock_buffers_put.call_args
+        event = args[0]
+        assert event.content['link'] is mock_link
+        assert event.content['reason'] == 'test'
+        assert event.name == 'kytos/topology.link_up'
+        
+
+        # Check result when no change
+        self.napp.notify_link_status_change(mock_link, 'test2')
+        assert mock_buffers_put.call_count == 1
+
+        # Check when switching to down
+        mock_link.status_reason = frozenset({'disabled'})
+        mock_link.status = EntityStatus.DOWN
+        self.napp.notify_link_status_change(mock_link, 'test3')
+        assert mock_buffers_put.call_count == 2
+        args, kwargs = mock_buffers_put.call_args
+        event = args[0]
+        assert event.content['link'] is mock_link
+        assert event.content['reason'] == 'test3'
+        assert event.name == 'kytos/topology.link_down'
 
     def test_notify_metadata_changes(self):
         """Test notify metadata changes."""
