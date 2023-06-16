@@ -1406,12 +1406,11 @@ class TestMain:
         # Check when switching to up
         self.napp.notify_link_status_change(mock_link, 'test')
         assert mock_buffers_put.call_count == 1
-        args, kwargs = mock_buffers_put.call_args
+        args, _ = mock_buffers_put.call_args
         event = args[0]
         assert event.content['link'] is mock_link
         assert event.content['reason'] == 'test'
         assert event.name == 'kytos/topology.link_up'
-        
 
         # Check result when no change
         self.napp.notify_link_status_change(mock_link, 'test2')
@@ -1422,7 +1421,7 @@ class TestMain:
         mock_link.status = EntityStatus.DOWN
         self.napp.notify_link_status_change(mock_link, 'test3')
         assert mock_buffers_put.call_count == 2
-        args, kwargs = mock_buffers_put.call_args
+        args, _ = mock_buffers_put.call_args
         event = args[0]
         assert event.content['link'] is mock_link
         assert event.content['reason'] == 'test3'
