@@ -46,12 +46,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         # to keep track of potential unorded scheduled interface events
         self._intfs_lock = defaultdict(Lock)
         self._intfs_updated_at = {}
+        self.link_up = set()
+        self.link_status_lock = Lock()
         self.topo_controller = self.get_topo_controller()
         Link.register_status_func(f"{self.napp_id}_link_up_timer",
                                   self.link_status_hook_link_up_timer)
         self.topo_controller.bootstrap_indexes()
         self.load_topology()
-        self.link_up = set()
 
     @staticmethod
     def get_topo_controller() -> TopoController:
@@ -1036,32 +1037,33 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def notify_link_status_change(self, link, reason='not given'):
         """Send an event to notify about a status change on a link."""
         link_id = link.id
-        if (
-            (not link.status_reason or link.status == EntityStatus.UP)
-            and link_id not in self.link_up
-        ):
-            self.link_up.add(link_id)
-            event = KytosEvent(
-                name='kytos/topology.link_up',
-                content={
-                    'link': link,
-                    'reason': reason
-                },
-            )
-        elif (
-            (link.status_reason or link.status != EntityStatus.UP)
-            and link_id in self.link_up
-        ):
-            self.link_up.remove(link_id)
-            event = KytosEvent(
-                name='kytos/topology.link_down',
-                content={
-                    'link': link,
-                    'reason': reason
-                },
-            )
-        else:
-            return
+        with self.link_status_lock:
+            if (
+                (not link.status_reason or link.status == EntityStatus.UP)
+                and link_id not in self.link_up
+            ):
+                self.link_up.add(link_id)
+                event = KytosEvent(
+                    name='kytos/topology.link_up',
+                    content={
+                        'link': link,
+                        'reason': reason
+                    },
+                )
+            elif (
+                (link.status_reason or link.status != EntityStatus.UP)
+                and link_id in self.link_up
+            ):
+                self.link_up.remove(link_id)
+                event = KytosEvent(
+                    name='kytos/topology.link_down',
+                    content={
+                        'link': link,
+                        'reason': reason
+                    },
+                )
+            else:
+                return
         self.controller.buffers.app.put(event)
 
     def notify_metadata_changes(self, obj, action):
