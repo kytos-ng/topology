@@ -51,7 +51,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                                   self.link_status_hook_link_up_timer)
         self.topo_controller.bootstrap_indexes()
         self.load_topology()
-        self.link_down = set()
+        self.link_up = set()
 
     @staticmethod
     def get_topo_controller() -> TopoController:
@@ -143,6 +143,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         if link_att['enabled']:
             link.enable()
+            self.link_up.add(link.id)
         else:
             link.disable()
 
@@ -1035,8 +1036,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def notify_link_status_change(self, link, reason='not given'):
         """Send an event to notify about a status change on a link."""
         link_id = link.id
-        if not link.status_reason and link_id in self.link_down:
-            self.link_down.remove(link_id)
+        if not link.status_reason and link_id not in self.link_up:
+            self.link_up.add(link_id)
             event = KytosEvent(
                 name='kytos/topology.link_up',
                 content={
@@ -1044,8 +1045,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     'reason': reason
                 },
             )
-        elif link.status_reason and link_id not in self.link_down:
-            self.link_down.add(link_id)
+        elif link.status_reason and link_id in self.link_up:
+            self.link_up.remove(link_id)
             event = KytosEvent(
                 name='kytos/topology.link_down',
                 content={
