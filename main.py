@@ -144,7 +144,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         if link_att['enabled']:
             link.enable()
-            self.link_up.add(link.id)
         else:
             link.disable()
 
