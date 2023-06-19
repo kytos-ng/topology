@@ -840,6 +840,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 else link.endpoint_a
             )
             if other_interface.is_active() is False:
+                self.notify_topology_update()
                 return
             metadata = {
                 'last_status_change': time.time(),
