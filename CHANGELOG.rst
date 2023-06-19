@@ -7,6 +7,17 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2022.3.2] - 2023-06-19
+***********************
+
+Fixed
+=====
+- Fixed interface and link activation/deactivation race condition
+
+Changed
+=======
+- Stopped storing interface and link ``active`` field in the DB
+
 [2022.3.1] - 2023-05-13
 ***********************
 
