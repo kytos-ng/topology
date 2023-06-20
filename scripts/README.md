@@ -70,6 +70,8 @@ CMD=insert_interfaces_metadata python3 scripts/storehouse_to_mongo.py
 
 <details><summary><h3> <code>$unset active</code> from DB switches and links collections </h3></summary>
 
+[`unset_active.py`](./unset_active.py) is a script to `$unset` `active` and certain metadata from `links` and `switches` collections.
+
 
 #### Pre-requisites
 
