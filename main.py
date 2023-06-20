@@ -119,11 +119,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def _get_link_from_interface(self, interface):
         """Return the link of the interface, or None if it does not exist."""
-        with self._links_lock:
-            for link in self.links.values():
-                if interface in (link.endpoint_a, link.endpoint_b):
-                    return link
-            return None
+        for link in list(self.links.values()):
+            if interface in (link.endpoint_a, link.endpoint_b):
+                return link
+        return None
 
     def _load_link(self, link_att):
         endpoint_a = link_att['endpoint_a']['id']
@@ -146,6 +145,14 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             link.enable()
         else:
             link.disable()
+
+        # These ones are just runtime active southbound protocol data
+        # It won't be stored in the future, only kept in the runtime.
+        # Also network operators can follow logs to track this state changes
+        for key in (
+            "last_status_is_active", "last_status_change", "notified_up_at"
+        ):
+            link_att["metadata"].pop(key, None)
 
         link.extend_metadata(link_att["metadata"])
         interface_a.update_link(link)
@@ -687,7 +694,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         switch = event.content['source'].switch
         if switch:
             switch.deactivate()
-            self.topo_controller.deactivate_switch(switch.id)
             log.debug('Switch %s removed from the Topology.', switch.id)
             self.notify_topology_update()
 
@@ -734,8 +740,14 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         The event notifies that an interface was changed to 'down'.
         """
         interface = event.content['interface']
+        with self._intfs_lock[interface.id]:
+            if (
+                interface.id in self._intfs_updated_at
+                and self._intfs_updated_at[interface.id] > event.timestamp
+            ):
+                return
+            self._intfs_updated_at[interface.id] = event.timestamp
         interface.deactivate()
-        self.topo_controller.deactivate_interface(interface.id)
         self.handle_interface_link_down(interface, event)
 
     @listen_to('.*.switch.interface.deleted')
@@ -815,31 +827,30 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 return
             key, notified_at = "notified_up_at", now()
             link.update_metadata(key, now())
-            self.topo_controller.add_link_metadata(link.id, {key: notified_at})
             self.notify_topology_update()
             self.notify_link_status_change(link, reason)
 
     def handle_link_up(self, interface):
         """Handle link up for an interface."""
-        interface.activate()
-        self.topo_controller.activate_interface(interface.id)
-        self.notify_topology_update()
-        link = self._get_link_from_interface(interface)
-        if not link:
-            return
-        if link.endpoint_a == interface:
-            other_interface = link.endpoint_b
-        else:
-            other_interface = link.endpoint_a
-        if other_interface.is_active() is False:
-            return
-        metadata = {
-            'last_status_change': time.time(),
-            'last_status_is_active': True
-        }
-        link.extend_metadata(metadata)
-        link.activate()
-        self.topo_controller.activate_link(link.id, **metadata)
+        with self._links_lock:
+            link = self._get_link_from_interface(interface)
+            if not link:
+                self.notify_topology_update()
+                return
+            other_interface = (
+                link.endpoint_b if link.endpoint_a == interface
+                else link.endpoint_a
+            )
+            if other_interface.is_active() is False:
+                self.notify_topology_update()
+                return
+            metadata = {
+                'last_status_change': time.time(),
+                'last_status_is_active': True
+            }
+            link.extend_metadata(metadata)
+            link.activate()
+            self.notify_topology_update()
         self.notify_link_up_if_status(link, "link up")
 
     @listen_to('.*.switch.interface.link_down')
@@ -884,37 +895,19 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def handle_link_down(self, interface):
         """Notify a link is down."""
-        link = self._get_link_from_interface(interface)
-        if link and link.is_active():
+        with self._links_lock:
+            link = self._get_link_from_interface(interface)
+            if not link or not link.get_metadata("last_status_is_active"):
+                self.notify_topology_update()
+                return
             link.deactivate()
-            last_status_change = time.time()
-            last_status_is_active = False
             metadata = {
-                "last_status_change": last_status_change,
-                "last_status_is_active": last_status_is_active,
+                "last_status_change": time.time(),
+                "last_status_is_active": False,
             }
             link.extend_metadata(metadata)
-            self.topo_controller.deactivate_link(link.id, last_status_change,
-                                                 last_status_is_active)
             self.notify_link_status_change(link, reason="link down")
-        if link and not link.is_active():
-            with self._links_lock:
-                last_status = link.get_metadata('last_status_is_active')
-                last_status_change = time.time()
-                last_status_is_active = False
-                metadata = {
-                    "last_status_change": last_status_change,
-                    "last_status_is_active": last_status_is_active,
-                }
-                if last_status:
-                    link.extend_metadata(metadata)
-                    self.topo_controller.deactivate_link(link.id,
-                                                         last_status_change,
-                                                         last_status_is_active)
-                    self.notify_link_status_change(link, reason='link down')
-        interface.deactivate()
-        self.topo_controller.deactivate_interface(interface.id)
-        self.notify_topology_update()
+            self.notify_topology_update()
 
     @listen_to('.*.interface.is.nni')
     def on_add_links(self, event):

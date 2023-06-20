@@ -14,7 +14,12 @@ Added
 
 Fixed
 =====
+- Fixed interface and link activation/deactivation race condition
 - Rejected unordered late preempted interface events to avoid state inconsistencies
+
+Changed
+=======
+- Stopped storing interface and link ``active`` field in the DB
 
 General Information
 ===================

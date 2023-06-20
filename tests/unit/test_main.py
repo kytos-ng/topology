@@ -1181,7 +1181,6 @@ class TestMain:
         mock_notify_topology_update.assert_called()
         mock_link.extend_metadata.assert_called()
         mock_link.activate.assert_called()
-        self.napp.topo_controller.activate_link.assert_called()
         mock_notify_link_up_if_status.assert_called()
 
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
@@ -1246,12 +1245,11 @@ class TestMain:
         mock_link.is_active.return_value = True
         mock_link_from_interface.return_value = mock_link
         self.napp.handle_link_down(mock_interface)
-        assert self.napp.topo_controller.deactivate_link.call_count == 1
-        mock_interface.deactivate.assert_called()
+        mock_interface.deactivate.assert_not_called()
         mock_link.deactivate.assert_called()
+        mock_link.extend_metadata.assert_called()
         assert mock_topology_update.call_count == 1
         mock_status_change.assert_called()
-        assert self.napp.topo_controller.deactivate_interface.call_count == 1
 
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
@@ -1267,11 +1265,8 @@ class TestMain:
         mock_link_from_interface.return_value = mock_link
         mock_link.get_metadata.return_value = False
         self.napp.handle_link_down(mock_interface)
-        assert self.napp.topo_controller.deactivate_link.call_count == 0
-        mock_interface.deactivate.assert_called()
         mock_topology_update.assert_called()
         mock_status_change.assert_not_called()
-        assert self.napp.topo_controller.deactivate_interface.call_count == 1
 
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
@@ -1287,14 +1282,8 @@ class TestMain:
         mock_link_from_interface.return_value = mock_link
         mock_link.get_metadata.return_value = True
         self.napp.handle_link_down(mock_interface)
-        deactivate_link = self.napp.topo_controller.deactivate_link
-        assert deactivate_link.call_count == 1
-        assert deactivate_link.call_args[0][0] == mock_link.id
-        assert not deactivate_link.call_args[0][2]
-        mock_interface.deactivate.assert_called()
         mock_topology_update.assert_called()
         mock_status_change.assert_called()
-        assert self.napp.topo_controller.deactivate_interface.call_count == 1
 
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
     @patch('napps.kytos.topology.main.Main.notify_link_up_if_status')
@@ -1310,8 +1299,7 @@ class TestMain:
         mock_link.is_active.return_value = True
         mock_link_from_interface.return_value = mock_link
         self.napp.handle_link_up(mock_interface)
-        assert self.napp.topo_controller.activate_link.call_count == 1
-        mock_interface.activate.assert_called()
+        mock_interface.activate.assert_not_called()
         assert mock_notify_link_up_if_status.call_count == 1
         mock_notify_topology_update.assert_called()
 
@@ -1330,8 +1318,7 @@ class TestMain:
         mock_link.is_active.return_value = False
         mock_link_from_interface.return_value = mock_link
         self.napp.handle_link_up(mock_interface)
-        mock_interface.activate.assert_called()
-        assert self.napp.topo_controller.activate_link.call_count == 0
+        mock_interface.activate.assert_not_called()
         assert mock_topology_update.call_count == 1
         mock_status_change.assert_not_called()
 
@@ -1610,7 +1597,6 @@ class TestMain:
         link.get_metadata.return_value = now() - timedelta(seconds=60)
         assert not self.napp.notify_link_up_if_status(link, "link up")
         link.update_metadata.assert_called()
-        self.napp.topo_controller.add_link_metadata.assert_called()
         mock_notify_topo.assert_called()
         mock_notify_link.assert_called()
 
