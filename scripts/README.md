@@ -1,14 +1,14 @@
-## Topology's scripts
+## `topology` scripts
 
-This folder contains Topology's related scripts.
+This folder contains Topology's related scripts:
 
-### Data migration from `storehouse` to MongoDB
+<details><summary><h3>Data migration from <code>storehouse</code> to MongoDB</h3></summary>
 
 [`storehouse_to_mongo.py`](./storehouse_to_mongo.py) is a script to migrate the data entries from certain namespaces from `storehouse` to MongoDB.
 
 #### Pre-requisites
 
-- There's no additional Python libraries dependencies required, other than installing the existing `topology`'s requirements-dev.txt file.
+- There's no additional Python libraries dependencies required, other than installing the existing `topology`'s, or if you're running in development locally then installing `requirements/dev.in`
 - Make sure you don't have `kytosd` running with otherwise topology will start writing to MongoDB, and the application could overwrite the data you're trying to insert with this script.
 - Make sure MongoDB replica set is up and running.
 - Export MongoDB related variables that [db/client.py](../db/client.py) uses, make sure the hosts names can be resolved:
@@ -65,3 +65,5 @@ CMD=insert_links_metadata python3 scripts/storehouse_to_mongo.py
 CMD=insert_switches_metadata python3 scripts/storehouse_to_mongo.py
 CMD=insert_interfaces_metadata python3 scripts/storehouse_to_mongo.py
 ```
+
+</details>
