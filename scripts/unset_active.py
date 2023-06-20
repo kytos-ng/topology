@@ -62,7 +62,7 @@ def unset_switches_and_intfs(mongo: Mongo) -> None:
             }
         },
     )
-    print(f"Modified {res.modified_count} links objects")
+    print(f"Modified {res.modified_count} switches objects")
 
 
 def aggregate_unset_switches_and_intfs(mongo: Mongo) -> None:
