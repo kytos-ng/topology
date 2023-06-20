@@ -88,15 +88,6 @@ class TestTopoController(TestCase):  # pylint: disable=too-many-public-methods
         assert arg1 == {"_id": self.dpid}
         assert not arg2["$set"]["enabled"]
 
-    def test_deactivate_switch(self) -> None:
-        """test_deactivate_switch."""
-        self.topo.deactivate_switch(self.dpid)
-
-        self.topo.db.switches.find_one_and_update.assert_called()
-        arg1, arg2 = self.topo.db.switches.find_one_and_update.call_args[0]
-        assert arg1 == {"_id": self.dpid}
-        assert not arg2["$set"]["active"]
-
     def test_add_switch_metadata(self) -> None:
         """test_add_switch_metadata."""
         metadata = {"some": "value"}
@@ -134,58 +125,6 @@ class TestTopoController(TestCase):  # pylint: disable=too-many-public-methods
         arg1, arg2 = self.topo.db.switches.find_one_and_update.call_args[0]
         assert arg1 == {"interfaces.id": self.interface_id}
         assert not arg2["$set"]["interfaces.$.enabled"]
-
-    def test_activate_interface(self) -> None:
-        """test_activate_interface."""
-        self.topo.activate_interface(self.interface_id)
-
-        self.topo.db.switches.find_one_and_update.assert_called()
-        arg1, arg2 = self.topo.db.switches.find_one_and_update.call_args[0]
-        assert arg1 == {"interfaces.id": self.interface_id}
-        assert arg2["$set"]["interfaces.$.active"]
-
-    def test_deactivate_interface(self) -> None:
-        """test_deactivate_interface."""
-        self.topo.deactivate_interface(self.interface_id)
-
-        self.topo.db.switches.find_one_and_update.assert_called()
-        arg1, arg2 = self.topo.db.switches.find_one_and_update.call_args[0]
-        assert arg1 == {"interfaces.id": self.interface_id}
-        assert not arg2["$set"]["interfaces.$.active"]
-
-    def test_activate_link(self) -> None:
-        """test activate_link."""
-        mock = MagicMock()
-        self.topo._update_link = mock
-        self.topo.activate_link(self.link_id, last_status_change=1,
-                                last_status_is_active=True)
-        self.topo._update_link.assert_called_with(
-            self.link_id,
-            {
-                "$set": {
-                    "metadata.last_status_change": 1,
-                    "metadata.last_status_is_active": True,
-                    "active": True,
-                }
-            },
-        )
-
-    def test_deactivate_link(self) -> None:
-        """test deactivate_link."""
-        mock = MagicMock()
-        self.topo._update_link = mock
-        self.topo.deactivate_link(self.link_id, last_status_change=1,
-                                  last_status_is_active=False)
-        self.topo._update_link.assert_called_with(
-            self.link_id,
-            {
-                "$set": {
-                    "metadata.last_status_change": 1,
-                    "metadata.last_status_is_active": False,
-                    "active": False,
-                }
-            },
-        )
 
     def test_add_interface_metadata(self) -> None:
         """test_add_interface_metadata."""

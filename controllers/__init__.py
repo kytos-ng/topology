@@ -2,7 +2,6 @@
 
 # pylint: disable=invalid-name
 import os
-import time
 from datetime import datetime
 from threading import Lock
 from typing import List, Optional, Tuple
@@ -126,10 +125,6 @@ class TopoController:
         """Try to find one switch and enable it."""
         return self._update_switch(dpid, {"$set": {"enabled": True}})
 
-    def deactivate_switch(self, dpid: str) -> Optional[dict]:
-        """Try to find one switch and deactivate it."""
-        return self._update_switch(dpid, {"$set": {"active": False}})
-
     def disable_switch(self, dpid: str) -> Optional[dict]:
         """Try to find one switch and disable it."""
         return self._update_switch(
@@ -159,16 +154,6 @@ class TopoController:
         """Try to disable one interface and its embedded object on links."""
         return self._update_interface(
             interface_id, {"$set": {"enabled": False}}
-        )
-
-    def activate_interface(self, interface_id: str) -> Optional[dict]:
-        """Try to activate one interface."""
-        return self._update_interface(interface_id, {"$set": {"active": True}})
-
-    def deactivate_interface(self, interface_id: str) -> Optional[dict]:
-        """Try to deactivate one interface."""
-        return self._update_interface(
-            interface_id, {"$set": {"active": False}}
         )
 
     def add_interface_metadata(
@@ -263,42 +248,6 @@ class TopoController:
     def disable_link(self, link_id: str) -> Optional[dict]:
         """Try to find one link and disable it."""
         return self._update_link(link_id, {"$set": {"enabled": False}})
-
-    def deactivate_link(self, link_id: str,
-                        last_status_change: Optional[float] = None,
-                        last_status_is_active=False
-                        ) -> Optional[dict]:
-        """Try to find one link and deactivate it."""
-        # It might be worth using datetime in the future
-        last_status_change = last_status_change or time.time()
-        return self._update_link(
-            link_id,
-            {
-                "$set": {
-                    "metadata.last_status_change": last_status_change,
-                    "metadata.last_status_is_active": last_status_is_active,
-                    "active": False,
-                }
-            },
-        )
-
-    def activate_link(self, link_id: str,
-                      last_status_change: Optional[float] = None,
-                      last_status_is_active=True
-                      ) -> Optional[dict]:
-        """Try to find one link and activate it."""
-        # It might be worth using datetime in the future
-        last_status_change = last_status_change or time.time()
-        return self._update_link(
-            link_id,
-            {
-                "$set": {
-                    "metadata.last_status_change": last_status_change,
-                    "metadata.last_status_is_active": last_status_is_active,
-                    "active": True,
-                }
-            },
-        )
 
     def add_link_metadata(
         self, link_id: str, metadata: dict
