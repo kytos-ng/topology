@@ -67,3 +67,35 @@ CMD=insert_interfaces_metadata python3 scripts/storehouse_to_mongo.py
 ```
 
 </details>
+
+<details><summary><h3> <code>$unset active</code> from DB switches and links collections </h3></summary>
+
+
+#### Pre-requisites
+
+- There's no additional Python libraries dependencies required, other than installing the existing `topology`'s, or if you're running in development locally then installing `requirements/dev.in`
+- Make sure you don't have `kytosd` running with otherwise topology will start writing to MongoDB, and the application could overwrite the data you're trying to insert with this script.
+- Make sure MongoDB replica set is up and running.
+- Export the following MongnoDB variables accordingly in case your running outside of a container
+
+```
+export MONGO_USERNAME=
+export MONGO_PASSWORD=
+export MONGO_DBNAME=napps
+export MONGO_HOST_SEEDS="mongo1:27017,mongo2:27018,mongo3:27099"
+```
+
+- The following `CMD` commands are available:
+
+```
+aggregate_unset_links
+unset_links
+aggregate_unset_switches_and_intfs
+unset_switches_and_intfs
+```
+
+It's recommended that you run the `"aggregated_*"` commands first, just so you can preview the resulting aggregation with similar `$unset` key values. If the results of the aggregation are looking coherent, then you can proceed with the `"unset_*"` commands
+
+#### Examples
+
+</details>
