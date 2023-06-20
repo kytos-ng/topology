@@ -79,7 +79,7 @@ def aggregate_unset_switches_and_intfs(mongo: Mongo) -> None:
         ]
     )
     print(
-        "Aggregating links $unset active and metadata[last_status_is_active|last_status_change|notified_up_at]"
+        "Aggregating switches and interfaces $unset active"
     )
     for doc in res:
         print(doc)
