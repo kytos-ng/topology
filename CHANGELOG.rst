@@ -20,10 +20,12 @@ Fixed
 Changed
 =======
 - Stopped storing interface and link ``active`` field in the DB
+- Removed ``active`` from the application DB models
 
 General Information
 ===================
 - ``@rest`` endpoints are now run by ``starlette/uvicorn`` instead of ``flask/werkzeug``.
+- Added ``scripts/unset_active.py`` to ``$unset`` ``active`` from ``links`` and ``switches`` collections that will no longer be in the database. If you are upgrading to ``2023.1`` you should run this script, however, if you don't, it'll still work as intended since the application won't read from or update these ``active`` values
 
 [2022.3.0] - 2022-12-15
 ***********************
