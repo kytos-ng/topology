@@ -1174,9 +1174,17 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def handle_interruption_start(self, event: KytosEvent):
         """Deals with the start of service interruption."""
         interrupt_type = event.content['type']
-        # switches = event.content.get('switches', [])
-        # interfaces = event.content.get('interfaces', [])
+        switches = event.content.get('switches', [])
+        interfaces = event.content.get('interfaces', [])
         links = event.content.get('links', [])
+        log.info(
+            'Received interruption start of type \'%s\' '
+            'affecting switches %s, interfaces %s, links %s',
+            interrupt_type,
+            switches,
+            interfaces,
+            links
+        )
         # for switch_id in switches:
         #     pass
         # for interface_id in interfaces:
@@ -1202,9 +1210,17 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def handle_interruption_end(self, event: KytosEvent):
         """Deals with the end of service interruption."""
         interrupt_type = event.content['type']
-        # switches = event.content.get('switches', [])
-        # interfaces = event.content.get('interfaces', [])
+        switches = event.content.get('switches', [])
+        interfaces = event.content.get('interfaces', [])
         links = event.content.get('links', [])
+        log.info(
+            'Received interruption end of type \'%s\' '
+            'affecting switches %s, interfaces %s, links %s',
+            interrupt_type,
+            switches,
+            interfaces,
+            links
+        )
         # for switch_id in switches:
         #     pass
         # for interface_id in interfaces:
