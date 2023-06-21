@@ -1031,7 +1031,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         link_id = link.id
         with self.link_status_lock:
             if (
-                (not link.status_reason or link.status == EntityStatus.UP)
+                (not link.status_reason and link.status == EntityStatus.UP)
                 and link_id not in self.link_up
             ):
                 self.link_up.add(link_id)
