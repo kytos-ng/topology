@@ -4,7 +4,7 @@
 import pytest
 import time
 from datetime import timedelta
-from unittest.mock import MagicMock, create_autospec, patch
+from unittest.mock import MagicMock, create_autospec, patch, call
 
 from kytos.core.common import EntityStatus
 from kytos.core.helpers import now
@@ -62,28 +62,32 @@ class TestMain:
 
     def test_get_event_listeners(self):
         """Verify all event listeners registered."""
-        expected_events = ['kytos/core.shutdown',
-                           'kytos/core.shutdown.kytos/topology',
-                           'kytos/maintenance.start_link',
-                           'kytos/maintenance.end_link',
-                           'kytos/maintenance.start_switch',
-                           'kytos/maintenance.end_switch',
-                           'kytos/.*.link_available_tags',
-                           '.*.topo_controller.upsert_switch',
-                           '.*.of_lldp.network_status.updated',
-                           '.*.interface.is.nni',
-                           '.*.connection.lost',
-                           '.*.switch.interfaces.created',
-                           '.*.topology.switch.interface.created',
-                           '.*.switch.interface.deleted',
-                           '.*.switch.interface.link_down',
-                           '.*.switch.interface.link_up',
-                           '.*.switch.(new|reconnected)',
-                           'kytos/.*.liveness.(up|down)',
-                           'kytos/.*.liveness.disabled',
-                           'kytos/topology.get',
-                           '.*.switch.port.created',
-                           'kytos/topology.notify_link_up_if_status']
+        expected_events = [
+            'kytos/core.shutdown',
+            'kytos/core.shutdown.kytos/topology',
+            'kytos/maintenance.start_link',
+            'kytos/maintenance.end_link',
+            'kytos/maintenance.start_switch',
+            'kytos/maintenance.end_switch',
+            'kytos/.*.link_available_tags',
+            '.*.topo_controller.upsert_switch',
+            '.*.of_lldp.network_status.updated',
+            '.*.interface.is.nni',
+            '.*.connection.lost',
+            '.*.switch.interfaces.created',
+            '.*.topology.switch.interface.created',
+            '.*.switch.interface.deleted',
+            '.*.switch.interface.link_down',
+            '.*.switch.interface.link_up',
+            '.*.switch.(new|reconnected)',
+            'kytos/.*.liveness.(up|down)',
+            'kytos/.*.liveness.disabled',
+            'kytos/topology.get',
+            '.*.switch.port.created',
+            'kytos/topology.notify_link_up_if_status',
+            'topology.interruption.start',
+            'topology.interruption.end',
+        ]
         actual_events = self.napp.listeners()
         assert sorted(expected_events) == sorted(actual_events)
 
@@ -1330,8 +1334,10 @@ class TestMain:
         mock_event = MagicMock()
         mock_intf_a = MagicMock()
         mock_intf_b = MagicMock()
-        mock_event.content = {"interface_a": mock_intf_a,
-                              "interface_b": mock_intf_b}
+        mock_event.content = {
+            "interface_a": mock_intf_a,
+            "interface_b": mock_intf_b
+        }
         self.napp.add_links(mock_event)
         mock_link.extend_metadata.assert_called()
         mock_get_link_or_create.assert_called()
@@ -1380,8 +1386,33 @@ class TestMain:
         mock_buffers_put = MagicMock()
         self.napp.controller.buffers.app.put = mock_buffers_put
         mock_link = create_autospec(Link)
-        self.napp.notify_link_status_change(mock_link)
-        mock_buffers_put.assert_called()
+        mock_link.id = 'test_link'
+        mock_link.status_reason = frozenset()
+        mock_link.status = EntityStatus.UP
+
+        # Check when switching to up
+        self.napp.notify_link_status_change(mock_link, 'test')
+        assert mock_buffers_put.call_count == 1
+        args, _ = mock_buffers_put.call_args
+        event = args[0]
+        assert event.content['link'] is mock_link
+        assert event.content['reason'] == 'test'
+        assert event.name == 'kytos/topology.link_up'
+
+        # Check result when no change
+        self.napp.notify_link_status_change(mock_link, 'test2')
+        assert mock_buffers_put.call_count == 1
+
+        # Check when switching to down
+        mock_link.status_reason = frozenset({'disabled'})
+        mock_link.status = EntityStatus.DOWN
+        self.napp.notify_link_status_change(mock_link, 'test3')
+        assert mock_buffers_put.call_count == 2
+        args, _ = mock_buffers_put.call_args
+        event = args[0]
+        assert event.content['link'] is mock_link
+        assert event.content['reason'] == 'test3'
+        assert event.name == 'kytos/topology.link_down'
 
     def test_notify_metadata_changes(self):
         """Test notify metadata changes."""
@@ -1618,3 +1649,83 @@ class TestMain:
         self.napp.notify_interface_link_status(MagicMock(), "link enabled")
         assert mock_get_link_from_interface.call_count == 3
         assert self.napp.controller.buffers.app.put.call_count == 1
+
+    @patch('napps.kytos.topology.main.Main.notify_topology_update')
+    @patch('napps.kytos.topology.main.Main.notify_link_status_change')
+    def test_interruption_start(
+        self,
+        mock_notify_link_status_change,
+        mock_notify_topology_update
+    ):
+        """Tests processing of received interruption start events."""
+        link_a = MagicMock()
+        link_b = MagicMock()
+        link_c = MagicMock()
+        self.napp.links = {
+            'link_a': link_a,
+            'link_b': link_b,
+            'link_c': link_c,
+        }
+        event = KytosEvent(
+            "topology.interruption.start",
+            {
+                'type': 'test_interruption',
+                'switches': [
+                ],
+                'interfaces': [
+                ],
+                'links': [
+                    'link_a',
+                    'link_c',
+                ],
+            }
+        )
+        self.napp.handle_interruption_start(event)
+        mock_notify_link_status_change.assert_has_calls(
+            [
+                call(link_a, 'test_interruption'),
+                call(link_c, 'test_interruption'),
+            ]
+        )
+        assert mock_notify_link_status_change.call_count == 2
+        mock_notify_topology_update.assert_called_once()
+
+    @patch('napps.kytos.topology.main.Main.notify_topology_update')
+    @patch('napps.kytos.topology.main.Main.notify_link_status_change')
+    def test_interruption_end(
+        self,
+        mock_notify_link_status_change,
+        mock_notify_topology_update
+    ):
+        """Tests processing of received interruption end events."""
+        link_a = MagicMock()
+        link_b = MagicMock()
+        link_c = MagicMock()
+        self.napp.links = {
+            'link_a': link_a,
+            'link_b': link_b,
+            'link_c': link_c,
+        }
+        event = KytosEvent(
+            "topology.interruption.start",
+            {
+                'type': 'test_interruption',
+                'switches': [
+                ],
+                'interfaces': [
+                ],
+                'links': [
+                    'link_a',
+                    'link_c',
+                ],
+            }
+        )
+        self.napp.handle_interruption_end(event)
+        mock_notify_link_status_change.assert_has_calls(
+            [
+                call(link_a, 'test_interruption'),
+                call(link_c, 'test_interruption'),
+            ]
+        )
+        assert mock_notify_link_status_change.call_count == 2
+        mock_notify_topology_update.assert_called_once()

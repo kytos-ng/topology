@@ -7,6 +7,11 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+Added
+=====
+ - Info on status and status_reason to UI for Switches and Interfaces
+ - Listener for service interruptions through ``topology.interruption.(start|end)``
+
 Fixed
 =====
 - Fixed interface and link activation/deactivation race condition

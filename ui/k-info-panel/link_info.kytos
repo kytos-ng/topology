@@ -54,7 +54,10 @@
                    'active': '',
                    'id': '',
                    'endpoint_a': '',
-                   'endpoint_b': '',},
+                   'endpoint_b': '',
+                   'status': '',
+                   'status_reason': '',
+                   },
      }
    },
    methods: {

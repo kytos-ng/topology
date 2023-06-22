@@ -46,6 +46,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         # to keep track of potential unorded scheduled interface events
         self._intfs_lock = defaultdict(Lock)
         self._intfs_updated_at = {}
+        self.link_up = set()
+        self.link_status_lock = Lock()
         self.topo_controller = self.get_topo_controller()
         Link.register_status_func(f"{self.napp_id}_link_up_timer",
                                   self.link_status_hook_link_up_timer)
@@ -1026,17 +1028,34 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def notify_link_status_change(self, link, reason='not given'):
         """Send an event to notify about a status change on a link."""
-        name = 'kytos/topology.'
-        if link.status == EntityStatus.UP:
-            status = 'link_up'
-        else:
-            status = 'link_down'
-        event = KytosEvent(
-            name=name+status,
-            content={
-                'link': link,
-                'reason': reason
-            })
+        link_id = link.id
+        with self.link_status_lock:
+            if (
+                (not link.status_reason and link.status == EntityStatus.UP)
+                and link_id not in self.link_up
+            ):
+                self.link_up.add(link_id)
+                event = KytosEvent(
+                    name='kytos/topology.link_up',
+                    content={
+                        'link': link,
+                        'reason': reason
+                    },
+                )
+            elif (
+                (link.status_reason or link.status != EntityStatus.UP)
+                and link_id in self.link_up
+            ):
+                self.link_up.remove(link_id)
+                event = KytosEvent(
+                    name='kytos/topology.link_down',
+                    content={
+                        'link': link,
+                        'reason': reason
+                    },
+                )
+            else:
+                return
         self.controller.buffers.app.put(event)
 
     def notify_metadata_changes(self, obj, action):
@@ -1145,3 +1164,75 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             link.endpoint_a.enable()
             link.endpoint_b.enable()
             self.notify_link_status_change(link, reason='maintenance')
+
+    @listen_to('topology.interruption.start')
+    def on_interruption_start(self, event: KytosEvent):
+        """Deals with the start of service interruption."""
+        with self._links_lock:
+            self.handle_interruption_start(event)
+
+    def handle_interruption_start(self, event: KytosEvent):
+        """Deals with the start of service interruption."""
+        interrupt_type = event.content['type']
+        switches = event.content.get('switches', [])
+        interfaces = event.content.get('interfaces', [])
+        links = event.content.get('links', [])
+        log.info(
+            'Received interruption start of type \'%s\' '
+            'affecting switches %s, interfaces %s, links %s',
+            interrupt_type,
+            switches,
+            interfaces,
+            links
+        )
+        # for switch_id in switches:
+        #     pass
+        # for interface_id in interfaces:
+        #     pass
+        for link_id in links:
+            link = self.links.get(link_id)
+            if link is None:
+                log.error(
+                    "Invalid link id '%s' for interruption of type '%s;",
+                    link_id,
+                    interrupt_type
+                )
+            else:
+                self.notify_link_status_change(link, interrupt_type)
+        self.notify_topology_update()
+
+    @listen_to('topology.interruption.end')
+    def on_interruption_end(self, event: KytosEvent):
+        """Deals with the end of service interruption."""
+        with self._links_lock:
+            self.handle_interruption_end(event)
+
+    def handle_interruption_end(self, event: KytosEvent):
+        """Deals with the end of service interruption."""
+        interrupt_type = event.content['type']
+        switches = event.content.get('switches', [])
+        interfaces = event.content.get('interfaces', [])
+        links = event.content.get('links', [])
+        log.info(
+            'Received interruption end of type \'%s\' '
+            'affecting switches %s, interfaces %s, links %s',
+            interrupt_type,
+            switches,
+            interfaces,
+            links
+        )
+        # for switch_id in switches:
+        #     pass
+        # for interface_id in interfaces:
+        #     pass
+        for link_id in links:
+            link = self.links.get(link_id)
+            if link is None:
+                log.error(
+                    "Invalid link id '%s' for interruption of type '%s;",
+                    link_id,
+                    interrupt_type
+                )
+            else:
+                self.notify_link_status_change(link, interrupt_type)
+        self.notify_topology_update()
