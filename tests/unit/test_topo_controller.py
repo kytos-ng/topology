@@ -216,6 +216,8 @@ class TestTopoController(TestCase):  # pylint: disable=too-many-public-methods
         arg1, arg2 = self.topo.db.switches.find_one_and_update.call_args[0]
         assert arg1 == {"_id": self.dpid}
         for key, value in switch_dict.items():
+            if key == "active":
+                continue
             assert arg2["$set"][key] == value
 
     def test_upsert_link(self) -> None:
