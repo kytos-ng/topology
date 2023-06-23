@@ -40,10 +40,6 @@ class TestMain:
         expected_events = [
             'kytos/core.shutdown',
             'kytos/core.shutdown.kytos/topology',
-            'kytos/maintenance.start_link',
-            'kytos/maintenance.end_link',
-            'kytos/maintenance.start_switch',
-            'kytos/maintenance.end_switch',
             'kytos/.*.link_available_tags',
             'kytos/.*.liveness.(up|down)',
             'kytos/.*.liveness.disabled',

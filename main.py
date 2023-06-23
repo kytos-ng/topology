@@ -779,25 +779,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             self._intfs_updated_at[interface.id] = event.timestamp
         self.handle_link_up(interface)
 
-    @listen_to('kytos/maintenance.end_switch')
-    def on_switch_maintenance_end(self, event):
-        """Handle the end of the maintenance of a switch."""
-        self.handle_switch_maintenance_end(event)
-
-    def handle_switch_maintenance_end(self, event):
-        """Handle the end of the maintenance of a switch."""
-        switches = event.content['switches']
-        for switch_id in switches:
-            try:
-                switch = self.controller.switches[switch_id]
-            except KeyError:
-                continue
-            switch.enable()
-            switch.activate()
-            for interface in switch.interfaces.values():
-                interface.enable()
-                self.handle_link_up(interface)
-
     def link_status_hook_link_up_timer(self, link) -> Optional[EntityStatus]:
         """Link status hook link up timer."""
         tnow = time.time()
@@ -872,26 +853,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 return
             self._intfs_updated_at[interface.id] = event.timestamp
         self.handle_link_down(interface)
-
-    @listen_to('kytos/maintenance.start_switch')
-    def on_switch_maintenance_start(self, event):
-        """Handle the start of the maintenance of a switch."""
-        self.handle_switch_maintenance_start(event)
-
-    def handle_switch_maintenance_start(self, event):
-        """Handle the start of the maintenance of a switch."""
-        switches = event.content['switches']
-        for switch_id in switches:
-            try:
-                switch = self.controller.switches[switch_id]
-            except KeyError:
-                continue
-            switch.disable()
-            switch.deactivate()
-            for interface in switch.interfaces.values():
-                interface.disable()
-                if interface.is_active():
-                    self.handle_link_down(interface)
 
     def handle_link_down(self, interface):
         """Notify a link is down."""
@@ -1114,56 +1075,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             port_number = int(interface_details["id"].split(":")[-1])
             interface = switch.interfaces[port_number]
             interface.set_available_tags(interface_details['available_vlans'])
-
-    @listen_to('kytos/maintenance.start_link')
-    def on_link_maintenance_start(self, event):
-        """Deals with the start of links maintenance."""
-        with self._links_lock:
-            self.handle_link_maintenance_start(event)
-
-    def handle_link_maintenance_start(self, event):
-        """Deals with the start of links maintenance."""
-        notify_links = []
-        maintenance_links = event.content['links']
-        for maintenance_link_id in maintenance_links:
-            try:
-                link = self.links[maintenance_link_id]
-            except KeyError:
-                continue
-            notify_links.append(link)
-        for link in notify_links:
-            link.disable()
-            link.deactivate()
-            link.endpoint_a.deactivate()
-            link.endpoint_b.deactivate()
-            link.endpoint_a.disable()
-            link.endpoint_b.disable()
-            self.notify_link_status_change(link, reason='maintenance')
-
-    @listen_to('kytos/maintenance.end_link')
-    def on_link_maintenance_end(self, event):
-        """Deals with the end of links maintenance."""
-        with self._links_lock:
-            self.handle_link_maintenance_end(event)
-
-    def handle_link_maintenance_end(self, event):
-        """Deals with the end of links maintenance."""
-        notify_links = []
-        maintenance_links = event.content['links']
-        for maintenance_link_id in maintenance_links:
-            try:
-                link = self.links[maintenance_link_id]
-            except KeyError:
-                continue
-            notify_links.append(link)
-        for link in notify_links:
-            link.enable()
-            link.activate()
-            link.endpoint_a.activate()
-            link.endpoint_b.activate()
-            link.endpoint_a.enable()
-            link.endpoint_b.enable()
-            self.notify_link_status_change(link, reason='maintenance')
 
     @listen_to('topology.interruption.start')
     def on_interruption_start(self, event: KytosEvent):

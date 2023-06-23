@@ -22,6 +22,10 @@ Changed
 - Stopped storing interface and link ``active`` field in the DB
 - Removed ``active`` from the application DB models
 
+Removed
+=======
+- Removed old maintenance listeners ``kytos/maintenance.*``
+
 General Information
 ===================
 - ``@rest`` endpoints are now run by ``starlette/uvicorn`` instead of ``flask/werkzeug``.
