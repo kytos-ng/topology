@@ -65,10 +65,6 @@ class TestMain:
         expected_events = [
             'kytos/core.shutdown',
             'kytos/core.shutdown.kytos/topology',
-            'kytos/maintenance.start_link',
-            'kytos/maintenance.end_link',
-            'kytos/maintenance.start_switch',
-            'kytos/maintenance.end_switch',
             'kytos/.*.link_available_tags',
             '.*.topo_controller.upsert_switch',
             '.*.of_lldp.network_status.updated',
@@ -1476,90 +1472,6 @@ class TestMain:
         assert bulk_delete.call_count == 1
         assert self.napp.notify_topology_update.call_count == 1
         assert self.napp.notify_link_status_change.call_count == len(links)
-
-    @patch('napps.kytos.topology.main.Main.notify_link_status_change')
-    def test_handle_link_maintenance_start(self, status_change_mock):
-        """Test handle_link_maintenance_start."""
-        link1 = MagicMock()
-        link1.id = 2
-        link2 = MagicMock()
-        link2.id = 3
-        link3 = MagicMock()
-        link3.id = 4
-        content = {'links': [link1.id, link2.id]}
-        event = MagicMock()
-        event.content = content
-        self.napp.links = {2: link1, 4: link3}
-        self.napp.handle_link_maintenance_start(event)
-        status_change_mock.assert_called_once_with(link1, reason='maintenance')
-
-    @patch('napps.kytos.topology.main.Main.notify_link_status_change')
-    def test_handle_link_maintenance_end(self, status_change_mock):
-        """Test handle_link_maintenance_end."""
-        link1 = MagicMock()
-        link1.id = 2
-        link2 = MagicMock()
-        link2.id = 3
-        link3 = MagicMock()
-        link3.id = 4
-        content = {'links': [link1.id, link2.id]}
-        event = MagicMock()
-        event.content = content
-        self.napp.links = {2: link1, 4: link3}
-        self.napp.handle_link_maintenance_end(event)
-        status_change_mock.assert_called_once_with(link1, reason='maintenance')
-
-    @patch('napps.kytos.topology.main.Main.handle_link_down')
-    def test_handle_switch_maintenance_start(self, handle_link_down_mock):
-        """Test handle_switch_maintenance_start."""
-        switch1 = MagicMock()
-        switch1.id = 'a'
-        interface1 = MagicMock()
-        interface1.is_active.return_value = True
-        interface2 = MagicMock()
-        interface2.is_active.return_value = False
-        interface3 = MagicMock()
-        interface3.is_active.return_value = True
-        switch1.interfaces = {1: interface1, 2: interface2, 3: interface3}
-        switch2 = MagicMock()
-        switch2.id = 'b'
-        interface4 = MagicMock()
-        interface4.is_active.return_value = False
-        interface5 = MagicMock()
-        interface5.is_active.return_value = True
-        switch2.interfaces = {1: interface4, 2: interface5}
-        content = {'switches': [switch1.id, switch2.id]}
-        event = MagicMock()
-        event.content = content
-        self.napp.controller.switches = {'a': switch1, 'b': switch2}
-        self.napp.handle_switch_maintenance_start(event)
-        assert handle_link_down_mock.call_count == 3
-
-    @patch('napps.kytos.topology.main.Main.handle_link_up')
-    def test_handle_switch_maintenance_end(self, handle_link_up_mock):
-        """Test handle_switch_maintenance_end."""
-        switch1 = MagicMock()
-        switch1.id = 'a'
-        interface1 = MagicMock()
-        interface1.is_active.return_value = True
-        interface2 = MagicMock()
-        interface2.is_active.return_value = False
-        interface3 = MagicMock()
-        interface3.is_active.return_value = True
-        switch1.interfaces = {1: interface1, 2: interface2, 3: interface3}
-        switch2 = MagicMock()
-        switch2.id = 'b'
-        interface4 = MagicMock()
-        interface4.is_active.return_value = False
-        interface5 = MagicMock()
-        interface5.is_active.return_value = True
-        switch2.interfaces = {1: interface4, 2: interface5}
-        content = {'switches': [switch1.id, switch2.id]}
-        event = MagicMock()
-        event.content = content
-        self.napp.controller.switches = {'a': switch1, 'b': switch2}
-        self.napp.handle_switch_maintenance_end(event)
-        assert handle_link_up_mock.call_count == 5
 
     def test_link_status_hook_link_up_timer(self) -> None:
         """Test status hook link up timer."""
