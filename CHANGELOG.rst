@@ -7,6 +7,17 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2022.3.3] - 2022-07-06
+***********************
+
+Added
+=====
+- Publishes ``kytos/topology.update`` when changing link metadata
+
+Removed
+=======
+- Removed ``kytos/topology.get``
+
 [2022.3.2] - 2023-06-19
 ***********************
 
