@@ -26,6 +26,7 @@ Changed
 Removed
 =======
 - Removed old maintenance listeners ``kytos/maintenance.*``
+- Removed ``kytos/topology.get``
 
 General Information
 ===================
