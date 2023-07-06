@@ -78,7 +78,6 @@ class TestMain:
             '.*.switch.(new|reconnected)',
             'kytos/.*.liveness.(up|down)',
             'kytos/.*.liveness.disabled',
-            'kytos/topology.get',
             '.*.switch.port.created',
             'kytos/topology.notify_link_up_if_status',
             'topology.interruption.start',
