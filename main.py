@@ -539,6 +539,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.topo_controller.add_link_metadata(link_id, metadata)
         link.extend_metadata(metadata)
         self.notify_metadata_changes(link, 'added')
+        self.notify_topology_update()
         return jsonify("Operation successful"), 201
 
     @rest('v3/links/<link_id>/metadata/<key>', methods=['DELETE'])
@@ -557,6 +558,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.topo_controller.delete_link_metadata_key(link.id, key)
         link.remove_metadata(key)
         self.notify_metadata_changes(link, 'removed')
+        self.notify_topology_update()
         return jsonify("Operation successful"), 200
 
     def notify_current_topology(self) -> None:
