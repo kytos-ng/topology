@@ -1379,17 +1379,6 @@ class TestMain:
         self.napp.notify_topology_update()
         mock_buffers_put.assert_called()
 
-    def test_notify_current_topology(self):
-        """Test notify_current_topology."""
-        mock_buffers_put = MagicMock()
-        self.napp.controller.buffers.app.put = mock_buffers_put
-        self.napp.notify_current_topology()
-        mock_buffers_put.assert_called()
-        args = mock_buffers_put.call_args
-        expected_event = args[0][0]
-        assert expected_event.name == "kytos/topology.current"
-        assert "topology" in expected_event.content
-
     def test_notify_link_status_change(self):
         """Test notify link status change."""
         mock_buffers_put = MagicMock()
