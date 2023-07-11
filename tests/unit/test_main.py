@@ -78,7 +78,6 @@ class TestMain:
             '.*.switch.(new|reconnected)',
             'kytos/.*.liveness.(up|down)',
             'kytos/.*.liveness.disabled',
-            'kytos/topology.get',
             '.*.switch.port.created',
             'kytos/topology.notify_link_up_if_status',
             'topology.interruption.start',
@@ -1009,8 +1008,14 @@ class TestMain:
         response = await self.api_client.get(endpoint)
         assert response.status_code == 404
 
+    @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.notify_metadata_changes')
-    async def test_add_link_metadata(self, mock_metadata_changes, event_loop):
+    async def test_add_link_metadata(
+        self,
+        mock_metadata_changes,
+        mock_topology_update,
+        event_loop
+    ):
         """Test add_link_metadata."""
         self.napp.controller.loop = event_loop
         mock_link = MagicMock(Link)
@@ -1023,6 +1028,7 @@ class TestMain:
         response = await self.api_client.post(endpoint, json=payload)
         assert response.status_code == 201
         mock_metadata_changes.assert_called()
+        mock_topology_update.assert_called()
 
         # fail case
         link_id = 2
@@ -1043,8 +1049,13 @@ class TestMain:
         response = await self.api_client.post(endpoint, json=payload)
         assert response.status_code == 415
 
+    @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.notify_metadata_changes')
-    async def test_delete_link_metadata(self, mock_metadata_changes):
+    async def test_delete_link_metadata(
+        self,
+        mock_metadata_changes,
+        mock_topology_update
+    ):
         """Test delete_link_metadata."""
         mock_link = MagicMock(Link)
         mock_link.metadata = {"A": "A"}
@@ -1059,6 +1070,7 @@ class TestMain:
         del_mock = self.napp.topo_controller.delete_link_metadata_key
         del_mock.assert_called_once_with(mock_link.id, key)
         mock_metadata_changes.assert_called()
+        mock_topology_update.assert_called()
 
         # fail case link not found
         link_id = 2
@@ -1365,17 +1377,6 @@ class TestMain:
         self.napp.controller.buffers.app.put = mock_buffers_put
         self.napp.notify_topology_update()
         mock_buffers_put.assert_called()
-
-    def test_notify_current_topology(self):
-        """Test notify_current_topology."""
-        mock_buffers_put = MagicMock()
-        self.napp.controller.buffers.app.put = mock_buffers_put
-        self.napp.notify_current_topology()
-        mock_buffers_put.assert_called()
-        args = mock_buffers_put.call_args
-        expected_event = args[0][0]
-        assert expected_event.name == "kytos/topology.current"
-        assert "topology" in expected_event.content
 
     def test_notify_link_status_change(self):
         """Test notify link status change."""
