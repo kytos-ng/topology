@@ -1137,3 +1137,12 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             else:
                 self.notify_link_status_change(link, interrupt_type)
         self.notify_topology_update()
+
+    @listen_to('topology.interruption.*', pool='dynamic_single')
+    def on_interruption(self, event: KytosEvent):
+        name: str = event.name
+        _, _, interrupt_stage = name.rpartition('.')
+        if interrupt_stage == 'start':
+            return self.on_interruption_start(event)
+        if interrupt_stage == 'end':
+            return self.on_interruption_end(event)
