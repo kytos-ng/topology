@@ -1140,9 +1140,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     @listen_to('topology.interruption.*', pool='dynamic_single')
     def on_interruption(self, event: KytosEvent):
+        """Deals with both start and end of interruptions"""
         name: str = event.name
         _, _, interrupt_stage = name.rpartition('.')
         if interrupt_stage == 'start':
-            return self.on_interruption_start(event)
-        if interrupt_stage == 'end':
-            return self.on_interruption_end(event)
+            self.on_interruption_start(event)
+        elif interrupt_stage == 'end':
+            self.on_interruption_end(event)
