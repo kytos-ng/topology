@@ -80,8 +80,6 @@ class TestMain:
             'kytos/.*.liveness.disabled',
             '.*.switch.port.created',
             'kytos/topology.notify_link_up_if_status',
-            'topology.interruption.start',
-            'topology.interruption.end',
             'topology.interruption.*',
         ]
         actual_events = self.napp.listeners()
@@ -1594,7 +1592,7 @@ class TestMain:
                 ],
             }
         )
-        self.napp.handle_interruption_start(event)
+        self.napp.on_interruption(event)
         mock_notify_link_status_change.assert_has_calls(
             [
                 call(link_a, 'test_interruption'),
@@ -1621,7 +1619,7 @@ class TestMain:
             'link_c': link_c,
         }
         event = KytosEvent(
-            "topology.interruption.start",
+            "topology.interruption.end",
             {
                 'type': 'test_interruption',
                 'switches': [
@@ -1634,7 +1632,7 @@ class TestMain:
                 ],
             }
         )
-        self.napp.handle_interruption_end(event)
+        self.napp.on_interruption(event)
         mock_notify_link_status_change.assert_has_calls(
             [
                 call(link_a, 'test_interruption'),

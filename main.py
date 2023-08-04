@@ -1066,12 +1066,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             interface = switch.interfaces[port_number]
             interface.set_available_tags(interface_details['available_vlans'])
 
-    @listen_to('topology.interruption.start')
-    def on_interruption_start(self, event: KytosEvent):
-        """Deals with the start of service interruption."""
-        with self._links_lock:
-            self.handle_interruption_start(event)
-
     def handle_interruption_start(self, event: KytosEvent):
         """Deals with the start of service interruption."""
         interrupt_type = event.content['type']
@@ -1101,12 +1095,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             else:
                 self.notify_link_status_change(link, interrupt_type)
         self.notify_topology_update()
-
-    @listen_to('topology.interruption.end')
-    def on_interruption_end(self, event: KytosEvent):
-        """Deals with the end of service interruption."""
-        with self._links_lock:
-            self.handle_interruption_end(event)
 
     def handle_interruption_end(self, event: KytosEvent):
         """Deals with the end of service interruption."""
@@ -1143,7 +1131,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Deals with both start and end of interruptions"""
         name: str = event.name
         _, _, interrupt_stage = name.rpartition('.')
-        if interrupt_stage == 'start':
-            self.on_interruption_start(event)
-        elif interrupt_stage == 'end':
-            self.on_interruption_end(event)
+        with self._links_lock:
+            if interrupt_stage == 'start':
+                self.handle_interruption_start(event)
+            elif interrupt_stage == 'end':
+                self.handle_interruption_end(event)
