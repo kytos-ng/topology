@@ -9,6 +9,27 @@ All notable changes to the ``topology`` project will be documented in this file.
 
 Added
 =====
+
+Deprecated
+==========
+
+Removed
+=======
+
+Fixed
+=====
+
+Security
+========
+
+Changed
+=======
+
+[2023.1.0] - 2023-06-26
+***********************
+
+Added
+=====
  - Info on status and status_reason to UI for Switches and Interfaces
  - Listener for service interruptions through ``topology.interruption.(start|end)``
  - Publishes ``kytos/topology.update`` when changing link metadata
