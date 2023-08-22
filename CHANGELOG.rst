@@ -32,6 +32,7 @@ Added
 =====
  - Info on status and status_reason to UI for Switches and Interfaces
  - Listener for service interruptions through ``topology.interruption.(start|end)``
+ - Publishes ``kytos/topology.update`` when changing link metadata
 
 Fixed
 =====
@@ -46,6 +47,7 @@ Changed
 Removed
 =======
 - Removed old maintenance listeners ``kytos/maintenance.*``
+- Removed ``kytos/topology.get``
 
 General Information
 ===================

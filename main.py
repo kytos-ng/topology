@@ -548,6 +548,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.topo_controller.add_link_metadata(link_id, metadata)
         link.extend_metadata(metadata)
         self.notify_metadata_changes(link, 'added')
+        self.notify_topology_update()
         return JSONResponse("Operation successful", status_code=201)
 
     @rest('v3/links/{link_id}/metadata/{key}', methods=['DELETE'])
@@ -568,19 +569,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.topo_controller.delete_link_metadata_key(link.id, key)
         link.remove_metadata(key)
         self.notify_metadata_changes(link, 'removed')
+        self.notify_topology_update()
         return JSONResponse("Operation successful")
-
-    def notify_current_topology(self) -> None:
-        """Notify current topology."""
-        name = "kytos/topology.current"
-        event = KytosEvent(name=name, content={"topology":
-                                               self._get_topology()})
-        self.controller.buffers.app.put(event)
-
-    @listen_to("kytos/topology.get")
-    def on_get_topology(self, _event) -> None:
-        """Handle kytos/topology.get."""
-        self.notify_current_topology()
 
     @listen_to("kytos/.*.liveness.(up|down)")
     def on_link_liveness_status(self, event) -> None:
