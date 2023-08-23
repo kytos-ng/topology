@@ -12,7 +12,7 @@ from typing import List, Optional
 
 from kytos.core import KytosEvent, KytosNApp, log, rest
 from kytos.core.common import EntityStatus
-from kytos.core.exceptions import KytosLinkCreationError
+from kytos.core.exceptions import KytosLinkCreationError, KytosResizingAvailableTagError
 from kytos.core.helpers import listen_to, now
 from kytos.core.interface import Interface
 from kytos.core.link import Link
@@ -480,6 +480,100 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface.remove_metadata(key)
         self.notify_metadata_changes(interface, 'removed')
         return JSONResponse("Operation successful")
+
+    @staticmethod
+    def _get_tag_type(tag_type):
+        if tag_type not in {"1"}:
+            detail = f"The TAG type {tag_type} is not allowed."
+            raise HTTPException(400, detail=detail)
+        return tag_type
+
+    def _get_tag_ranges(self, request: Request):
+        """Get tag_ranges and check validity:
+        - It should be ordered
+        - Not unnecessary partition (eg. [[10,20],[20,30]])
+        - Singular intergers are changed to ranges (eg. [10] to [[10, 10]])
+        The ranges are understood as [inclusive, inclusive]"""
+        content_type_json_or_415(request)
+        tag_ranges = get_json_or_400(request, self.controller.loop)
+
+        for key, ranges in tag_ranges.items():
+            self._get_tag_type(key)
+            last_int = None
+            for i in range(0, len(ranges)):
+                if type(ranges[i]) is int:
+                    ranges[i] = [ranges[i], ranges[i]]
+                elif len(ranges[i]) == 1:
+                    ranges[i][0] = [ranges[i][0], ranges[i][0]]
+
+                if ranges[i][0] > ranges[i][1]:
+                    detail = f"The range {ranges[i]} is not ordered"
+                    raise HTTPException(400, detail=detail)
+                if last_int and last_int > ranges[i][0]:
+                    detail = f"tag_ranges is not ordered. {last_int}"\
+                             f" is higher than {ranges[i][0]}"
+                    raise HTTPException(400, detail=detail)
+                if last_int and last_int == ranges[i][0] - 1:
+                    detail = f"tag_ranges has an unnecessary partition. "\
+                             f"{last_int} is before to {ranges[i][0]}"
+                    raise HTTPException(400, detail=detail)
+                if last_int and last_int == ranges[i][0]:
+                    detail = f"tag_ranges has repetition. {last_int}"\
+                             f" is equal to {ranges[i][0]}"
+                    raise HTTPException(400, detail=detail)
+                last_int = ranges[i][1]
+
+        return tag_ranges
+
+    @rest('v3/interfaces/{interface_id}/tag_ranges', methods=['POST'])
+    def add_tag_range(self, request: Request) -> JSONResponse:
+        """Add/modify tag range"""
+        interface_id = request.path_params["interface_id"]
+        switch_id = ":".join(interface_id.split(":")[:-1])
+        tag_ranges = self._get_tag_ranges(request)
+        try:
+            interface_number = int(interface_id.split(":")[-1])
+        except ValueError:
+            detail = f"Invalid interface_id {interface_id}"
+            raise HTTPException(400, detail=detail)
+        try:
+            switch = self.controller.switches[switch_id]
+        except KeyError:
+            raise HTTPException(404, detail="Switch not found")
+        try:
+            interface = switch.interfaces[interface_number]
+        except KeyError:
+            raise HTTPException(404, detail="Interface not found")
+        try:
+            interface.set_tag_ranges(tag_ranges)
+        except KytosResizingAvailableTagError as err:
+            detail = f"The new tag_ranges cannot be applied {err}"
+            raise HTTPException(404, detail=detail)
+
+        raise HTTPException(200, detail="Operation Successful")
+
+    @rest('v3/interfaces/{interface_id}/tag_ranges', methods=['DELETE'])
+    def delete_tag_range(self, request: Request) -> JSONResponse:
+        """Delete tag range"""
+        interface_id = request.path_params["interface_id"]
+        switch_id = ":".join(interface_id.split(":")[:-1])
+        params = request.query_params
+        tag_type = self._get_tag_type(params.get("tag_type", '1'))
+        try:
+            interface_number = int(interface_id.split(":")[-1])
+        except ValueError:
+            detail = f"Invalid interface_id {interface_id}"
+            raise HTTPException(400, detail=detail)
+        try:
+            switch = self.controller.switches[switch_id]
+        except KeyError:
+            raise HTTPException(404, detail="Switch not found")
+        try:
+            interface = switch.interfaces[interface_number]
+        except KeyError:
+            raise HTTPException(404, detail="Interface not found")
+        interface.remove_tag_ranges(tag_type)
+        raise HTTPException(200, detail="Operation Successful")
 
     # Link related methods
     @rest('v3/links')

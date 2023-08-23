@@ -409,6 +409,38 @@ paths:
               schema:
                 type: string
                 example: Switch not found
+  /api/kytos/topology/v3/interfaces/{interface_id}/tag_ranges:
+    post:
+      summary: Add/modify tag_range from an interface
+      parameters:
+        - name: interface_id
+          schema:
+            type: string
+          required: true
+          description: The interface ID
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+    delete:
+      summary: Delete tag_range from an interface
+      parameters:
+        - name: interface_id
+          schema:
+            type: string
+          required: true
+          description: The interface ID
+          in: path
+        - name: tag_type
+          in: query
+          schema:
+            type: string
+          description: Type of the tag to be modified
+          required: false
+          example: 1
+
   /api/kytos/topology/v3/links:
     get:
       summary: Return a json with all the links in the topology.
