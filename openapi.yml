@@ -411,7 +411,7 @@ paths:
                 example: Switch not found
   /api/kytos/topology/v3/interfaces/{interface_id}/tag_ranges:
     post:
-      summary: Add/modify tag_range from an interface
+      summary: Set tag_range from an interface
       parameters:
         - name: interface_id
           schema:
@@ -420,10 +420,18 @@ paths:
           description: The interface ID
           in: path
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
+              $ref: '#/components/schemas/Tag_ranges'
+      responses:
+        '200':
+          description: Ok
+        '400':
+          description: Bad request.
+        '404':
+          description: Switch or Interface not found.
     delete:
       summary: Delete tag_range from an interface
       parameters:
@@ -440,7 +448,13 @@ paths:
           description: Type of the tag to be modified
           required: false
           example: 1
-
+      responses:
+        '200':
+          description: Ok
+        '400':
+          description: Bad request.
+        '404':
+          description: Switch or Interface not found.
   /api/kytos/topology/v3/links:
     get:
       summary: Return a json with all the links in the topology.
@@ -722,3 +736,19 @@ components:
           $ref: '#/components/schemas/Interface'
         endpoint_b:
           $ref: '#/components/schemas/Interface'
+    Tag_ranges: # Can be referenced via '#/components/schemas/Tag_ranges'
+      type: object
+      required:
+        - tag_type
+        - tag_ranges
+      properties:
+        tag_type:
+          type: string
+        tag_ranges:
+          type: array
+          items:
+            anyOf:
+              - type: array
+              - type: integer
+          example: [[1, 500], 2096, [3001]]
+

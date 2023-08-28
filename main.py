@@ -3,18 +3,19 @@
 Manage the network topology
 """
 # pylint: disable=wrong-import-order
-
+import pathlib
 import time
 from collections import defaultdict
 from datetime import timezone
 from threading import Lock
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from kytos.core import KytosEvent, KytosNApp, log, rest
 from kytos.core.common import EntityStatus
-from kytos.core.exceptions import KytosLinkCreationError, KytosResizingAvailableTagError
-from kytos.core.helpers import listen_to, now
-from kytos.core.interface import Interface
+from kytos.core.exceptions import (KytosLinkCreationError,
+                                   KytosResizingAvailableTagError)
+from kytos.core.helpers import listen_to, load_spec, now, validate_openapi
+from kytos.core.interface import Interface, TAGType
 from kytos.core.link import Link
 from kytos.core.rest_api import (HTTPException, JSONResponse, Request,
                                  content_type_json_or_415, get_json_or_400)
@@ -33,6 +34,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     This class is the entry point for this napp.
     """
+
+    spec = load_spec(pathlib.Path(__file__).parent / "openapi.yml")
 
     def setup(self):
         """Initialize the NApp's links list."""
@@ -203,7 +206,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         intf_ids = [v["id"] for v in switch_att.get("interfaces", {}).values()]
         intf_details = self.topo_controller.get_interfaces_details(intf_ids)
         with self._links_lock:
-            self.load_interfaces_available_tags(switch, intf_details)
+            self.load_interfaces_tags_values(switch, intf_details)
 
     # pylint: disable=attribute-defined-outside-init
     def load_topology(self):
@@ -482,11 +485,22 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         return JSONResponse("Operation successful")
 
     @staticmethod
-    def _get_tag_type(tag_type):
-        if tag_type not in {"1"}:
+    def _get_tag_type(content):
+        tag_type = content.get("tag_type", '1')
+        if tag_type != str(TAGType.VLAN.value):
             detail = f"The TAG type {tag_type} is not allowed."
             raise HTTPException(400, detail=detail)
         return tag_type
+
+    @staticmethod
+    def check_non_range(tag_range):
+        """Change integer or singular interger list to
+        list[int, int] when necessary"""
+        if isinstance(tag_range, int):
+            tag_range = [tag_range] * 2
+        elif len(tag_range) == 1:
+            tag_range = [tag_range[0]] * 2
+        return tag_range
 
     def _get_tag_ranges(self, request: Request):
         """Get tag_ranges and check validity:
@@ -495,84 +509,65 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         - Singular intergers are changed to ranges (eg. [10] to [[10, 10]])
         The ranges are understood as [inclusive, inclusive]"""
         content_type_json_or_415(request)
-        tag_ranges = get_json_or_400(request, self.controller.loop)
-
-        for key, ranges in tag_ranges.items():
-            self._get_tag_type(key)
-            last_int = None
-            for i in range(0, len(ranges)):
-                if type(ranges[i]) is int:
-                    ranges[i] = [ranges[i], ranges[i]]
-                elif len(ranges[i]) == 1:
-                    ranges[i][0] = [ranges[i][0], ranges[i][0]]
-
-                if ranges[i][0] > ranges[i][1]:
-                    detail = f"The range {ranges[i]} is not ordered"
-                    raise HTTPException(400, detail=detail)
-                if last_int and last_int > ranges[i][0]:
-                    detail = f"tag_ranges is not ordered. {last_int}"\
-                             f" is higher than {ranges[i][0]}"
-                    raise HTTPException(400, detail=detail)
-                if last_int and last_int == ranges[i][0] - 1:
-                    detail = f"tag_ranges has an unnecessary partition. "\
-                             f"{last_int} is before to {ranges[i][0]}"
-                    raise HTTPException(400, detail=detail)
-                if last_int and last_int == ranges[i][0]:
-                    detail = f"tag_ranges has repetition. {last_int}"\
-                             f" is equal to {ranges[i][0]}"
-                    raise HTTPException(400, detail=detail)
-                last_int = ranges[i][1]
-
-        return tag_ranges
+        content = get_json_or_400(request, self.controller.loop)
+        ranges: list[Union[int, list[int]]] = content["tag_ranges"]
+        tag_type = self._get_tag_type(content)
+        ranges[0] = self.check_non_range(ranges[0])
+        for i in range(1, len(ranges)):
+            ranges[i] = self.check_non_range(ranges[i])
+            if ranges[i][0] > ranges[i][1]:
+                detail = f"The range {ranges[i]} is not ordered"
+                raise HTTPException(400, detail=detail)
+            if ranges[i-1][1] > ranges[i][0]:
+                detail = f"tag_ranges is not ordered. {ranges[i-1][1]}"\
+                         f" is higher than {ranges[i][0]}"
+                raise HTTPException(400, detail=detail)
+            if ranges[i-1][1] == ranges[i][0] - 1:
+                detail = f"tag_ranges has an unnecessary partition. "\
+                         f"{ranges[i-1][1]} is before to {ranges[i][0]}"
+                raise HTTPException(400, detail=detail)
+            if ranges[i-1][1] == ranges[i][0]:
+                detail = f"tag_ranges has repetition. {ranges[i-1]}"\
+                         f" have same values as {ranges[i]}"
+                raise HTTPException(400, detail=detail)
+        if ranges[-1][1] > 4095:
+            detail = "Maximum value for tag_ranges is 4095"
+            raise HTTPException(400, detail=detail)
+        if ranges[0][0] < 1:
+            detail = "Minimum value for tag_ranges is 1"
+            raise HTTPException(400, detail=detail)
+        return ranges, tag_type
 
     @rest('v3/interfaces/{interface_id}/tag_ranges', methods=['POST'])
+    @validate_openapi(spec)
     def add_tag_range(self, request: Request) -> JSONResponse:
         """Add/modify tag range"""
         interface_id = request.path_params["interface_id"]
-        switch_id = ":".join(interface_id.split(":")[:-1])
-        tag_ranges = self._get_tag_ranges(request)
-        try:
-            interface_number = int(interface_id.split(":")[-1])
-        except ValueError:
-            detail = f"Invalid interface_id {interface_id}"
-            raise HTTPException(400, detail=detail)
-        try:
-            switch = self.controller.switches[switch_id]
-        except KeyError:
-            raise HTTPException(404, detail="Switch not found")
-        try:
-            interface = switch.interfaces[interface_number]
-        except KeyError:
+        ranges, tag_type = self._get_tag_ranges(request)
+        interface = self.controller.get_interface_by_id(interface_id)
+        if not interface:
             raise HTTPException(404, detail="Interface not found")
         try:
-            interface.set_tag_ranges(tag_ranges)
+            interface.set_tag_ranges(ranges, tag_type)
+            interface.notify_link_available_tags(self.controller)
         except KytosResizingAvailableTagError as err:
             detail = f"The new tag_ranges cannot be applied {err}"
-            raise HTTPException(404, detail=detail)
+            raise HTTPException(400, detail=detail)
 
         raise HTTPException(200, detail="Operation Successful")
 
     @rest('v3/interfaces/{interface_id}/tag_ranges', methods=['DELETE'])
+    @validate_openapi(spec)
     def delete_tag_range(self, request: Request) -> JSONResponse:
         """Delete tag range"""
         interface_id = request.path_params["interface_id"]
-        switch_id = ":".join(interface_id.split(":")[:-1])
         params = request.query_params
-        tag_type = self._get_tag_type(params.get("tag_type", '1'))
-        try:
-            interface_number = int(interface_id.split(":")[-1])
-        except ValueError:
-            detail = f"Invalid interface_id {interface_id}"
-            raise HTTPException(400, detail=detail)
-        try:
-            switch = self.controller.switches[switch_id]
-        except KeyError:
-            raise HTTPException(404, detail="Switch not found")
-        try:
-            interface = switch.interfaces[interface_number]
-        except KeyError:
+        tag_type = self._get_tag_type(params)
+        interface = self.controller.get_interface_by_id(interface_id)
+        if not interface:
             raise HTTPException(404, detail="Interface not found")
         interface.remove_tag_ranges(tag_type)
+        interface.notify_link_available_tags(self.controller)
         raise HTTPException(200, detail="Operation Successful")
 
     # Link related methods
@@ -723,27 +718,20 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         for link in links.values():
             self.notify_link_status_change(link, reason="liveness_disabled")
 
-    @listen_to("kytos/.*.link_available_tags")
+    @listen_to("kytos/core.link_available_tags")
     def on_link_available_tags(self, event):
         """Handle on_link_available_tags."""
         with self._links_lock:
-            self.handle_on_link_available_tags(event.content.get("link"))
+            self.handle_on_link_available_tags(event)
 
-    def handle_on_link_available_tags(self, link):
-        """Handle on_link_available_tags."""
-        if link.id not in self.links:
-            return
-        endpoint_a = self.links[link.id].endpoint_a
-        endpoint_b = self.links[link.id].endpoint_b
-        values_a = [tag.value for tag in endpoint_a.available_tags]
-        values_b = [tag.value for tag in endpoint_b.available_tags]
-        ids_details = [
-            (endpoint_a.id, {"_id": endpoint_a.id,
-                             "available_vlans": values_a}),
-            (endpoint_b.id, {"_id": endpoint_b.id,
-                             "available_vlans": values_b})
-        ]
-        self.topo_controller.bulk_upsert_interface_details(ids_details)
+    def handle_on_link_available_tags(self, event):
+        """Update interface details"""
+        id_ = event.content["interface_id"]
+        ava_tags = event.content["available_tags"]
+        tag_ranges = event.content["tag_ranges"]
+        self.topo_controller.upsert_interface_details(
+            id_, ava_tags, tag_ranges
+        )
 
     @listen_to('.*.switch.(new|reconnected)')
     def on_new_switch(self, event):
@@ -1144,12 +1132,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.controller.buffers.app.put(event)
 
     @staticmethod
-    def load_interfaces_available_tags(switch: Switch,
-                                       interfaces_details: List[dict]) -> None:
+    def load_interfaces_tags_values(switch: Switch,
+                                    interfaces_details: List[dict]) -> None:
         """Load interfaces available tags (vlans)."""
         if not interfaces_details:
             return
         for interface_details in interfaces_details:
+            print("DETAILS -> ", interface_details)
             available_vlans = interface_details["available_vlans"]
             if not available_vlans:
                 continue
@@ -1157,8 +1146,12 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                       f"{len(interface_details['available_vlans'])} "
                       "available tags")
             port_number = int(interface_details["id"].split(":")[-1])
+            print("PORT -> ", port_number)
             interface = switch.interfaces[port_number]
-            interface.set_available_tags(interface_details['available_vlans'])
+            interface.set_available_tags_tag_ranges(
+                interface_details['available_vlans'],
+                interface_details['tag_ranges']
+            )
 
     @listen_to('topology.interruption.start')
     def on_interruption_start(self, event: KytosEvent):

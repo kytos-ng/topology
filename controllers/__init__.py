@@ -273,38 +273,28 @@ class TopoController:
         return self.db.links.update_many({"_id": {"$in": link_ids}},
                                          update_expr)
 
-    def bulk_upsert_interface_details(
-        self, ids_details: List[Tuple[str, dict]]
+    def upsert_interface_details(
+        self,
+        id_: str,
+        available_tags: dict[list[list[int]]],
+        tag_ranges: dict[list[list[int]]],
     ) -> Optional[dict]:
         """Update or insert interfaces details."""
         utc_now = datetime.utcnow()
-        ops = []
-        for _id, detail_dict in ids_details:
-            ops.append(
-                UpdateOne(
-                    {"_id": _id},
-                    {
-                        "$set": InterfaceDetailDoc(
-                            **{
-                                **detail_dict,
-                                **{
-                                    "updated_at": utc_now,
-                                    "_id": _id,
-                                },
-                            }
-                        ).dict(exclude={"inserted_at"}),
-                        "$setOnInsert": {"inserted_at": utc_now},
-                    },
-                    upsert=True,
-                ),
-            )
-
-        with self.interface_details_lock:
-            with self.db_client.start_session() as session:
-                with session.start_transaction():
-                    return self.db.interface_details.bulk_write(
-                        ops, ordered=False, session=session
-                    )
+        updated = self.db.interface_details.find_one_and_update(
+            {"_id": id_},
+            {
+                "$set": {
+                    "available_vlans": available_tags,
+                    "tag_ranges": tag_ranges,
+                    "id": id_
+                },
+                "$setOnInsert": {"inserted_at": utc_now},
+            },
+            return_document=ReturnDocument.AFTER,
+            upsert=True,
+        )
+        return updated
 
     def get_interfaces_details(
         self, interface_ids: List[str]
