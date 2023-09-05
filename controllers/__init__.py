@@ -9,11 +9,11 @@ from typing import List, Optional, Tuple
 import pymongo
 from pymongo.collection import ReturnDocument
 from pymongo.errors import AutoReconnect
-from pymongo.operations import UpdateOne
 from tenacity import retry_if_exception_type, stop_after_attempt, wait_random
 
 from kytos.core import log
 from kytos.core.db import Mongo
+from kytos.core.interface import Interface
 from kytos.core.retry import before_sleep, for_all_methods, retries
 from napps.kytos.topology.db.models import (InterfaceDetailDoc, LinkDoc,
                                             SwitchDoc)
@@ -39,7 +39,6 @@ class TopoController:
         self.mongo = get_mongo()
         self.db_client = self.mongo.client
         self.db = self.db_client[self.mongo.db_name]
-        self.interface_details_lock = Lock()
 
     def bootstrap_indexes(self) -> None:
         """Bootstrap all topology related indexes."""
@@ -276,19 +275,21 @@ class TopoController:
     def upsert_interface_details(
         self,
         id_: str,
-        available_tags: dict[list[list[int]]],
-        tag_ranges: dict[list[list[int]]],
+        available_tags: dict[str, list[list[int]]],
+        tag_ranges: dict[str, list[list[int]]]
     ) -> Optional[dict]:
         """Update or insert interfaces details."""
         utc_now = datetime.utcnow()
+        model = InterfaceDetailDoc(**{
+                "_id": id_,
+                "available_tags": available_tags,
+                "tag_ranges": tag_ranges,
+                "updated_at": utc_now
+        }).dict(exclude={"inserted_at"})
         updated = self.db.interface_details.find_one_and_update(
             {"_id": id_},
             {
-                "$set": {
-                    "available_vlans": available_tags,
-                    "tag_ranges": tag_ranges,
-                    "id": id_
-                },
+                "$set": model,
                 "$setOnInsert": {"inserted_at": utc_now},
             },
             return_document=ReturnDocument.AFTER,

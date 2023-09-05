@@ -3,7 +3,7 @@
 # pylint: disable=no-name-in-module
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field, conlist, validator
 
@@ -124,4 +124,5 @@ class LinkDoc(DocumentBaseModel):
 class InterfaceDetailDoc(DocumentBaseModel):
     """InterfaceDetail DB Document Model."""
 
-    available_vlans: List[int]
+    available_tags: Dict[str, List[List[int]]]
+    tag_ranges: Dict[str, List[List[int]]]

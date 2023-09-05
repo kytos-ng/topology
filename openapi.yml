@@ -433,7 +433,7 @@ paths:
         '404':
           description: Switch or Interface not found.
     delete:
-      summary: Delete tag_range from an interface
+      summary: Set tag ranges from an Interface for a given tag_type to default value [1, 4095]
       parameters:
         - name: interface_id
           schema:
@@ -743,12 +743,13 @@ components:
         - tag_ranges
       properties:
         tag_type:
-          type: string
+          type: integer
+          enum: [1]
         tag_ranges:
           type: array
+          minItems: 1
           items:
             anyOf:
               - type: array
               - type: integer
           example: [[1, 500], 2096, [3001]]
-

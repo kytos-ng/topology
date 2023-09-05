@@ -8,14 +8,15 @@ import time
 from collections import defaultdict
 from datetime import timezone
 from threading import Lock
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from kytos.core import KytosEvent, KytosNApp, log, rest
 from kytos.core.common import EntityStatus
 from kytos.core.exceptions import (KytosLinkCreationError,
-                                   KytosResizingAvailableTagError)
+                                   KytosSetTagRangeError,
+                                   KytosTagtypeNotSupported)
 from kytos.core.helpers import listen_to, load_spec, now, validate_openapi
-from kytos.core.interface import Interface, TAGType
+from kytos.core.interface import Interface
 from kytos.core.link import Link
 from kytos.core.rest_api import (HTTPException, JSONResponse, Request,
                                  content_type_json_or_415, get_json_or_400)
@@ -485,15 +486,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         return JSONResponse("Operation successful")
 
     @staticmethod
-    def _get_tag_type(content):
-        tag_type = content.get("tag_type", '1')
-        if tag_type != str(TAGType.VLAN.value):
-            detail = f"The TAG type {tag_type} is not allowed."
-            raise HTTPException(400, detail=detail)
-        return tag_type
-
-    @staticmethod
-    def check_non_range(tag_range):
+    def mapp_singular_values(tag_range):
         """Change integer or singular interger list to
         list[int, int] when necessary"""
         if isinstance(tag_range, int):
@@ -502,19 +495,19 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             tag_range = [tag_range[0]] * 2
         return tag_range
 
-    def _get_tag_ranges(self, request: Request):
+    def _get_tag_ranges(self, content: dict):
         """Get tag_ranges and check validity:
         - It should be ordered
         - Not unnecessary partition (eg. [[10,20],[20,30]])
         - Singular intergers are changed to ranges (eg. [10] to [[10, 10]])
         The ranges are understood as [inclusive, inclusive]"""
-        content_type_json_or_415(request)
-        content = get_json_or_400(request, self.controller.loop)
-        ranges: list[Union[int, list[int]]] = content["tag_ranges"]
-        tag_type = self._get_tag_type(content)
-        ranges[0] = self.check_non_range(ranges[0])
+        ranges = content["tag_ranges"]
+        if len(ranges) < 1:
+            detail = "tag_ranges is empty"
+            raise HTTPException(400, detail=detail)
+        ranges[0] = self.mapp_singular_values(ranges[0])
         for i in range(1, len(ranges)):
-            ranges[i] = self.check_non_range(ranges[i])
+            ranges[i] = self.mapp_singular_values(ranges[i])
             if ranges[i][0] > ranges[i][1]:
                 detail = f"The range {ranges[i]} is not ordered"
                 raise HTTPException(400, detail=detail)
@@ -536,38 +529,47 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if ranges[0][0] < 1:
             detail = "Minimum value for tag_ranges is 1"
             raise HTTPException(400, detail=detail)
-        return ranges, tag_type
+        return ranges
 
     @rest('v3/interfaces/{interface_id}/tag_ranges', methods=['POST'])
     @validate_openapi(spec)
-    def add_tag_range(self, request: Request) -> JSONResponse:
-        """Add/modify tag range"""
+    def set_tag_range(self, request: Request) -> JSONResponse:
+        """Set tag range"""
+        content_type_json_or_415(request)
+        content = get_json_or_400(request, self.controller.loop)
+        tag_type = content.get("tag_type")
+        ranges = self._get_tag_ranges(content)
         interface_id = request.path_params["interface_id"]
-        ranges, tag_type = self._get_tag_ranges(request)
         interface = self.controller.get_interface_by_id(interface_id)
         if not interface:
             raise HTTPException(404, detail="Interface not found")
         try:
             interface.set_tag_ranges(ranges, tag_type)
-            interface.notify_link_available_tags(self.controller)
-        except KytosResizingAvailableTagError as err:
+            interface.notify_interface_tags(self.controller)
+        except KytosSetTagRangeError as err:
             detail = f"The new tag_ranges cannot be applied {err}"
             raise HTTPException(400, detail=detail)
-
+        except KytosTagtypeNotSupported as err:
+            detail = f"Error with tag_type. {err}"
+            raise HTTPException(400, detail=detail)
         raise HTTPException(200, detail="Operation Successful")
 
     @rest('v3/interfaces/{interface_id}/tag_ranges', methods=['DELETE'])
     @validate_openapi(spec)
     def delete_tag_range(self, request: Request) -> JSONResponse:
-        """Delete tag range"""
+        """Set tag_range from tag_type to default value [1, 4095]"""
         interface_id = request.path_params["interface_id"]
         params = request.query_params
-        tag_type = self._get_tag_type(params)
+        tag_type = params.get("tag_type", 1)
         interface = self.controller.get_interface_by_id(interface_id)
         if not interface:
             raise HTTPException(404, detail="Interface not found")
-        interface.remove_tag_ranges(tag_type)
-        interface.notify_link_available_tags(self.controller)
+        try:
+            interface.remove_tag_ranges(tag_type)
+        except KytosTagtypeNotSupported as err:
+            detail = f"Error with tag_type. {err}"
+            raise HTTPException(400, detail=detail)
+        interface.notify_interface_tags(self.controller)
         raise HTTPException(200, detail="Operation Successful")
 
     # Link related methods
@@ -718,19 +720,24 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         for link in links.values():
             self.notify_link_status_change(link, reason="liveness_disabled")
 
-    @listen_to("kytos/core.link_available_tags")
-    def on_link_available_tags(self, event):
-        """Handle on_link_available_tags."""
+    @listen_to("kytos/core.interface_tags")
+    def on_interface_tags(self, event):
+        """Handle on_interface_tags."""
         with self._links_lock:
-            self.handle_on_link_available_tags(event)
+            self.handle_on_interface_tags(event)
 
-    def handle_on_link_available_tags(self, event):
+    def handle_on_interface_tags(self, event):
         """Update interface details"""
-        id_ = event.content["interface_id"]
-        ava_tags = event.content["available_tags"]
-        tag_ranges = event.content["tag_ranges"]
+        interface = event.content["interface"]
+        available_tags = {}
+        for key, value in interface.available_tags.items():
+            available_tags[str(key)] = value
+        tag_ranges = {}
+        for key, value in interface.tag_ranges.items():
+            tag_ranges[str(key)] = value
+        intf_id = interface.id
         self.topo_controller.upsert_interface_details(
-            id_, ava_tags, tag_ranges
+            intf_id, available_tags, tag_ranges
         )
 
     @listen_to('.*.switch.(new|reconnected)')
@@ -1138,18 +1145,16 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if not interfaces_details:
             return
         for interface_details in interfaces_details:
-            print("DETAILS -> ", interface_details)
-            available_vlans = interface_details["available_vlans"]
+            available_vlans = interface_details["available_tags"]
             if not available_vlans:
                 continue
             log.debug(f"Interface id {interface_details['id']} loading "
-                      f"{len(interface_details['available_vlans'])} "
+                      f"{len(interface_details['available_tags'])} "
                       "available tags")
             port_number = int(interface_details["id"].split(":")[-1])
-            print("PORT -> ", port_number)
             interface = switch.interfaces[port_number]
             interface.set_available_tags_tag_ranges(
-                interface_details['available_vlans'],
+                interface_details['available_tags'],
                 interface_details['tag_ranges']
             )
 
