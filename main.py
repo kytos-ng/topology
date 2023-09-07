@@ -1153,9 +1153,15 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                       "available tags")
             port_number = int(interface_details["id"].split(":")[-1])
             interface = switch.interfaces[port_number]
+            available_tags = {}
+            for key, value in interface_details['available_tags'].items():
+                available_tags[int(key)] = value
+            tag_ranges = {}
+            for key, value in interface_details['tag_ranges'].items():
+                tag_ranges[int(key)] = value
             interface.set_available_tags_tag_ranges(
-                interface_details['available_tags'],
-                interface_details['tag_ranges']
+                available_tags,
+                tag_ranges
             )
 
     @listen_to('topology.interruption.start')
