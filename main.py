@@ -487,7 +487,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         return JSONResponse("Operation successful")
 
     @staticmethod
-    def mapp_singular_values(tag_range):
+    def map_singular_values(tag_range):
         """Change integer or singular interger list to
         list[int, int] when necessary"""
         if isinstance(tag_range, int):
@@ -508,7 +508,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             raise HTTPException(400, detail=detail)
         last_tag = 0
         for i, _ in enumerate(ranges):
-            ranges[i] = self.mapp_singular_values(ranges[i])
+            ranges[i] = self.map_singular_values(ranges[i])
             if ranges[i][0] > ranges[i][1]:
                 detail = f"The range {ranges[i]} is not ordered"
                 raise HTTPException(400, detail=detail)

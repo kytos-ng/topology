@@ -1630,14 +1630,14 @@ class TestMain:
         assert mock_notify_link_status_change.call_count == 2
         mock_notify_topology_update.assert_called_once()
 
-    def test_mapp_singular_values(self):
-        """Test mapp_singular_values"""
+    def test_map_singular_values(self):
+        """Test map_singular_values"""
         mock_tag = 201
-        result = self.napp.mapp_singular_values(mock_tag)
+        result = self.napp.map_singular_values(mock_tag)
         assert result == [201, 201]
 
         mock_tag = [201]
-        result = self.napp.mapp_singular_values(mock_tag)
+        result = self.napp.map_singular_values(mock_tag)
         assert result == [201, 201]
 
     def test_get_tag_ranges(self):
