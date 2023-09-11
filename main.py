@@ -46,6 +46,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                                      DEFAULT_LINK_UP_TIMER)
 
         self._links_lock = Lock()
+        self._interface_lock = Lock()
         self._links_notify_lock = defaultdict(Lock)
         # to keep track of potential unorded scheduled interface events
         self._intfs_lock = defaultdict(Lock)
@@ -206,7 +207,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         intf_ids = [v["id"] for v in switch_att.get("interfaces", {}).values()]
         intf_details = self.topo_controller.get_interfaces_details(intf_ids)
-        with self._links_lock:
+        with self._interface_lock:
             self.load_interfaces_tags_values(switch, intf_details)
 
     # pylint: disable=attribute-defined-outside-init
@@ -505,24 +506,25 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if len(ranges) < 1:
             detail = "tag_ranges is empty"
             raise HTTPException(400, detail=detail)
-        ranges[0] = self.mapp_singular_values(ranges[0])
-        for i in range(1, len(ranges)):
+        last_tag = 0
+        for i, _ in enumerate(ranges):
             ranges[i] = self.mapp_singular_values(ranges[i])
             if ranges[i][0] > ranges[i][1]:
                 detail = f"The range {ranges[i]} is not ordered"
                 raise HTTPException(400, detail=detail)
-            if ranges[i-1][1] > ranges[i][0]:
-                detail = f"tag_ranges is not ordered. {ranges[i-1][1]}"\
+            if last_tag and last_tag > ranges[i][0]:
+                detail = f"tag_ranges is not ordered. {last_tag}"\
                          f" is higher than {ranges[i][0]}"
                 raise HTTPException(400, detail=detail)
-            if ranges[i-1][1] == ranges[i][0] - 1:
+            if last_tag and last_tag == ranges[i][0] - 1:
                 detail = f"tag_ranges has an unnecessary partition. "\
-                         f"{ranges[i-1][1]} is before to {ranges[i][0]}"
+                         f"{last_tag} is before to {ranges[i][0]}"
                 raise HTTPException(400, detail=detail)
-            if ranges[i-1][1] == ranges[i][0]:
+            if last_tag and last_tag == ranges[i][0]:
                 detail = f"tag_ranges has repetition. {ranges[i-1]}"\
                          f" have same values as {ranges[i]}"
                 raise HTTPException(400, detail=detail)
+            last_tag = ranges[i][1]
         if ranges[-1][1] > 4095:
             detail = "Maximum value for tag_ranges is 4095"
             raise HTTPException(400, detail=detail)
@@ -560,7 +562,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Set tag_range from tag_type to default value [1, 4095]"""
         interface_id = request.path_params["interface_id"]
         params = request.query_params
-        tag_type = params.get("tag_type", 1)
+        tag_type = params.get("tag_type", 'vlan')
         interface = self.controller.get_interface_by_id(interface_id)
         if not interface:
             raise HTTPException(404, detail="Interface not found")
@@ -723,21 +725,15 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     @listen_to("kytos/core.interface_tags")
     def on_interface_tags(self, event):
         """Handle on_interface_tags."""
-        with self._links_lock:
-            self.handle_on_interface_tags(event)
+        with self._interface_lock:
+            interface = event.content["interface"]
+            self.handle_on_interface_tags(interface)
 
-    def handle_on_interface_tags(self, event):
+    def handle_on_interface_tags(self, interface):
         """Update interface details"""
-        interface = event.content["interface"]
-        available_tags = {}
-        for key, value in interface.available_tags.items():
-            available_tags[str(key)] = value
-        tag_ranges = {}
-        for key, value in interface.tag_ranges.items():
-            tag_ranges[str(key)] = value
         intf_id = interface.id
         self.topo_controller.upsert_interface_details(
-            intf_id, available_tags, tag_ranges
+            intf_id, interface.available_tags, interface.tag_ranges
         )
 
     @listen_to('.*.switch.(new|reconnected)')
@@ -1145,23 +1141,17 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if not interfaces_details:
             return
         for interface_details in interfaces_details:
-            available_vlans = interface_details["available_tags"]
-            if not available_vlans:
+            available_tags = interface_details['available_tags']
+            if not available_tags:
                 continue
             log.debug(f"Interface id {interface_details['id']} loading "
-                      f"{len(interface_details['available_tags'])} "
+                      f"{len(available_tags)} "
                       "available tags")
             port_number = int(interface_details["id"].split(":")[-1])
             interface = switch.interfaces[port_number]
-            available_tags = {}
-            for key, value in interface_details['available_tags'].items():
-                available_tags[int(key)] = value
-            tag_ranges = {}
-            for key, value in interface_details['tag_ranges'].items():
-                tag_ranges[int(key)] = value
             interface.set_available_tags_tag_ranges(
                 available_tags,
-                tag_ranges
+                interface_details['tag_ranges']
             )
 
     @listen_to('topology.interruption.start')

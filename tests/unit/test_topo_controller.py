@@ -3,8 +3,6 @@
 from unittest import TestCase
 from unittest.mock import MagicMock
 
-from pymongo.operations import UpdateOne
-
 from napps.kytos.topology.controllers import TopoController
 from napps.kytos.topology.db.models import LinkDoc, SwitchDoc
 
@@ -193,19 +191,19 @@ class TestTopoController(TestCase):  # pylint: disable=too-many-public-methods
             [{"$match": {"_id": {"$in": interfaces_ids}}}]
         )
 
-    def test_bulk_upsert_interface_details(self) -> None:
-        """test_bulk_upsert_interface_details."""
-        ids_details = [
-            ("1", {"_id": "1", "available_vlans": [1]}),
-            ("2", {"_id": "2", "available_vlans": [2]}),
-        ]
-        self.topo.bulk_upsert_interface_details(ids_details)
-
-        self.topo.db_client.start_session.assert_called()
-        arg1 = self.topo.db.interface_details.bulk_write.call_args[0]
-        assert len(arg1[0]) == len(ids_details)
-        for item in arg1[0]:
-            assert isinstance(item, UpdateOne)
+    def test_upsert_interface_details(self) -> None:
+        """test_upsert_interface_details."""
+        id_ = "intf_id"
+        available_tags = {'vlan': [[10, 4095]]}
+        tag_ranges = {'vlan': [[5, 4095]]}
+        self.topo.upsert_interface_details(
+            id_, available_tags, tag_ranges
+        )
+        arg = self.topo.db.interface_details.find_one_and_update.call_args[0]
+        assert arg[0] == {"_id": id_}
+        assert arg[1]["$set"]["_id"] == id_
+        assert arg[1]["$set"]["tag_ranges"] == tag_ranges
+        assert arg[1]["$set"]["available_tags"] == available_tags
 
     def test_upsert_switch(self) -> None:
         """test_upsert_switch."""
