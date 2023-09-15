@@ -51,6 +51,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         # to keep track of potential unorded scheduled interface events
         self._intfs_lock = defaultdict(Lock)
         self._intfs_updated_at = {}
+        self._intfs_tags_updated_at = {}
         self.link_up = set()
         self.link_status_lock = Lock()
         self.topo_controller = self.get_topo_controller()
@@ -507,7 +508,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             detail = "tag_ranges is empty"
             raise HTTPException(400, detail=detail)
         last_tag = 0
-        for i, _ in enumerate(ranges):
+        ranges_n = len(ranges)
+        for i in range(0, ranges_n):
             ranges[i] = self.map_singular_values(ranges[i])
             if ranges[i][0] > ranges[i][1]:
                 detail = f"The range {ranges[i]} is not ordered"
@@ -725,9 +727,15 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     @listen_to("kytos/core.interface_tags")
     def on_interface_tags(self, event):
         """Handle on_interface_tags."""
-        with self._interface_lock:
-            interface = event.content["interface"]
-            self.handle_on_interface_tags(interface)
+        interface = event.content['interface']
+        with self._intfs_lock[interface.id]:
+            if (
+                interface.id in self._intfs_tags_updated_at
+                and self._intfs_tags_updated_at[interface.id] > event.timestamp
+            ):
+                return
+            self._intfs_tags_updated_at[interface.id] = event.timestamp
+        self.handle_on_interface_tags(interface)
 
     def handle_on_interface_tags(self, interface):
         """Update interface details"""
