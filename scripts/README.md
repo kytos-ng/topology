@@ -153,3 +153,38 @@ Modified 0 switches objects
 ```
 
 </details>
+
+<details><summary><h3>Change <code>tag_type</code> from integer to string type</h3></summary>
+
+[`vlan_pool.py`](./vlan_pool.py) is a script to change ``available_vlans`` to ``available_tags``. Also adding new field ``tag_ranges``. These new fields have the type ``dict[str, list[list[int]]]``. Example
+
+```
+    available_tags = {"vlan": [[1, 299], [301, 4095]]}
+    tag_ranges = {"vlan": [[1, 4095]]}
+```
+
+This scripts takes into account UNIs TAG values as well.
+
+#### Pre-requisites
+
+- There's no additional Python libraries dependencies required, other than installing the existing `topology`'s, or if you're running in development locally then installing `requirements/dev.in`
+- Make sure you don't have `kytosd` running with otherwise topology will start writing to MongoDB, and the application could overwrite the data you're trying to insert with this script.
+- Make sure MongoDB replica set is up and running.
+- Export the following MongnoDB variables accordingly in case your running outside of a container
+
+```
+export MONGO_USERNAME=
+export MONGO_PASSWORD=
+export MONGO_DBNAME=napps
+export MONGO_HOST_SEEDS="mongo1:27017,mongo2:27018,mongo3:27099"
+```
+
+#### How to use
+
+Run the script to change every ``tag_type`` to string
+
+```
+python3 vlan_pool.py
+```
+
+</details>
