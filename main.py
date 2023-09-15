@@ -46,7 +46,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                                      DEFAULT_LINK_UP_TIMER)
 
         self._links_lock = Lock()
-        self._interface_lock = Lock()
         self._links_notify_lock = defaultdict(Lock)
         # to keep track of potential unorded scheduled interface events
         self._intfs_lock = defaultdict(Lock)
@@ -208,7 +207,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         intf_ids = [v["id"] for v in switch_att.get("interfaces", {}).values()]
         intf_details = self.topo_controller.get_interfaces_details(intf_ids)
-        with self._interface_lock:
+        with self._links_lock:
             self.load_interfaces_tags_values(switch, intf_details)
 
     # pylint: disable=attribute-defined-outside-init

@@ -10,7 +10,7 @@ def get_range(vlans, avoid) -> list[list[int]]:
     result = []
     if not vlans:
         return result
-
+    vlans.sort()
     i = 0
     while i < len(vlans):
         if vlans[i] in avoid:
