@@ -548,7 +548,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             raise HTTPException(404, detail="Interface not found")
         try:
             interface.set_tag_ranges(ranges, tag_type)
-            interface.notify_interface_tags(self.controller)
+            self.handle_on_interface_tags(interface)
         except KytosSetTagRangeError as err:
             detail = f"The new tag_ranges cannot be applied {err}"
             raise HTTPException(400, detail=detail)
@@ -569,10 +569,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             raise HTTPException(404, detail="Interface not found")
         try:
             interface.remove_tag_ranges(tag_type)
+            self.handle_on_interface_tags(interface)
         except KytosTagtypeNotSupported as err:
             detail = f"Error with tag_type. {err}"
             raise HTTPException(400, detail=detail)
-        interface.notify_interface_tags(self.controller)
         raise HTTPException(200, detail="Operation Successful")
 
     # Link related methods

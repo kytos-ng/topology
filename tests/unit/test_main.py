@@ -1689,7 +1689,7 @@ class TestMain:
         mock_switch = get_switch_mock(dpid)
         mock_interface = get_interface_mock('s1-eth1', 1, mock_switch)
         mock_interface.set_tag_ranges = MagicMock()
-        mock_interface.notify_interface_tags = MagicMock()
+        self.napp.handle_on_interface_tags = MagicMock()
         self.napp.controller.get_interface_by_id = MagicMock()
         self.napp.controller.get_interface_by_id.return_value = mock_interface
         payload = {
@@ -1703,7 +1703,7 @@ class TestMain:
         args = mock_interface.set_tag_ranges.call_args[0]
         assert args[0] == payload['tag_ranges']
         assert args[1] == payload['tag_type']
-        assert mock_interface.notify_interface_tags.call_count == 1
+        assert self.napp.handle_on_interface_tags.call_count == 1
 
     async def test_set_tag_range_not_found(self, event_loop):
         """Test set_tag_range. Not found"""
@@ -1749,7 +1749,7 @@ class TestMain:
         mock_interface = get_interface_mock('s1-eth1', 1, mock_switch)
         mock_interface.set_tag_ranges = MagicMock()
         mock_interface.set_tag_ranges.side_effect = KytosTagtypeNotSupported()
-        mock_interface.notify_interface_tags = MagicMock()
+        self.napp.handle_on_interface_tags = MagicMock()
         self.napp.controller.get_interface_by_id = MagicMock()
         self.napp.controller.get_interface_by_id.return_value = mock_interface
         payload = {
@@ -1759,7 +1759,7 @@ class TestMain:
         url = f"{self.base_endpoint}/interfaces/{interface_id}/tag_ranges"
         response = await self.api_client.post(url, json=payload)
         assert response.status_code == 400
-        assert mock_interface.notify_interface_tags.call_count == 0
+        assert self.napp.handle_on_interface_tags.call_count == 0
 
     async def test_delete_tag_range(self, event_loop):
         """Test delete_tag_range"""
@@ -1769,6 +1769,7 @@ class TestMain:
         mock_switch = get_switch_mock(dpid)
         mock_interface = get_interface_mock('s1-eth1', 1, mock_switch)
         mock_interface.remove_tag_ranges = MagicMock()
+        self.napp.handle_on_interface_tags = MagicMock()
         self.napp.controller.get_interface_by_id = MagicMock()
         self.napp.controller.get_interface_by_id.return_value = mock_interface
         url = f"{self.base_endpoint}/interfaces/{interface_id}/tag_ranges"

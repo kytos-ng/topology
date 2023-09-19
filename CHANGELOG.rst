@@ -31,6 +31,10 @@ Security
 Changed
 =======
 
+General Information
+===================
+- ``scripts/vlan_pool.py`` can be used to change the collection ``interface_details`` to have ``available_tags`` and ``tag_ranges``
+
 [2023.1.0] - 2023-06-26
 ***********************
 

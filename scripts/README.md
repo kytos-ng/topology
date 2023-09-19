@@ -181,10 +181,53 @@ export MONGO_HOST_SEEDS="mongo1:27017,mongo2:27018,mongo3:27099"
 
 #### How to use
 
-Run the script to change every ``tag_type`` to string
+- The following `CMD` commands are available:
 
 ```
-python3 vlan_pool.py
+aggregate_outdated_interfaces
+update_database
+```
+
+`aggregate_outdated_interfaces` option is to see how many documents are going to be modified and how many are going to be added.
+
+```
+CMD=aggregate_outdated_interfaces python3 scripts/storehouse_to_mongo.py
+```
+
+For the documents that are going to be modified, only the maximum and minimum value are going to be shown:
+
+```
+{'id': '00:00:00:00:00:00:00:01:3', 'max_number': 4095, 'min_number': 2}
+```
+
+For soon to be added documents, `avoid_tags` set is going to be shown representing the tags that are used and will need to be avoided in `available_tags`:
+
+```
+{'id': '00:00:00:00:00:00:00:01:1', 'avoid_tags': {200}}
+```
+
+A `WARNING` is going to be shown if a duplicated `TAG` is detected in different `EVC`s:
+
+```
+WARNING: Detected duplicated 200 TAG in EVCs 861a11d8fce148 and d74e18464d524b in interface 00:00:00:00:00:00:00:01:1
+```
+
+`update_database` updates and adds the required documents for compatability
+
+```
+CMD=aggregate_outdated_interfaces python3 scripts/storehouse_to_mongo.py
+```
+
+The final messages will show how many documents have been modified and added
+
+```
+6 documents modified. 3 documents inserted
+```
+
+An `ERROR` can be shown if a duplicated `TAG` is detected in different `EVC`s. After this the pocess will exit without making any modification or adittion.
+
+```
+Error: Detected duplicated 200 TAG in EVCs 861a11d8fce148 and d74e18464d524b in interface 00:00:00:00:00:00:00:01:1
 ```
 
 </details>
