@@ -191,7 +191,7 @@ update_database
 `aggregate_outdated_interfaces` option is to see how many documents are going to be modified and how many are going to be added.
 
 ```
-CMD=aggregate_outdated_interfaces python3 scripts/storehouse_to_mongo.py
+CMD=aggregate_outdated_interfaces python3 scripts/vlan_pool.py
 ```
 
 For the documents that are going to be modified, only the maximum and minimum value are going to be shown:
@@ -215,7 +215,7 @@ WARNING: Detected duplicated 200 TAG in EVCs 861a11d8fce148 and d74e18464d524b i
 `update_database` updates and adds the required documents for compatability
 
 ```
-CMD=aggregate_outdated_interfaces python3 scripts/storehouse_to_mongo.py
+CMD=update_database python3 scripts/vlan_pool.py
 ```
 
 The final messages will show how many documents have been modified and added

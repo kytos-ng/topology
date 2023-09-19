@@ -87,6 +87,8 @@ def update_database(mongo: Mongo):
     intf_count = 0
     for document in intf_documents:
         avoid_tags = evc_tags.pop(document["id"], set())
+        if document.get("available_vlans") is None:
+            continue
         ranges = get_range(document["available_vlans"], avoid_tags)
         result = db.interface_details.update_one(
             {"id": document["id"]},
@@ -133,12 +135,19 @@ def aggregate_outdated_interfaces(mongo: Mongo):
             }}
         ]
     )
-    print("Here are the outdated interfaces. 'available_vlans' have a massive"
-          " amount of items, minimum and maximum items will be shown only")
+    
+    messages = ""
     for document in result:
-        print(document)
         document_ids.add(document["id"])
-    print()
+        if document.get("available_vlans") is None:
+            continue
+        messages += str(document) + "\n"
+
+    if messages != "":
+        print("Here are the outdated interfaces. 'available_vlans' have a massive"
+          " amount of items, minimum and maximum items will be shown only")
+        print(messages)
+        print()
     
     evc_documents = db.evcs.find()
     evc_intf = defaultdict(set)
@@ -179,6 +188,9 @@ def aggregate_outdated_interfaces(mongo: Mongo):
             continue
         aux = {"id": intf, "avoid_tags": avoid_tags}
         print(aux)
+
+    if not evc_tags and messages == "":
+        print("There is nothing to update or add")
 
 
 if __name__ == "__main__":
