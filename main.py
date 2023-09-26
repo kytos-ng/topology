@@ -555,7 +555,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         except KytosTagtypeNotSupported as err:
             detail = f"Error with tag_type. {err}"
             raise HTTPException(400, detail=detail)
-        raise HTTPException(200, detail="Operation Successful")
+        return JSONResponse("Operation Successful", status_code=200)
 
     @rest('v3/interfaces/{interface_id}/tag_ranges', methods=['DELETE'])
     @validate_openapi(spec)
@@ -573,7 +573,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         except KytosTagtypeNotSupported as err:
             detail = f"Error with tag_type. {err}"
             raise HTTPException(400, detail=detail)
-        raise HTTPException(200, detail="Operation Successful")
+        return JSONResponse("Operation Successful", status_code=200)
 
     # Link related methods
     @rest('v3/links')
