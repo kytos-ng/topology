@@ -132,6 +132,7 @@ def aggregate_outdated_interfaces(mongo: Mongo):
                 "id": 1,
                 "max_number": {"$max": "$available_vlans"},
                 "min_number": {"$min": "$available_vlans"},
+                "available_vlans": 1,
             }}
         ]
     )
@@ -141,13 +142,13 @@ def aggregate_outdated_interfaces(mongo: Mongo):
         document_ids.add(document["id"])
         if document.get("available_vlans") is None:
             continue
+        document.pop("available_vlans")
         messages += str(document) + "\n"
 
     if messages != "":
         print("Here are the outdated interfaces. 'available_vlans' have a massive"
           " amount of items, minimum and maximum items will be shown only")
         print(messages)
-        print()
     
     evc_documents = db.evcs.find()
     evc_intf = defaultdict(set)
