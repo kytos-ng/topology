@@ -659,7 +659,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if not uni.user_tag:
             return
         intf = uni.interface
-        with self._intf_locks[intf.id]:
+        with self._intfs_lock[intf.id]:
             if (
                 intf.id in self._intfs_tags_updated_at
                 and self._intfs_tags_updated_at[intf.id] > event.timestamp
