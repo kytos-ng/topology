@@ -41,12 +41,12 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.link_up_timer = getattr(settings, 'LINK_UP_TIMER',
                                      DEFAULT_LINK_UP_TIMER)
 
-        self._uni_lock = Lock()
         self._links_lock = Lock()
         self._links_notify_lock = defaultdict(Lock)
         # to keep track of potential unorded scheduled interface events
         self._intfs_lock = defaultdict(Lock)
         self._intfs_updated_at = {}
+        self._intfs_tags_updated_at = {}
         self.link_up = set()
         self.link_status_lock = Lock()
         self.topo_controller = self.get_topo_controller()
@@ -655,15 +655,22 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     @listen_to("kytos/.*.uni_available_tags")
     def on_uni_available_tags(self, event):
         """Handle on_uni_available_tags"""
-        with self._uni_lock:
-            uni = event.content.get("uni")
+        uni = event.content.get("uni")
+        if not uni.user_tag:
+            return
+        intf = uni.interface
+        with self._intf_locks[intf.id]:
+            if (
+                intf.id in self._intfs_tags_updated_at
+                and self._intfs_tags_updated_at[intf.id] > event.timestamp
+            ):
+                return
+            self._intfs_tags_updated_at[intf.id] = event.timestamp
             self.handle_on_uni_available_tags(uni)
 
     def handle_on_uni_available_tags(self, uni: UNI) -> None:
         """Handle on_uni_available_tagson_uni_available_tags"""
-        if not uni.user_tag:
-            return
-        intf = self.controller.get_interface_by_id(uni.interface.id)
+        intf = uni.interface
         values = [tag.value for tag in intf.available_tags]
         ids_details = [
             (intf.id, {"_id": intf.id, "available_vlans": values})
