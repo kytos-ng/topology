@@ -419,6 +419,22 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  switch_id:
+                    type: object
+                    properties:
+                      interface_index:
+                        type: object
+                        properties:
+                          tag_ranges:
+                            $ref: "#/components/schemas/InterfaceRanges"
+                          available_tags:
+                            $ref: "#/components/schemas/InterfaceRanges"
+              example: 
+                "00:00:00:00:00:00:00:01":
+                  "2":
+                    "available_tags": [[1, 4096]]
+                    "tag_ranges": [[1,4096]]
   /v3/interfaces/{interface_id}/tag_ranges:
     get:
       summary: Get tag_ranges and available_tags from an interface
@@ -436,6 +452,18 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  interface_id:
+                    type: object
+                    properties:
+                      tag_ranges:
+                        $ref: "#/components/schemas/InterfaceRanges"
+                      available_tags:
+                        $ref: "#/components/schemas/InterfaceRanges"
+              example: 
+                "00:00:00:00:00:00:00:01:2":
+                  "available_tags": [[1, 4096]]
+                  "tag_ranges": [[1,4096]]
         '404':
           description: Interface not found
     post:
@@ -781,3 +809,14 @@ components:
               - type: array
               - type: integer
           example: [[1, 500], 2096, [3001]]
+    InterfaceRanges:
+      type: object
+      properties:
+        vlan:
+          type: array
+          items:
+            type: array
+            items:
+              type: integer          
+            minItems: 2
+            maxItems: 2

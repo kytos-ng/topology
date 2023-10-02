@@ -577,12 +577,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     @rest('v3/interfaces/tag_ranges', methods=['GET'])
     @validate_openapi(spec)
-    def get_all_tag_ranges(self, _):
+    def get_all_tag_ranges(self, _: Request) -> JSONResponse:
         """Get all tag_ranges and available_tags from interfaces"""
-        result = {}
-        for switch_id, switch in self.controller.switches.items():
-            result[switch_id] = {}
-            for intf_id, interface in switch.interfaces.items():
+        result = defaultdict(dict)
+        for switch_id, switch in self.controller.switches.copy().items():
+            for intf_id, interface in switch.interfaces.copy().items():
                 result[switch_id][intf_id] = {
                     "available_tags": interface.available_tags,
                     "tag_ranges": interface.tag_ranges
