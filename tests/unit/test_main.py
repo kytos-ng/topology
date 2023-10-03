@@ -1821,11 +1821,9 @@ class TestMain:
         self.napp.controller.switches = {dpid: switch}
         url = f"{self.base_endpoint}/interfaces/tag_ranges"
         response = await self.api_client.get(url)
-        expected = {dpid: {
-            '1': {
-                'available_tags': tags,
-                'tag_ranges': tags
-            }
+        expected = {dpid + ":1": {
+            'available_tags': tags,
+            'tag_ranges': tags
         }}
         assert response.status_code == 200
         assert response.json() == expected
