@@ -420,21 +420,17 @@ paths:
               schema:
                 type: object
                 properties:
-                  switch_id:
+                  interface_id:
                     type: object
                     properties:
-                      interface_index:
-                        type: object
-                        properties:
-                          tag_ranges:
-                            $ref: "#/components/schemas/InterfaceRanges"
-                          available_tags:
-                            $ref: "#/components/schemas/InterfaceRanges"
+                      tag_ranges:
+                        $ref: '#/components/schemas/InterfaceRanges'
+                      available_tags:
+                        $ref: '#/components/schemas/InterfaceRanges'
               example: 
-                "00:00:00:00:00:00:00:01":
-                  "2":
-                    "available_tags": [[1, 4096]]
-                    "tag_ranges": [[1,4096]]
+                "00:00:00:00:00:00:00:01:2":
+                  "available_tags": [[1, 4096]]
+                  "tag_ranges": [[1,4096]]
   /v3/interfaces/{interface_id}/tag_ranges:
     get:
       summary: Get tag_ranges and available_tags from an interface
@@ -457,9 +453,9 @@ paths:
                     type: object
                     properties:
                       tag_ranges:
-                        $ref: "#/components/schemas/InterfaceRanges"
+                        $ref: '#/components/schemas/InterfaceRanges'
                       available_tags:
-                        $ref: "#/components/schemas/InterfaceRanges"
+                        $ref: '#/components/schemas/InterfaceRanges'
               example: 
                 "00:00:00:00:00:00:00:01:2":
                   "available_tags": [[1, 4096]]
@@ -809,7 +805,7 @@ components:
               - type: array
               - type: integer
           example: [[1, 500], 2096, [3001]]
-    InterfaceRanges:
+    InterfaceRanges: # Can be referenced via '#/components/schemas/InterfaceRanges'
       type: object
       properties:
         vlan:
