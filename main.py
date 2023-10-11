@@ -656,8 +656,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def on_uni_available_tags(self, event):
         """Handle on_uni_available_tags"""
         uni = event.content.get("uni")
-        if not uni.user_tag:
-            return
         intf = uni.interface
         with self._intfs_lock[intf.id]:
             if (
