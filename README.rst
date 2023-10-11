@@ -55,7 +55,7 @@ Subscribed
 - ``.*.switch.port.deleted``
 - ``.*.interface.is.nni``
 - ``.*.network_status.updated``
-- ``kytos/.*.link_available_tags``
+- ``kytos/core.interface_tags``
 - ``kytos/maintenance.start_link``
 - ``kytos/maintenance.end_link``
 - ``kytos/maintenance.start_switch``

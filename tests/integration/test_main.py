@@ -40,7 +40,6 @@ class TestMain:
         expected_events = [
             'kytos/core.shutdown',
             'kytos/core.shutdown.kytos/topology',
-            'kytos/.*.link_available_tags',
             'kytos/.*.liveness.(up|down)',
             'kytos/.*.liveness.disabled',
             '.*.topo_controller.upsert_switch',
@@ -57,6 +56,7 @@ class TestMain:
             'kytos/topology.notify_link_up_if_status',
             'topology.interruption.start',
             'topology.interruption.end',
+            'kytos/core.interface_tags',
         ]
         assert sorted(expected_events) == sorted(actual_events)
 
