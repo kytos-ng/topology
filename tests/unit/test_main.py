@@ -1807,3 +1807,55 @@ class TestMain:
         url = f"{self.base_endpoint}/interfaces/{interface_id}/tag_ranges"
         response = await self.api_client.delete(url)
         assert response.status_code == 400
+
+    async def test_get_all_tag_ranges(self, event_loop):
+        """Test get_all_tag_ranges"""
+        self.napp.controller.loop = event_loop
+        dpid = '00:00:00:00:00:00:00:01'
+        switch = get_switch_mock(dpid)
+        interface = get_interface_mock('s1-eth1', 1, switch)
+        tags = {'vlan': [[1, 4095]]}
+        interface.tag_ranges = tags
+        interface.available_tags = tags
+        switch.interfaces = {1: interface}
+        self.napp.controller.switches = {dpid: switch}
+        url = f"{self.base_endpoint}/interfaces/tag_ranges"
+        response = await self.api_client.get(url)
+        expected = {dpid + ":1": {
+            'available_tags': tags,
+            'tag_ranges': tags
+        }}
+        assert response.status_code == 200
+        assert response.json() == expected
+
+    async def test_get_tag_ranges_by_intf(self, event_loop):
+        """Test get_tag_ranges_by_intf"""
+        self.napp.controller.loop = event_loop
+        dpid = '00:00:00:00:00:00:00:01'
+        switch = get_switch_mock(dpid)
+        interface = get_interface_mock('s1-eth1', 1, switch)
+        tags = {'vlan': [[1, 4095]]}
+        interface.tag_ranges = tags
+        interface.available_tags = tags
+        self.napp.controller.get_interface_by_id = MagicMock()
+        self.napp.controller.get_interface_by_id.return_value = interface
+        url = f"{self.base_endpoint}/interfaces/{dpid}:1/tag_ranges"
+        response = await self.api_client.get(url)
+        expected = {
+            '00:00:00:00:00:00:00:01:1': {
+                "available_tags": tags,
+                "tag_ranges": tags
+            }
+        }
+        assert response.status_code == 200
+        assert response.json() == expected
+
+    async def test_get_tag_ranges_by_intf_error(self, event_loop):
+        """Test get_tag_ranges_by_intf with NotFound"""
+        self.napp.controller.loop = event_loop
+        dpid = '00:00:00:00:00:00:00:01'
+        self.napp.controller.get_interface_by_id = MagicMock()
+        self.napp.controller.get_interface_by_id.return_value = None
+        url = f"{self.base_endpoint}/interfaces/{dpid}:1/tag_ranges"
+        response = await self.api_client.get(url)
+        assert response.status_code == 404

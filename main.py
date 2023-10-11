@@ -575,6 +575,35 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             raise HTTPException(400, detail=detail)
         return JSONResponse("Operation Successful", status_code=200)
 
+    @rest('v3/interfaces/tag_ranges', methods=['GET'])
+    @validate_openapi(spec)
+    def get_all_tag_ranges(self, _: Request) -> JSONResponse:
+        """Get all tag_ranges and available_tags from interfaces"""
+        result = {}
+        for switch in self.controller.switches.copy().values():
+            for interface in switch.interfaces.copy().values():
+                result[interface.id] = {
+                    "available_tags": interface.available_tags,
+                    "tag_ranges": interface.tag_ranges
+                }
+        return JSONResponse(result, status_code=200)
+
+    @rest('v3/interfaces/{interface_id}/tag_ranges', methods=['GET'])
+    @validate_openapi(spec)
+    def get_tag_ranges_by_intf(self, request: Request) -> JSONResponse:
+        """Get tag_ranges and available_tags an interface"""
+        interface_id = request.path_params["interface_id"]
+        interface = self.controller.get_interface_by_id(interface_id)
+        if not interface:
+            raise HTTPException(404, detail="Interface not found")
+        result = {
+            interface_id: {
+                "available_tags": interface.available_tags,
+                "tag_ranges": interface.tag_ranges
+            }
+        }
+        return JSONResponse(result, status_code=200)
+
     # Link related methods
     @rest('v3/links')
     def get_links(self, _request: Request) -> JSONResponse:

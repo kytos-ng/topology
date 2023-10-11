@@ -11,6 +11,8 @@ Added
 =====
 - Added endpoint ``POST v3/interfaces/{interface_id}/tag_ranges`` to set ``tag_ranges`` to interfaces.
 - Added endpoint ``DELETE v3/interfaces/{interface_id}/tag_ranges`` to delete ``tag_ranges`` from interfaces.
+- Added endpoint ``GET v3/interfaces/{interface_id}/tag_ranges`` to get ``available_tags`` and ``tag_ranges`` from an interface.
+- Added endpoint ``GET v3/interfaces/tag_ranges`` to get ``available_tags`` and ``tag_ranges`` from all interfaces.
 - Added ``Tag_ranges`` documentation to openapi.yml
 - Added API request POST and DELETE to modify ``Interface.tag_ranges``
 - Added listener for ``kytos/core.interface_tags`` event to save any changes made to ``Interface`` attributes ``tag_ranges`` and ``available_tags``
