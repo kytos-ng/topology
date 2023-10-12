@@ -1,15 +1,8 @@
 import os
 import sys
 import datetime
-from pymongo.operations import UpdateMany
 from kytos.core.db import Mongo
 from collections import defaultdict
-
-TAG_TYPE = {
-    1: "vlan",
-    2: "vlan_qinq",
-    3: "mpls",
-}
 
 def update_database(mongo: Mongo):
     db = mongo.client[mongo.db_name]
