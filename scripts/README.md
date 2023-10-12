@@ -153,3 +153,57 @@ Modified 0 switches objects
 ```
 
 </details>
+
+
+<details><summary><h3> <code>UNI tag allocation</code> from evcs to interface_details collections </h3></summary>
+
+[`uni_tag_allocation.py`](./uni_tag_allocation.py) is a script to allocate UNI tags from evcs collection
+
+
+#### Pre-requisites
+- Make sure MongoDB replica set is up and running.
+- Export the following MongnoDB variables accordingly in case your running outside of a container
+
+```
+export MONGO_USERNAME=
+export MONGO_PASSWORD=
+export MONGO_DBNAME=napps
+export MONGO_HOST_SEEDS="mongo1:27017,mongo2:27018,mongo3:27099"
+```
+
+- The following `CMD` commands are available:
+
+```
+aggregate_uni_tags
+update_database
+```
+
+#### Examples
+
+- Previewing aggregated interfaces which that are going to have their available_vlans changed:
+
+```
+❯ CMD=aggregate_uni_tags python scripts/uni_tag_allocation.py
+```
+
+Response example:
+
+```
+Interfaces that probably need their available_vlans modified.
+00:00:00:00:00:00:00:01:1: [100, 200]
+00:00:00:00:00:00:00:02:1: [100]
+00:00:00:00:00:00:00:02:2: [100]
+```
+
+- Update outdated available_vlans from interfaces. Create a new document if neccessary
+
+```
+❯ CMD=update_database python scripts/uni_tag_allocation.py 
+```
+
+Response example:
+```
+1 documents modified. 2 documents inserted
+```
+
+</details>
