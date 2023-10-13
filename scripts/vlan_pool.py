@@ -56,7 +56,7 @@ def update_database(mongo: Mongo):
     """Update database"""
     db = mongo.client[mongo.db_name]
     intf_documents = db.interface_details.find()
-    evc_documents = db.evcs.find()
+    evc_documents = db.evcs.find({"archived": False})
 
     evc_intf = defaultdict(set)
     evc_tags = defaultdict(set)
@@ -150,7 +150,7 @@ def aggregate_outdated_interfaces(mongo: Mongo):
           " amount of items, minimum and maximum items will be shown only")
         print(messages)
     
-    evc_documents = db.evcs.find()
+    evc_documents = db.evcs.find({"archived": False})
     evc_intf = defaultdict(set)
     evc_tags = defaultdict(set)
 
