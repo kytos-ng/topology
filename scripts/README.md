@@ -189,10 +189,19 @@ update_database
 Response example:
 
 ```
+No conflicts detected between NNIs and UNIs
 Interfaces that probably need their available_vlans modified.
 00:00:00:00:00:00:00:01:1: [100, 200]
 00:00:00:00:00:00:00:02:1: [100]
 00:00:00:00:00:00:00:02:2: [100]
+```
+
+Since UNI tags allocation was not supported, the possible conflicts with NNI tags are detected:
+
+```
+There are some conflicts between NNIs and UNIs tag values:
+Tag 1 conflict in UNI_A, interface 00:00:00:00:00:00:00:01:3
+Tag 1 conflict in UNI_A, interface 00:00:00:00:00:00:00:01:4
 ```
 
 - Update outdated available_vlans from interfaces. Create a new document if neccessary
@@ -204,6 +213,16 @@ Interfaces that probably need their available_vlans modified.
 Response example:
 ```
 1 documents modified. 2 documents inserted
+```
+
+If a conflict with NNI tags is detected, there will not be any changes to the database:
+
+```
+Conflicts between NNIs and UNIs detected:
+Tag 1 conflict in UNI_A from EVC c23d595655dd47, interface 00:00:00:00:00:00:00:01:3
+Tag 1 conflict in UNI_A from EVC 3af68f6804f144, interface 00:00:00:00:00:00:00:01:4
+
+Exiting
 ```
 
 </details>
