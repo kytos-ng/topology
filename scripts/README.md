@@ -190,7 +190,7 @@ Response example:
 
 ```
 No conflicts detected between NNIs and UNIs
-Interfaces that probably need their available_vlans modified.
+Interfaces that are used by UNIs and their tag values.
 00:00:00:00:00:00:00:01:1: [100, 200]
 00:00:00:00:00:00:00:02:1: [100]
 00:00:00:00:00:00:00:02:2: [100]
