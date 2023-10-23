@@ -14,7 +14,7 @@ from kytos.core import KytosEvent, KytosNApp, log, rest
 from kytos.core.common import EntityStatus
 from kytos.core.exceptions import KytosLinkCreationError
 from kytos.core.helpers import listen_to, now
-from kytos.core.interface import Interface
+from kytos.core.interface import UNI, Interface
 from kytos.core.link import Link
 from kytos.core.rest_api import (HTTPException, JSONResponse, Request,
                                  content_type_json_or_415, get_json_or_400)
@@ -46,6 +46,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         # to keep track of potential unorded scheduled interface events
         self._intfs_lock = defaultdict(Lock)
         self._intfs_updated_at = {}
+        self._intfs_tags_updated_at = {}
         self.link_up = set()
         self.link_status_lock = Lock()
         self.topo_controller = self.get_topo_controller()
@@ -650,6 +651,31 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                              "available_vlans": values_b})
         ]
         self.topo_controller.bulk_upsert_interface_details(ids_details)
+
+    @listen_to("kytos/.*.uni_available_tags")
+    def on_uni_available_tags(self, event):
+        """Handle on_uni_available_tags"""
+        uni = event.content.get("uni")
+        intf = uni.interface
+        with self._intfs_lock[intf.id]:
+            if (
+                intf.id in self._intfs_tags_updated_at
+                and self._intfs_tags_updated_at[intf.id] > event.timestamp
+            ):
+                return
+            self._intfs_tags_updated_at[intf.id] = event.timestamp
+            self.handle_on_uni_available_tags(uni)
+
+    def handle_on_uni_available_tags(self, uni: UNI) -> None:
+        """Handle on_uni_available_tagson_uni_available_tags"""
+        intf = uni.interface
+        values = [tag.value for tag in intf.available_tags]
+        ids_details = [
+            (intf.id, {"_id": intf.id, "available_vlans": values})
+        ]
+
+        if ids_details:
+            self.topo_controller.bulk_upsert_interface_details(ids_details)
 
     @listen_to('.*.switch.(new|reconnected)')
     def on_new_switch(self, event):

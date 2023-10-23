@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, create_autospec, patch, call
 from kytos.core.common import EntityStatus
 from kytos.core.helpers import now
 from kytos.core.events import KytosEvent
-from kytos.core.interface import Interface
+from kytos.core.interface import Interface, UNI, TAG
 from kytos.core.link import Link
 from kytos.core.switch import Switch
 from kytos.lib.helpers import (get_interface_mock, get_link_mock,
@@ -82,6 +82,7 @@ class TestMain:
             'kytos/topology.notify_link_up_if_status',
             'topology.interruption.start',
             'topology.interruption.end',
+            'kytos/.*.uni_available_tags',
         ]
         actual_events = self.napp.listeners()
         assert sorted(expected_events) == sorted(actual_events)
@@ -1642,3 +1643,19 @@ class TestMain:
         )
         assert mock_notify_link_status_change.call_count == 2
         mock_notify_topology_update.assert_called_once()
+
+    def test_handle_on_uni_available_tags(self):
+        """Test handle_on_uni_available_tags"""
+        uni = create_autospec(UNI)
+        uni.interface = create_autospec(Interface)
+        uni.interface.available_tags = [TAG(1, 100)]
+        id_ = uni.interface.id
+        expected = [
+            (id_, {"_id": id_, "available_vlans": [100]})
+        ]
+        self.napp.handle_on_uni_available_tags(uni)
+        controller = self.napp.topo_controller
+        calls = controller.bulk_upsert_interface_details.call_count
+        assert calls == 1
+        args = controller.bulk_upsert_interface_details.call_args[0]
+        assert args[0] == expected

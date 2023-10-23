@@ -25,6 +25,13 @@ Security
 Changed
 =======
 
+[2023.1.1] - 2023-10-12
+********************************
+
+Added
+=====
+- Added subscription to ``kytos/.*.uni_available_tags`` event to save ``Interface.available_tags`` to DB when a UNI uses a tag.
+
 [2023.1.0] - 2023-06-26
 ***********************
 

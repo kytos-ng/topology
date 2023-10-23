@@ -63,6 +63,7 @@ Subscribed
 - ``kytos/.*.liveness.(up|down)``
 - ``kytos/.*.liveness.disabled``
 - ``kytos/topology.notify_link_up_if_status``
+- ``kytos/.*.uni_available_tags``
 
 
 Published
