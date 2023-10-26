@@ -179,6 +179,8 @@ class TestMain:
 
     def test_load_topology(self):
         """Test load_topology."""
+        mock_buffers_put = MagicMock()
+        self.napp.controller.buffers.app.put = mock_buffers_put
         link_id = \
             'cf0f4071be426b3f745027f5d22bc61f8312ae86293c9b28e7e66015607a9260'
         dpid_a = '00:00:00:00:00:00:00:01'
@@ -239,6 +241,7 @@ class TestMain:
                 interfaces.append(iface.id)
         assert interfaces_expected == interfaces
         assert links_expected == list(self.napp.links.keys())
+        assert mock_buffers_put.call_args[1] == {"timeout": 1}
 
     @patch('napps.kytos.topology.main.Main._load_switch')
     @patch('napps.kytos.topology.main.Main._load_link')
@@ -267,7 +270,7 @@ class TestMain:
         }
         mock_log.error.return_value = True
         self.napp.topo_controller.get_topology.return_value = topology
-        mock_load_switch.side_effect = Exception('xpto')
+        mock_load_switch.side_effect = AttributeError('xpto')
         self.napp.load_topology()
         error = 'Error loading switch: xpto'
         mock_log.error.assert_called_with(error)
@@ -287,7 +290,7 @@ class TestMain:
         }
         mock_log.error.return_value = True
         self.napp.topo_controller.get_topology.return_value = topology
-        mock_load_link.side_effect = Exception('xpto')
+        mock_load_link.side_effect = AttributeError('xpto')
         self.napp.load_topology()
         error = 'Error loading link 1: xpto'
         mock_log.error.assert_called_with(error)
@@ -340,6 +343,7 @@ class TestMain:
         assert 2 not in switch.interfaces
         mock_event.assert_called()
         mock_buffers_put.assert_called()
+        assert mock_buffers_put.call_args[1] == {"timeout": 1}
 
         interface = switch.interfaces[1]
         assert interface.id == iface_a
