@@ -32,6 +32,7 @@ Security
 
 Changed
 =======
+- If a KytosEvent can't be put on ``buffers.app`` during ``setup()``, it'll make the NApp to fail to start
 
 General Information
 ===================
