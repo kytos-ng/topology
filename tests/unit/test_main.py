@@ -13,7 +13,6 @@ from kytos.core.exceptions import (KytosSetTagRangeError,
                                    KytosTagtypeNotSupported)
 from kytos.core.interface import Interface
 from kytos.core.link import Link
-from kytos.core.rest_api import HTTPException
 from kytos.core.switch import Switch
 from kytos.lib.helpers import (get_interface_mock, get_link_mock,
                                get_controller_mock, get_switch_mock,
@@ -1629,57 +1628,6 @@ class TestMain:
         )
         assert mock_notify_link_status_change.call_count == 2
         mock_notify_topology_update.assert_called_once()
-
-    def test_map_singular_values(self):
-        """Test map_singular_values"""
-        mock_tag = 201
-        result = self.napp.map_singular_values(mock_tag)
-        assert result == [201, 201]
-
-        mock_tag = [201]
-        result = self.napp.map_singular_values(mock_tag)
-        assert result == [201, 201]
-
-    def test_get_tag_ranges(self):
-        """Test _get_tag_ranges"""
-        mock_content = {'tag_ranges': [100, [150], [200, 3000]]}
-        result = self.napp._get_tag_ranges(mock_content)
-        assert result == [[100, 100], [150, 150], [200, 3000]]
-
-        # Empty
-        mock_content = {'tag_ranges': []}
-        with pytest.raises(HTTPException):
-            self.napp._get_tag_ranges(mock_content)
-
-        # Range not ordered
-        mock_content = {'tag_ranges': [[20, 19]]}
-        with pytest.raises(HTTPException):
-            self.napp._get_tag_ranges(mock_content)
-
-        # Ranges not ordered
-        mock_content = {'tag_ranges': [[20, 50], [30, 3000]]}
-        with pytest.raises(HTTPException):
-            self.napp._get_tag_ranges(mock_content)
-
-        # Unnecessary partition
-        mock_content = {'tag_ranges': [[20, 50], [51, 3000]]}
-        with pytest.raises(HTTPException):
-            self.napp._get_tag_ranges(mock_content)
-
-        # Repeated tag
-        mock_content = {'tag_ranges': [[20, 50], [50, 3000]]}
-        with pytest.raises(HTTPException):
-            self.napp._get_tag_ranges(mock_content)
-
-        # Over 4095
-        mock_content = {'tag_ranges': [[20, 50], [50, 4096]]}
-        with pytest.raises(HTTPException):
-            self.napp._get_tag_ranges(mock_content)
-
-        # Under 1
-        mock_content = {'tag_ranges': [[0, 50], [50, 3000]]}
-        with pytest.raises(HTTPException):
-            self.napp._get_tag_ranges(mock_content)
 
     async def test_set_tag_range(self, event_loop):
         """Test set_tag_range"""
