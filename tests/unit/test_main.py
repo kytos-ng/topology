@@ -1675,7 +1675,7 @@ class TestMain:
         mock_switch = get_switch_mock(dpid)
         mock_interface = get_interface_mock('s1-eth1', 1, mock_switch)
         mock_interface.set_tag_ranges = MagicMock()
-        mock_interface.set_tag_ranges.side_effect = KytosSetTagRangeError()
+        mock_interface.set_tag_ranges.side_effect = KytosSetTagRangeError("")
         mock_interface.notify_interface_tags = MagicMock()
         self.napp.controller.get_interface_by_id = MagicMock()
         self.napp.controller.get_interface_by_id.return_value = mock_interface
@@ -1696,7 +1696,9 @@ class TestMain:
         mock_switch = get_switch_mock(dpid)
         mock_interface = get_interface_mock('s1-eth1', 1, mock_switch)
         mock_interface.set_tag_ranges = MagicMock()
-        mock_interface.set_tag_ranges.side_effect = KytosTagtypeNotSupported()
+        mock_interface.set_tag_ranges.side_effect = KytosTagtypeNotSupported(
+            ""
+        )
         self.napp.handle_on_interface_tags = MagicMock()
         self.napp.controller.get_interface_by_id = MagicMock()
         self.napp.controller.get_interface_by_id.return_value = mock_interface
@@ -1749,7 +1751,7 @@ class TestMain:
         mock_interface = get_interface_mock('s1-eth1', 1, mock_switch)
         mock_interface.remove_tag_ranges = MagicMock()
         remove_tag = mock_interface.remove_tag_ranges
-        remove_tag.side_effect = KytosTagtypeNotSupported()
+        remove_tag.side_effect = KytosTagtypeNotSupported("")
         self.napp.controller.get_interface_by_id = MagicMock()
         self.napp.controller.get_interface_by_id.return_value = mock_interface
         url = f"{self.base_endpoint}/interfaces/{interface_id}/tag_ranges"

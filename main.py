@@ -12,9 +12,8 @@ from typing import List, Optional
 
 from kytos.core import KytosEvent, KytosNApp, log, rest
 from kytos.core.common import EntityStatus
-from kytos.core.exceptions import (KytosInvalidRanges, KytosLinkCreationError,
-                                   KytosSetTagRangeError,
-                                   KytosTagtypeNotSupported)
+from kytos.core.exceptions import (KytosInvalidTagRanges,
+                                   KytosLinkCreationError, KytosTagError)
 from kytos.core.helpers import listen_to, load_spec, now, validate_openapi
 from kytos.core.interface import Interface
 from kytos.core.link import Link
@@ -496,8 +495,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         tag_type = content.get("tag_type")
         try:
             ranges = get_tag_ranges(content["tag_ranges"])
-        except KytosInvalidRanges as err:
-            raise HTTPException(400, detail=err)
+        except KytosInvalidTagRanges as err:
+            raise HTTPException(400, detail=str(err))
         interface_id = request.path_params["interface_id"]
         interface = self.controller.get_interface_by_id(interface_id)
         if not interface:
@@ -505,11 +504,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         try:
             interface.set_tag_ranges(ranges, tag_type)
             self.handle_on_interface_tags(interface)
-        except KytosSetTagRangeError as err:
-            detail = f"The new tag_ranges cannot be applied {err}"
-            raise HTTPException(400, detail=detail)
-        except KytosTagtypeNotSupported as err:
-            detail = f"Error with tag_type. {err}"
+        except KytosTagError as err:
+            detail = f"Error when setting tag ranges: {err}"
             raise HTTPException(400, detail=detail)
         return JSONResponse("Operation Successful", status_code=200)
 
@@ -526,7 +522,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         try:
             interface.remove_tag_ranges(tag_type)
             self.handle_on_interface_tags(interface)
-        except KytosTagtypeNotSupported as err:
+        except KytosTagError as err:
             detail = f"Error with tag_type. {err}"
             raise HTTPException(400, detail=detail)
         return JSONResponse("Operation Successful", status_code=200)
