@@ -505,8 +505,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             interface.set_tag_ranges(ranges, tag_type)
             self.handle_on_interface_tags(interface)
         except KytosTagError as err:
-            detail = f"Error when setting tag ranges: {err}"
-            raise HTTPException(400, detail=detail)
+            raise HTTPException(400, detail=str(err))
         return JSONResponse("Operation Successful", status_code=200)
 
     @rest('v3/interfaces/{interface_id}/tag_ranges', methods=['DELETE'])
@@ -523,8 +522,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             interface.remove_tag_ranges(tag_type)
             self.handle_on_interface_tags(interface)
         except KytosTagError as err:
-            detail = f"Error with tag_type. {err}"
-            raise HTTPException(400, detail=detail)
+            raise HTTPException(400, detail=str(err))
         return JSONResponse("Operation Successful", status_code=200)
 
     @rest('v3/interfaces/tag_ranges', methods=['GET'])
