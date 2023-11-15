@@ -5,8 +5,10 @@ from unittest.mock import MagicMock
 from napps.kytos.topology.controllers import TopoController
 from napps.kytos.topology.db.models import LinkDoc, SwitchDoc
 
+# pylint: disable=too-many-public-methods,attribute-defined-outside-init
 
-class TestTopoController:  # pylint: disable=too-many-public-methods
+
+class TestTopoController:
     """Test the Main class."""
 
     def setup_method(self) -> None:
