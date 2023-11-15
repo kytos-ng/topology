@@ -1,16 +1,15 @@
 """Module to TopoController."""
 
-from unittest import TestCase
 from unittest.mock import MagicMock
 
 from napps.kytos.topology.controllers import TopoController
 from napps.kytos.topology.db.models import LinkDoc, SwitchDoc
 
 
-class TestTopoController(TestCase):  # pylint: disable=too-many-public-methods
+class TestTopoController:  # pylint: disable=too-many-public-methods
     """Test the Main class."""
 
-    def setUp(self) -> None:
+    def setup_method(self) -> None:
         """Execute steps before each tests."""
         self.topo = TopoController(MagicMock())
         self.dpid = "00:00:00:00:00:00:00:01"
