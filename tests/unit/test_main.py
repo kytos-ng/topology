@@ -13,7 +13,6 @@ from kytos.core.exceptions import (KytosSetTagRangeError,
                                    KytosTagtypeNotSupported)
 from kytos.core.interface import Interface
 from kytos.core.link import Link
-from kytos.core.rest_api import HTTPException
 from kytos.core.switch import Switch
 from kytos.lib.helpers import (get_interface_mock, get_link_mock,
                                get_controller_mock, get_switch_mock,
@@ -1630,57 +1629,6 @@ class TestMain:
         assert mock_notify_link_status_change.call_count == 2
         mock_notify_topology_update.assert_called_once()
 
-    def test_map_singular_values(self):
-        """Test map_singular_values"""
-        mock_tag = 201
-        result = self.napp.map_singular_values(mock_tag)
-        assert result == [201, 201]
-
-        mock_tag = [201]
-        result = self.napp.map_singular_values(mock_tag)
-        assert result == [201, 201]
-
-    def test_get_tag_ranges(self):
-        """Test _get_tag_ranges"""
-        mock_content = {'tag_ranges': [100, [150], [200, 3000]]}
-        result = self.napp._get_tag_ranges(mock_content)
-        assert result == [[100, 100], [150, 150], [200, 3000]]
-
-        # Empty
-        mock_content = {'tag_ranges': []}
-        with pytest.raises(HTTPException):
-            self.napp._get_tag_ranges(mock_content)
-
-        # Range not ordered
-        mock_content = {'tag_ranges': [[20, 19]]}
-        with pytest.raises(HTTPException):
-            self.napp._get_tag_ranges(mock_content)
-
-        # Ranges not ordered
-        mock_content = {'tag_ranges': [[20, 50], [30, 3000]]}
-        with pytest.raises(HTTPException):
-            self.napp._get_tag_ranges(mock_content)
-
-        # Unnecessary partition
-        mock_content = {'tag_ranges': [[20, 50], [51, 3000]]}
-        with pytest.raises(HTTPException):
-            self.napp._get_tag_ranges(mock_content)
-
-        # Repeated tag
-        mock_content = {'tag_ranges': [[20, 50], [50, 3000]]}
-        with pytest.raises(HTTPException):
-            self.napp._get_tag_ranges(mock_content)
-
-        # Over 4095
-        mock_content = {'tag_ranges': [[20, 50], [50, 4096]]}
-        with pytest.raises(HTTPException):
-            self.napp._get_tag_ranges(mock_content)
-
-        # Under 1
-        mock_content = {'tag_ranges': [[0, 50], [50, 3000]]}
-        with pytest.raises(HTTPException):
-            self.napp._get_tag_ranges(mock_content)
-
     async def test_set_tag_range(self, event_loop):
         """Test set_tag_range"""
         self.napp.controller.loop = event_loop
@@ -1727,7 +1675,7 @@ class TestMain:
         mock_switch = get_switch_mock(dpid)
         mock_interface = get_interface_mock('s1-eth1', 1, mock_switch)
         mock_interface.set_tag_ranges = MagicMock()
-        mock_interface.set_tag_ranges.side_effect = KytosSetTagRangeError()
+        mock_interface.set_tag_ranges.side_effect = KytosSetTagRangeError("")
         mock_interface.notify_interface_tags = MagicMock()
         self.napp.controller.get_interface_by_id = MagicMock()
         self.napp.controller.get_interface_by_id.return_value = mock_interface
@@ -1748,7 +1696,9 @@ class TestMain:
         mock_switch = get_switch_mock(dpid)
         mock_interface = get_interface_mock('s1-eth1', 1, mock_switch)
         mock_interface.set_tag_ranges = MagicMock()
-        mock_interface.set_tag_ranges.side_effect = KytosTagtypeNotSupported()
+        mock_interface.set_tag_ranges.side_effect = KytosTagtypeNotSupported(
+            ""
+        )
         self.napp.handle_on_interface_tags = MagicMock()
         self.napp.controller.get_interface_by_id = MagicMock()
         self.napp.controller.get_interface_by_id.return_value = mock_interface
@@ -1801,7 +1751,7 @@ class TestMain:
         mock_interface = get_interface_mock('s1-eth1', 1, mock_switch)
         mock_interface.remove_tag_ranges = MagicMock()
         remove_tag = mock_interface.remove_tag_ranges
-        remove_tag.side_effect = KytosTagtypeNotSupported()
+        remove_tag.side_effect = KytosTagtypeNotSupported("")
         self.napp.controller.get_interface_by_id = MagicMock()
         self.napp.controller.get_interface_by_id.return_value = mock_interface
         url = f"{self.base_endpoint}/interfaces/{interface_id}/tag_ranges"
