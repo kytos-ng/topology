@@ -428,25 +428,31 @@ class TestMain:
         mock_switch_a.interfaces = {1: mock_interface_a}
         ava_tags = {'vlan': [[10, 4095]]}
         tag_ranges = {'vlan': [[5, 4095]]}
+        special_available_tags = {'vlan': ["untagged", "any"]}
         interface_details = [{
             "id": mock_interface_a.id,
             "available_tags": ava_tags,
-            "tag_ranges": tag_ranges
+            "tag_ranges": tag_ranges,
+            "special_available_tags": special_available_tags
         }]
         self.napp.load_interfaces_tags_values(mock_switch_a,
                                               interface_details)
         set_method = mock_interface_a.set_available_tags_tag_ranges
-        set_method.assert_called_once_with(ava_tags, tag_ranges)
+        set_method.assert_called_once_with(
+            ava_tags, tag_ranges, special_available_tags
+        )
 
     def test_handle_on_interface_tags(self):
         """test_handle_on_interface_tags."""
         dpid_a = "00:00:00:00:00:00:00:01"
         available_tags = {'vlan': [[200, 3000]]}
         tag_ranges = {'vlan': [[20, 20], [200, 3000]]}
+        special_available_tags = {'vlan': ["untagged", "any"]}
         mock_switch_a = get_switch_mock(dpid_a, 0x04)
         mock_interface_a = get_interface_mock('s1-eth1', 1, mock_switch_a)
         mock_interface_a.available_tags = available_tags
         mock_interface_a.tag_ranges = tag_ranges
+        mock_interface_a.special_available_tags = special_available_tags
         self.napp.handle_on_interface_tags(mock_interface_a)
         tp_controller = self.napp.topo_controller
         args = tp_controller.upsert_interface_details.call_args[0]

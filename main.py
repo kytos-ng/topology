@@ -719,7 +719,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Update interface details"""
         intf_id = interface.id
         self.topo_controller.upsert_interface_details(
-            intf_id, interface.available_tags, interface.tag_ranges
+            intf_id, interface.available_tags, interface.tag_ranges,
+            interface.special_available_tags
         )
 
     @listen_to('.*.switch.(new|reconnected)')
@@ -1137,7 +1138,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             interface = switch.interfaces[port_number]
             interface.set_available_tags_tag_ranges(
                 available_tags,
-                interface_details['tag_ranges']
+                interface_details['tag_ranges'],
+                interface_details['special_available_tags']
             )
 
     @listen_to('topology.interruption.start')
