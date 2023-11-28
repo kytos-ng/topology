@@ -127,3 +127,4 @@ class InterfaceDetailDoc(DocumentBaseModel):
     available_tags: Dict[str, List[List[int]]]
     tag_ranges: Dict[str, List[List[int]]]
     special_available_tags: Dict[str, List[str]]
+    special_tag_range: Dict[str, List[str]]
