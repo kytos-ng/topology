@@ -126,7 +126,7 @@
        this.next_state = this.next_state == 'Enable'? 'Disable' : 'Enable'
        this.content['enabled'] = this.next_state == 'Enable'? 'false' : 'true'
        this.details['enabled'] = this.content['enabled']
-       this.$kytos.$emit("setNotification", notification)
+       this.$kytos.eventBus.$emit("setNotification", notification)
      },
      msg_state_failure(data){
        let name = this.metadata.link_name !== undefined && this.metadata.link_name.length !== 0? '"' + this.metadata.link_name + '"' : this.details.id
@@ -135,7 +135,7 @@
          description: data.status + ': ' + data.responseJSON.description + ' The link ' + name + ' was not ' + this.next_state.toLowerCase() + 'd.',
          icon: 'gear',
        }
-       this.$kytos.$emit("setNotification", notification)
+       this.$kytos.eventBus.$emit("setNotification", notification)
      },
      bt_state_toggle(){
        let request = $.ajax({
@@ -164,7 +164,7 @@
               title: 'Add metadata: Success',
               description: '"' + _this.to_add + '" was added to the metadata. Link: ' + name,
          }
-         _this.$kytos.$emit("setNotification", notification)
+         _this.$kytos.eventBus.$emit("setNotification", notification)
          let temp = JSON.parse(_this.to_add)
          for (key in temp){
            _this.metadata[key] = temp[key]
@@ -178,7 +178,7 @@
               title: 'Add metadata: Failure',
               description: data.status + ': ' + data.responseJSON.description + ' "' + _this.to_add + '" was not added to the metadata. Link: ' + name,
          }
-         _this.$kytos.$emit("setNotification", notification)
+         _this.$kytos.eventBus.$emit("setNotification", notification)
        });
      },
      bt_rmv_metadata() {
@@ -196,7 +196,7 @@
               title: 'Delete metadata: Success',
               description: '"' + _this.to_delete + '" was deleted from the metadata. Link: ' + name,
          }
-         _this.$kytos.$emit("setNotification", notification)
+         _this.$kytos.eventBus.$emit("setNotification", notification)
          delete _this.metadata[_this.to_delete]
          delete _this.content.metadata[_this.to_delete]
          _this.to_delete = ''
@@ -207,7 +207,7 @@
               title: 'Delete metadata: Failure',
               description: data.status + ': ' + data.responseJSON.description + ' "' + _this.to_delete + '" was not deleted from the metadata. Link: ' + name,
          }
-         _this.$kytos.$emit("setNotification", notification)
+         _this.$kytos.eventBus.$emit("setNotification", notification)
        });
      },
      bt_delete(){

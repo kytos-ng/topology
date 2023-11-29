@@ -179,7 +179,7 @@
          title: 'Could not reach links data (' + data.status + '):',
          description: data.responseJSON.description,
        }
-       this.$kytos.$emit("setNotification", notification);
+       this.$kytos.eventBus.$emit("setNotification", notification);
      },
      get_links_and_interfaces(){
        var self = this
@@ -219,7 +219,7 @@
               title: 'Add metadata: Success',
               description: '"' + _this.to_add + '" was added to the metadata. Switch: ' + _this.metadata.id,
          }
-         _this.$kytos.$emit("setNotification", notification)
+         _this.$kytos.eventBus.$emit("setNotification", notification)
          let temp = JSON.parse(_this.to_add)
          for (key in temp){
            _this.content.metadata[key] = temp[key]
@@ -232,7 +232,7 @@
               title: 'Add metadata: Failure',
               description: data.status + ': ' + data.responseJSON.description + ' "' + _this.to_add + '" was not added to the metadata. Switch: ' + _this.metadata.id,
          }
-         _this.$kytos.$emit("setNotification", notification)
+         _this.$kytos.eventBus.$emit("setNotification", notification)
        });
      },
      bt_rmv_metadata() {
@@ -249,7 +249,7 @@
               title: 'Delete metadata: Success',
               description: '"' + _this.to_delete + '" was deleted from the metadata. Switch: ' + _this.metadata.id,
          }
-         _this.$kytos.$emit("setNotification", notification)
+         _this.$kytos.eventBus.$emit("setNotification", notification)
          delete _this.content.metadata[_this.to_delete]
          _this.to_delete = ''
        });
@@ -259,7 +259,7 @@
               title: 'Delete metadata: Failure',
               description: data.status + ': ' + data.responseJSON.description + ' "' + _this.to_delete + '" was not deleted from the metadata. Switch: ' + _this.metadata.id,
          }
-         _this.$kytos.$emit("setNotification", notification)
+         _this.$kytos.eventBus.$emit("setNotification", notification)
        });
      },
      rowClicked (link) {
@@ -280,7 +280,7 @@
                       "subtitle": subtitle,
                       "content": link,
        }
-       this.$kytos.$emit("showInfoPanel", content)
+       this.$kytos.eventBus.$emit("showInfoPanel", content)
      },
      get_enabled_value() {
        this.next_state = this.metadata.enabled == 'true'? 'Disable' : 'Enable'
@@ -294,7 +294,7 @@
        this.next_state = this.next_state == 'Enable'? 'Disable' : 'Enable'
        this.content['enabled'] = this.next_state == 'Enable'? 'false' : 'true'
        this.metadata['enabled'] = this.content['enabled']
-       this.$kytos.$emit("setNotification", notification)
+       this.$kytos.eventBus.$emit("setNotification", notification)
      },
      msg_state_failure(data){
        let notification = {
@@ -302,7 +302,7 @@
          description: data.status + ': ' + data.responseJSON.description + '. The switch ' + this.metadata.dpid + ' was not ' + this.next_state.toLowerCase() + 'd.',
          icon: 'gear',
        }
-       this.$kytos.$emit("setNotification", notification)
+       this.$kytos.eventBus.$emit("setNotification", notification)
      },
      bt_state_toggle(){
        let request = $.ajax({
@@ -330,7 +330,7 @@
            description: 'The interfaces ' + interfaces["interfaces"] + ' is/are ' + _this.chosen_action.toLowerCase() + 'd to send lldp packet',
            icon: 'gear',
          }
-         _this.$kytos.$emit("setNotification", notification)
+         _this.$kytos.eventBus.$emit("setNotification", notification)
        })
        request.fail(function(data){
          let notification = {
@@ -338,7 +338,7 @@
            description: data.status + ': ' + data.responseJSON.description + ' The interfaces ' + interfaces["interfaces"] + ' is/are not ' + _this.chosen_action.toLowerCase() + 'd to send lldp packet',
            icon: 'gear',
            }
-         _this.$kytos.$emit("setNotification", notification)
+         _this.$kytos.eventBus.$emit("setNotification", notification)
        })
      },
      bt_delete(){
