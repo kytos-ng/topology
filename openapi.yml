@@ -7,7 +7,7 @@ servers:
   - url: /api/kytos/topology
     description: Local server (uses test data)
 paths:
-  /api/kytos/topology/v3/:
+  /v3/:
     get:
       summary: Return the latest known topology.
       description: This topology is updated when there are network events.
@@ -27,7 +27,7 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/Switch"
-  /api/kytos/topology/v3/switches:
+  /v3/switches:
     get:
       summary: Return a json with all the switches in the topology.
       description: Return all the switches in the topology.
@@ -43,7 +43,7 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/Switch"
-  /api/kytos/topology/v3/switches/{dpid}/enable:
+  /v3/switches/{dpid}/enable:
     post:
       summary: Administratively enable a switch in the topology.
       description: Administratively enable a switch in the topology. The dpid
@@ -71,7 +71,7 @@ paths:
               schema:
                 type: string
                 example: Switch not found
-  /api/kytos/topology/v3/switches/{dpid}/disable:
+  /v3/switches/{dpid}/disable:
     post:
       summary: Administratively disable a switch in the topology.
       description: Administratively disable a switch in the topology. The dpid
@@ -99,7 +99,7 @@ paths:
               schema:
                 type: string
                 example: Switch not found
-  /api/kytos/topology/v3/switches/{dpid}/metadata:
+  /v3/switches/{dpid}/metadata:
     get:
       summary: Get metadata from a switch.
       description: Return a metadata from a switch. The dpid is required.
@@ -156,7 +156,7 @@ paths:
               schema:
                 type: string
                 example: Switch not found
-  /api/kytos/topology/v3/switches/{dpid}/metadata/{key}:
+  /v3/switches/{dpid}/metadata/{key}:
     delete:
       summary: Delete metadata from a switch.
       description: Delete a metadata from a switch. The dpid and metadata key
@@ -191,7 +191,7 @@ paths:
                 type: string
                 example: Switch not found
 
-  /api/kytos/topology/v3/interfaces:
+  /v3/interfaces:
     get:
       summary: Return a json with all the interfaces in the topology.
       description: Return all interfaces in the topology.
@@ -208,7 +208,7 @@ paths:
                     additionalProperties:
                       $ref: '#/components/schemas/Interface'
 
-  /api/kytos/topology/v3/interfaces/{interface_id}/enable:
+  /v3/interfaces/{interface_id}/enable:
     post:
       summary: Administratively enable an interface in the topology.
       description: Administratively enable an interface in the topology. The
@@ -236,7 +236,7 @@ paths:
                 type: string
                 example: Switch not found
 
-  /api/kytos/topology/v3/interfaces/switch/{dpid}/enable:
+  /v3/interfaces/switch/{dpid}/enable:
     post:
       summary: Administratively enable all interfaces on a switch.
       description: Administratively enable all interfaces on a switch.
@@ -264,7 +264,7 @@ paths:
                 type: string
                 example: Switch not found
 
-  /api/kytos/topology/v3/interfaces/{interface_id}/disable:
+  /v3/interfaces/{interface_id}/disable:
     post:
       summary: Administratively disable an interface in the topology.
       description: Administratively disable an interface in the topology.
@@ -292,7 +292,7 @@ paths:
                 type: string
                 example: Switch not found
 
-  /api/kytos/topology/v3/interfaces/switch/{dpid}/disable:
+  /v3/interfaces/switch/{dpid}/disable:
     post:
       summary: Administratively disable all interfaces on a switch.
       description: Administratively disable all interfaces on a switch.
@@ -320,7 +320,7 @@ paths:
                 type: string
                 example: Switch not found
 
-  /api/kytos/topology/v3/interfaces/{interface_id}/metadata:
+  /v3/interfaces/{interface_id}/metadata:
     get:
       summary: Get metadata from an interface.
       description: Return metadata from an interface. The interface_id is
@@ -376,7 +376,7 @@ paths:
               schema:
                 type: string
                 example: Switch not found
-  /api/kytos/topology/v3/interfaces/{interface_id}/metadata/{key}:
+  /v3/interfaces/{interface_id}/metadata/{key}:
     delete:
       summary: Delete metadata from an interface.
       description: Delete metadata from an interface. The interface_id and
@@ -431,6 +431,8 @@ paths:
                 "00:00:00:00:00:00:00:01:2":
                   "available_tags": [[1, 4096]]
                   "tag_ranges": [[1,4096]]
+                  "special_tags": ["untagged", "any"]
+                  "special_available_tags": ["any"]
   /v3/interfaces/{interface_id}/tag_ranges:
     get:
       summary: Get tag_ranges and available_tags from an interface
@@ -460,10 +462,12 @@ paths:
                 "00:00:00:00:00:00:00:01:2":
                   "available_tags": [[1, 4096]]
                   "tag_ranges": [[1,4096]]
+                  "special_tags": ["untagged", "any"]
+                  "special_available_tags": ["any"]
         '404':
           description: Interface not found
     post:
-      summary: Set tag_range from an interface
+      summary: Set tag_ranges from an interface
       parameters:
         - name: interface_id
           schema:
@@ -483,7 +487,7 @@ paths:
         '400':
           description: Bad request.
         '404':
-          description: Switch or Interface not found.
+          description: Interface not found.
     delete:
       summary: Set tag ranges from an Interface for a given tag_type to default value [1, 4095]
       parameters:
@@ -506,8 +510,42 @@ paths:
         '400':
           description: Bad request.
         '404':
-          description: Switch or Interface not found.
-  /api/kytos/topology/v3/links:
+          description: Interface not found.
+  /v3/interfaces/{interface_id}/special_tags:
+    post:
+      summary: Set special_tags from an interface
+      parameters:
+        - name: interface_id
+          schema:
+            type: string
+          required: true
+          description: The interface ID
+          in: path
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tag_type
+                - special_tags
+              properties:
+                tag_type:
+                  type: string
+                  enum: ['vlan']
+                special_tags:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Ok
+        '400':
+          description: Bad request.
+        '404':
+          description: Interface not found.
+  /v3/links:
     get:
       summary: Return a json with all the links in the topology.
       description: Links are connections between interfaces.
@@ -523,7 +561,7 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/Link"
-  /api/kytos/topology/v3/links/{link_id}/enable:
+  /v3/links/{link_id}/enable:
     post:
       summary: Administratively enable a link in the topology.
       description: Administratively enable a link in the topology. The link_id
@@ -550,7 +588,7 @@ paths:
               schema:
                 type: string
                 example: Link not found
-  /api/kytos/topology/v3/links/{link_id}/disable:
+  /v3/links/{link_id}/disable:
     post:
       summary: Administratively disable a link in the topology.
       description: Administratively disable a link in the topology.
@@ -577,7 +615,7 @@ paths:
               schema:
                 type: string
                 example: Link not found
-  /api/kytos/topology/v3/links/{link_id}/metadata:
+  /v3/links/{link_id}/metadata:
     get:
       summary: Get metadata from a link.
       description: Get metadata from a link. The link_id is required.
@@ -632,7 +670,7 @@ paths:
               schema:
                 type: string
                 example: Link not found
-  /api/kytos/topology/v3/links/{link_id}/metadata/{key}:
+  /v3/links/{link_id}/metadata/{key}:
     delete:
       summary: Delete metadata from a link.
       description: Delete metadata from a link. The link_id and metadata key

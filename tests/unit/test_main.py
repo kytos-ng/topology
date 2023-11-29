@@ -428,25 +428,35 @@ class TestMain:
         mock_switch_a.interfaces = {1: mock_interface_a}
         ava_tags = {'vlan': [[10, 4095]]}
         tag_ranges = {'vlan': [[5, 4095]]}
+        special_available_tags = {'vlan': ["untagged", "any"]}
+        special_tags = {'vlan': ["untagged", "any"]}
         interface_details = [{
             "id": mock_interface_a.id,
             "available_tags": ava_tags,
-            "tag_ranges": tag_ranges
+            "tag_ranges": tag_ranges,
+            "special_available_tags": special_available_tags,
+            "special_tags": special_tags
         }]
         self.napp.load_interfaces_tags_values(mock_switch_a,
                                               interface_details)
         set_method = mock_interface_a.set_available_tags_tag_ranges
-        set_method.assert_called_once_with(ava_tags, tag_ranges)
+        set_method.assert_called_once_with(
+            ava_tags, tag_ranges,
+            special_available_tags, special_tags
+        )
 
     def test_handle_on_interface_tags(self):
         """test_handle_on_interface_tags."""
         dpid_a = "00:00:00:00:00:00:00:01"
         available_tags = {'vlan': [[200, 3000]]}
         tag_ranges = {'vlan': [[20, 20], [200, 3000]]}
+        special_available_tags = {'vlan': ["untagged", "any"]}
         mock_switch_a = get_switch_mock(dpid_a, 0x04)
         mock_interface_a = get_interface_mock('s1-eth1', 1, mock_switch_a)
         mock_interface_a.available_tags = available_tags
         mock_interface_a.tag_ranges = tag_ranges
+        mock_interface_a.special_available_tags = special_available_tags
+        mock_interface_a.special_tags = special_available_tags
         self.napp.handle_on_interface_tags(mock_interface_a)
         tp_controller = self.napp.topo_controller
         args = tp_controller.upsert_interface_details.call_args[0]
@@ -1765,15 +1775,20 @@ class TestMain:
         switch = get_switch_mock(dpid)
         interface = get_interface_mock('s1-eth1', 1, switch)
         tags = {'vlan': [[1, 4095]]}
+        special_tags = {'vlan': ["vlan"]}
         interface.tag_ranges = tags
         interface.available_tags = tags
+        interface.special_available_tags = special_tags
+        interface.special_tags = special_tags
         switch.interfaces = {1: interface}
         self.napp.controller.switches = {dpid: switch}
         url = f"{self.base_endpoint}/interfaces/tag_ranges"
         response = await self.api_client.get(url)
         expected = {dpid + ":1": {
             'available_tags': tags,
-            'tag_ranges': tags
+            'tag_ranges': tags,
+            'special_available_tags': special_tags,
+            'special_tags': special_tags
         }}
         assert response.status_code == 200
         assert response.json() == expected
@@ -1785,8 +1800,11 @@ class TestMain:
         switch = get_switch_mock(dpid)
         interface = get_interface_mock('s1-eth1', 1, switch)
         tags = {'vlan': [[1, 4095]]}
+        special_tags = {'vlan': ["vlan"]}
         interface.tag_ranges = tags
         interface.available_tags = tags
+        interface.special_available_tags = special_tags
+        interface.special_tags = special_tags
         self.napp.controller.get_interface_by_id = MagicMock()
         self.napp.controller.get_interface_by_id.return_value = interface
         url = f"{self.base_endpoint}/interfaces/{dpid}:1/tag_ranges"
@@ -1794,7 +1812,9 @@ class TestMain:
         expected = {
             '00:00:00:00:00:00:00:01:1': {
                 "available_tags": tags,
-                "tag_ranges": tags
+                "tag_ranges": tags,
+                'special_available_tags': special_tags,
+                'special_tags': special_tags
             }
         }
         assert response.status_code == 200
@@ -1809,3 +1829,44 @@ class TestMain:
         url = f"{self.base_endpoint}/interfaces/{dpid}:1/tag_ranges"
         response = await self.api_client.get(url)
         assert response.status_code == 404
+
+    async def test_set_special_tags(self, event_loop):
+        """Test set_special_tags"""
+        self.napp.controller.loop = event_loop
+        interface_id = '00:00:00:00:00:00:00:01:1'
+        dpid = '00:00:00:00:00:00:00:01'
+        mock_switch = get_switch_mock(dpid)
+        mock_intf = get_interface_mock('s1-eth1', 1, mock_switch)
+        mock_intf.set_special_tags = MagicMock()
+        self.napp.handle_on_interface_tags = MagicMock()
+        self.napp.controller.get_interface_by_id = MagicMock()
+        self.napp.controller.get_interface_by_id.return_value = mock_intf
+        payload = {
+            "tag_type": "vlan",
+            "special_tags": ["untagged"],
+        }
+        url = f"{self.base_endpoint}/interfaces/{interface_id}/"\
+              "special_tags"
+        response = await self.api_client.post(url, json=payload)
+        assert response.status_code == 200
+
+        args = mock_intf.set_special_tags.call_args[0]
+        assert args[0] == payload["tag_type"]
+        assert args[1] == payload['special_tags']
+        assert self.napp.handle_on_interface_tags.call_count == 1
+
+        # KytosTagError
+        mock_intf.set_special_tags.side_effect = KytosTagtypeNotSupported("")
+        url = f"{self.base_endpoint}/interfaces/{interface_id}/"\
+              "special_tags"
+        response = await self.api_client.post(url, json=payload)
+        assert response.status_code == 400
+        assert self.napp.handle_on_interface_tags.call_count == 1
+
+        # Interface Not Found
+        self.napp.controller.get_interface_by_id.return_value = None
+        url = f"{self.base_endpoint}/interfaces/{interface_id}/"\
+              "special_tags"
+        response = await self.api_client.post(url, json=payload)
+        assert response.status_code == 404
+        assert self.napp.handle_on_interface_tags.call_count == 1
