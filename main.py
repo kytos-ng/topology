@@ -535,8 +535,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         special_tags = content["special_tags"]
         interface_id = request.path_params["interface_id"]
         interface = self.controller.get_interface_by_id(interface_id)
+        if not interface:
+            raise HTTPException(404, detail="Interface not found")
         try:
-            interface.set_special_tagss(tag_type, special_tags)
+            interface.set_special_tags(tag_type, special_tags)
             self.handle_on_interface_tags(interface)
         except KytosTagError as err:
             raise HTTPException(400, detail=str(err))

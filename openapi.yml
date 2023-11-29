@@ -487,7 +487,7 @@ paths:
         '400':
           description: Bad request.
         '404':
-          description: Switch or Interface not found.
+          description: Interface not found.
     delete:
       summary: Set tag ranges from an Interface for a given tag_type to default value [1, 4095]
       parameters:
@@ -510,7 +510,7 @@ paths:
         '400':
           description: Bad request.
         '404':
-          description: Switch or Interface not found.
+          description: Interface not found.
   /v3/interfaces/{interface_id}/special_tags:
     post:
       summary: Set special_tags from an interface
@@ -544,7 +544,7 @@ paths:
         '400':
           description: Bad request.
         '404':
-          description: Switch or Interface not found.
+          description: Interface not found.
   /v3/links:
     get:
       summary: Return a json with all the links in the topology.

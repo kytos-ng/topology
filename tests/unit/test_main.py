@@ -1836,11 +1836,11 @@ class TestMain:
         interface_id = '00:00:00:00:00:00:00:01:1'
         dpid = '00:00:00:00:00:00:00:01'
         mock_switch = get_switch_mock(dpid)
-        mock_interface = get_interface_mock('s1-eth1', 1, mock_switch)
-        mock_interface.set_special_tagss = MagicMock()
+        mock_intf = get_interface_mock('s1-eth1', 1, mock_switch)
+        mock_intf.set_special_tags = MagicMock()
         self.napp.handle_on_interface_tags = MagicMock()
         self.napp.controller.get_interface_by_id = MagicMock()
-        self.napp.controller.get_interface_by_id.return_value = mock_interface
+        self.napp.controller.get_interface_by_id.return_value = mock_intf
         payload = {
             "tag_type": "vlan",
             "special_tags": ["untagged"],
@@ -1850,7 +1850,23 @@ class TestMain:
         response = await self.api_client.post(url, json=payload)
         assert response.status_code == 200
 
-        args = mock_interface.set_special_tagss.call_args[0]
+        args = mock_intf.set_special_tags.call_args[0]
         assert args[0] == payload["tag_type"]
         assert args[1] == payload['special_tags']
+        assert self.napp.handle_on_interface_tags.call_count == 1
+
+        # KytosTagError
+        mock_intf.set_special_tags.side_effect = KytosTagtypeNotSupported("")
+        url = f"{self.base_endpoint}/interfaces/{interface_id}/"\
+              "special_tags"
+        response = await self.api_client.post(url, json=payload)
+        assert response.status_code == 400
+        assert self.napp.handle_on_interface_tags.call_count == 1
+
+        # Interface Not Found
+        self.napp.controller.get_interface_by_id.return_value = None
+        url = f"{self.base_endpoint}/interfaces/{interface_id}/"\
+              "special_tags"
+        response = await self.api_client.post(url, json=payload)
+        assert response.status_code == 404
         assert self.napp.handle_on_interface_tags.call_count == 1
