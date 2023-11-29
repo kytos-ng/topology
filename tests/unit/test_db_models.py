@@ -67,7 +67,7 @@ def test_interface_detail_doc() -> None:
         "available_tags": {"vlan": [[200, 300], [500, 550]]},
         "tag_ranges": {"vlan": [[100, 4095]]},
         "special_available_tags": {"vlan": ["any"]},
-        "special_tag_range": {"vlan": ["any", "untagged"]}
+        "special_tags": {"vlan": ["any", "untagged"]}
     }
     model = InterfaceDetailDoc(**payload)
     assert model

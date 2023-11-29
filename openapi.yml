@@ -431,7 +431,7 @@ paths:
                 "00:00:00:00:00:00:00:01:2":
                   "available_tags": [[1, 4096]]
                   "tag_ranges": [[1,4096]]
-                  "special_tag_range": ["untagged", "any"]
+                  "special_tags": ["untagged", "any"]
                   "special_available_tags": ["any"]
   /v3/interfaces/{interface_id}/tag_ranges:
     get:
@@ -462,7 +462,7 @@ paths:
                 "00:00:00:00:00:00:00:01:2":
                   "available_tags": [[1, 4096]]
                   "tag_ranges": [[1,4096]]
-                  "special_tag_range": ["untagged", "any"]
+                  "special_tags": ["untagged", "any"]
                   "special_available_tags": ["any"]
         '404':
           description: Interface not found
@@ -511,9 +511,9 @@ paths:
           description: Bad request.
         '404':
           description: Switch or Interface not found.
-  /v3/interfaces/{interface_id}/special_tag_range:
+  /v3/interfaces/{interface_id}/special_tags:
     post:
-      summary: Set special_tag_range from an interface
+      summary: Set special_tags from an interface
       parameters:
         - name: interface_id
           schema:
@@ -529,12 +529,12 @@ paths:
               type: object
               required:
                 - tag_type
-                - special_tag_range
+                - special_tags
               properties:
                 tag_type:
                   type: string
                   enum: ['vlan']
-                special_tag_range:
+                special_tags:
                   type: array
                   items:
                     type: string

@@ -19,12 +19,14 @@ def aggregate_outdated_interfaces(mongo: Mongo):
         ]
     )
     for document in result:
-        if not "special_available_tags" in document:
+        if (not "special_available_tags" in document or
+                not "special_tags" in document):
             outdated_intfs.add(document["id"])
     
     if outdated_intfs:
         print(f"There are {len(outdated_intfs)} outdated interface documents"
-              " which do not have 'special_available_tags' field:")
+              " which do not have 'special_available_tags' and/or"
+              " 'special_tags' field:")
         for intf_id in outdated_intfs:
             print(intf_id)
     else:
@@ -70,14 +72,15 @@ def update_database(mongo: Mongo):
         if current_field:
             current_field = set(current_field["vlan"])
         expected_field = default_special_vlans - tag_by_intf.get(_id, set())
-        if current_field == expected_field:
+        if current_field == expected_field and intf.get("special_tags"):
             continue
         db.interface_details.update_one(
             {"id": _id},
             {
                 "$set":
                 {
-                    "special_available_tags": {"vlan": list(expected_field)}
+                    "special_available_tags": {"vlan": list(expected_field)},
+                    "special_tags": {"vlan": ["untagged", "any"]}
                 }
             }
         )

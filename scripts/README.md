@@ -232,12 +232,13 @@ Error: Detected duplicated 200 TAG in EVCs 861a11d8fce148 and d74e18464d524b in 
 
 </details>
 
-<details><summary><h3>Add <code>special_available_tags</code> field to each Interface document in <code>interface_details</code> collection </h3></summary>
+<details><summary><h3>Add <code>special_available_tags</code> and <code>special_tags</code> field to each Interface document in <code>interface_details</code> collection </h3></summary>
 
-[`special_vlan_allocation.py`](./special_vlan_allocation.py) is to add the new field ``special_available_tags`` to each interface document. This new field will keep track of special vlan usage:
+[`special_vlan_allocation.py`](./special_vlan_allocation.py) is to add the new field ``special_available_tags`` and ``special_tags`` to each interface document. This new field will keep track of special vlan usage:
 
 ```
-special_available_tags = {"vlan": ["untagged", "any"]}
+special_available_tags = {"vlan": ["untagged"]}
+special_tags = {"vlan": ["untagged", "any"]}
 ```
 
 This scripts takes into account UNIs TAG values (only string) as well.
@@ -274,7 +275,7 @@ CMD=aggregate_outdated_interfaces python3 scripts/special_vlan_allocation.py
 For the interfaces that are going to be modified, they are going to be listed:
 
 ```
-There are 1 outdated interface documents which do not have 'special_available_tags' field:
+There are 13 outdated interface documents which do not have 'special_available_tags' and/or 'special_tags' field:
 00:00:00:00:00:00:00:02:3
 ```
 

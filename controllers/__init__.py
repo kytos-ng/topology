@@ -278,7 +278,7 @@ class TopoController:
         available_tags: dict[str, list[list[int]]],
         tag_ranges: dict[str, list[list[int]]],
         special_available_tags: dict[str, list[str]],
-        special_tag_range: dict[str, list[str]]
+        special_tags: dict[str, list[str]]
     ) -> Optional[dict]:
         """Update or insert interfaces details."""
         utc_now = datetime.utcnow()
@@ -287,7 +287,7 @@ class TopoController:
                 "available_tags": available_tags,
                 "tag_ranges": tag_ranges,
                 "special_available_tags": special_available_tags,
-                "special_tag_range": special_tag_range,
+                "special_tags": special_tags,
                 "updated_at": utc_now
         }).dict(exclude={"inserted_at"})
         updated = self.db.interface_details.find_one_and_update(

@@ -525,18 +525,18 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             raise HTTPException(400, detail=str(err))
         return JSONResponse("Operation Successful", status_code=200)
 
-    @rest('v3/interfaces/{interface_id}/special_tag_range', methods=['POST'])
+    @rest('v3/interfaces/{interface_id}/special_tags', methods=['POST'])
     @validate_openapi(spec)
-    def set_special_tag_range(self, request: Request) -> JSONResponse:
-        """Set special_tag_range"""
+    def set_special_tags(self, request: Request) -> JSONResponse:
+        """Set special_tags"""
         content_type_json_or_415(request)
         content = get_json_or_400(request, self.controller.loop)
         tag_type = content.get("tag_type")
-        special_tag_range = content["special_tag_range"]
+        special_tags = content["special_tags"]
         interface_id = request.path_params["interface_id"]
         interface = self.controller.get_interface_by_id(interface_id)
         try:
-            interface.set_special_tag_ranges(special_tag_range, tag_type)
+            interface.set_special_tagss(tag_type, special_tags)
             self.handle_on_interface_tags(interface)
         except KytosTagError as err:
             raise HTTPException(400, detail=str(err))
@@ -545,7 +545,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     @rest('v3/interfaces/tag_ranges', methods=['GET'])
     @validate_openapi(spec)
     def get_all_tag_ranges(self, _: Request) -> JSONResponse:
-        """Get all tag_ranges, available_tags, special_tag_range
+        """Get all tag_ranges, available_tags, special_tags
          and special_available_tags from interfaces"""
         result = {}
         for switch in self.controller.switches.copy().values():
@@ -553,7 +553,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 result[interface.id] = {
                     "available_tags": interface.available_tags,
                     "tag_ranges": interface.tag_ranges,
-                    "special_tag_range": interface.special_tag_range,
+                    "special_tags": interface.special_tags,
                     "special_available_tags": interface.special_available_tags
                 }
         return JSONResponse(result, status_code=200)
@@ -561,7 +561,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     @rest('v3/interfaces/{interface_id}/tag_ranges', methods=['GET'])
     @validate_openapi(spec)
     def get_tag_ranges_by_intf(self, request: Request) -> JSONResponse:
-        """Get tag_ranges, available_tags, special_tag_range
+        """Get tag_ranges, available_tags, special_tags
          and special_available_tags from an interface"""
         interface_id = request.path_params["interface_id"]
         interface = self.controller.get_interface_by_id(interface_id)
@@ -571,7 +571,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             interface_id: {
                 "available_tags": interface.available_tags,
                 "tag_ranges": interface.tag_ranges,
-                "special_tag_range": interface.special_tag_range,
+                "special_tags": interface.special_tags,
                 "special_available_tags": interface.special_available_tags
             }
         }
@@ -744,7 +744,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.topo_controller.upsert_interface_details(
             intf_id, interface.available_tags, interface.tag_ranges,
             interface.special_available_tags,
-            interface.special_tag_range
+            interface.special_tags
         )
 
     @listen_to('.*.switch.(new|reconnected)')
@@ -1164,7 +1164,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 available_tags,
                 interface_details['tag_ranges'],
                 interface_details['special_available_tags'],
-                interface_details['special_tag_range'],
+                interface_details['special_tags'],
             )
 
     @listen_to('topology.interruption.start')
