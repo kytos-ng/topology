@@ -310,3 +310,9 @@ class TopoController:
                 {"$match": {"_id": {"$in": interface_ids}}},
             ]
         )
+
+    def delete_link(self, link_id: str):
+        """Delete a link by its id."""
+        return self.db.links.find_one_and_delete(
+            {"_id": link_id}
+        )

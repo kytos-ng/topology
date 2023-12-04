@@ -40,7 +40,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def setup(self):
         """Initialize the NApp's links list."""
-        self.links = {}
+        self.links: dict[str, Link] = {}
         self.intf_available_tags = {}
         self.link_up_timer = getattr(settings, 'LINK_UP_TIMER',
                                      DEFAULT_LINK_UP_TIMER)
@@ -667,6 +667,31 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.topo_controller.delete_link_metadata_key(link.id, key)
         link.remove_metadata(key)
         self.notify_metadata_changes(link, 'removed')
+        self.notify_topology_update()
+        return JSONResponse("Operation successful")
+
+    @rest('v3/links/{link_id}', methods=['DELETE'])
+    def delete_link(self, request: Request) -> JSONResponse:
+        """Delete a down link from topology. It won't work for up links."""
+        link_id = request.path_params["link_id"]
+        try:
+            link = self.links[link_id]
+        except KeyError:
+            raise HTTPException(404, detail="Link not found.")
+        if link.status != EntityStatus.DOWN:
+            raise HTTPException(409, detail="Link is not down.")
+        if link.endpoint_a.link and link == link.endpoint_a.link:
+            switch = link.endpoint_a.switch
+            link.endpoint_a.link = None
+            link.endpoint_a.nni = False
+            self.topo_controller.upsert_switch(switch.id, switch.as_dict())
+        if link.endpoint_a.link and link == link.endpoint_b.link:
+            switch = link.endpoint_b.switch
+            link.endpoint_b.link = None
+            link.endpoint_b.nni = False
+            self.topo_controller.upsert_switch(switch.id, switch.as_dict())
+        link = self.links.pop(link_id)
+        self.topo_controller.delete_link(link_id)
         self.notify_topology_update()
         return JSONResponse("Operation successful")
 

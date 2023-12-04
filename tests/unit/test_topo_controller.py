@@ -233,3 +233,10 @@ class TestTopoController:
         self.topo.upsert_link(self.link_id, link_dict)
         assert self.topo.db.switches.find_one_and_update.call_count == 2
         assert self.topo.db.links.find_one_and_update.call_count == 1
+
+    def test_delete_link(self) -> None:
+        """Test delete_link"""
+        link_id = "mock_link"
+        self.topo.delete_link(link_id)
+        args = self.topo.db.links.find_one_and_delete.call_args[0]
+        assert args[0] == {"_id": link_id}
