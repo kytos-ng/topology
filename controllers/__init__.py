@@ -311,7 +311,7 @@ class TopoController:
             ]
         )
 
-    def delete_link(self, link_id: str):
+    def delete_link(self, link_id: str) -> Optional[dict]:
         """Delete a link by its id."""
         return self.db.links.find_one_and_delete(
             {"_id": link_id}

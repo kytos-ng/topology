@@ -1882,7 +1882,7 @@ class TestMain:
         mock_interface_b = get_interface_mock('s2-eth1', 1, mock_switch_b)
         mock_link = get_link_mock(mock_interface_a, mock_interface_b)
         mock_link.id = link_id
-        mock_link.status = EntityStatus.DOWN
+        mock_link.status = EntityStatus.DISABLED
         mock_interface_a.link = mock_link
         mock_interface_b.link = mock_link
         self.napp.links = {link_id: mock_link}
@@ -1892,6 +1892,9 @@ class TestMain:
         assert response.status_code == 200
         assert self.napp.topo_controller.delete_link.call_count == 1
         assert len(self.napp.links) == 0
+        args = self.napp.controller.buffers.app.put.call_args[0]
+        assert args[0].content["reason"] == "link disabled"
+        call_count = self.napp.controller.buffers.app.put.call_count
 
         # Link is up
         self.napp.links = {link_id: mock_link}
@@ -1900,6 +1903,7 @@ class TestMain:
         response = await self.api_client.delete(endpoint)
         assert response.status_code == 409
         assert self.napp.topo_controller.delete_link.call_count == 1
+        assert self.napp.controller.buffers.app.put.call_count == call_count
 
         # Link does not exist
         del self.napp.links[link_id]
@@ -1907,3 +1911,4 @@ class TestMain:
         response = await self.api_client.delete(endpoint)
         assert response.status_code == 404
         assert self.napp.topo_controller.delete_link.call_count == 1
+        assert self.napp.controller.buffers.app.put.call_count == call_count
