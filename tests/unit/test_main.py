@@ -1887,14 +1887,14 @@ class TestMain:
         mock_interface_b.link = mock_link
         self.napp.links = {link_id: mock_link}
 
+        call_count = self.napp.controller.buffers.app.put.call_count
         endpoint = f"{self.base_endpoint}/links/{link_id}"
         response = await self.api_client.delete(endpoint)
         assert response.status_code == 200
         assert self.napp.topo_controller.delete_link.call_count == 1
         assert len(self.napp.links) == 0
-        args = self.napp.controller.buffers.app.put.call_args[0]
-        assert args[0].content["reason"] == "link deleted"
-        call_count = self.napp.controller.buffers.app.put.call_count
+        call_count += 2
+        assert self.napp.controller.buffers.app.put.call_count == call_count
 
         # Link is up
         self.napp.links = {link_id: mock_link}

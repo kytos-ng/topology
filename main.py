@@ -701,8 +701,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             raise HTTPException(404, detail="Link not found.")
         self.notify_topology_update()
         name = 'kytos/topology.link.deleted'
-        content = {'link': link, 'reason': "link deleted"}
-        event = KytosEvent(name=name, content=content)
+        event = KytosEvent(name=name, content={'link': link})
         self.controller.buffers.app.put(event)
         return JSONResponse("Operation successful")
 
