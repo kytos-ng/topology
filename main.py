@@ -681,16 +681,20 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 link = self.links[link_id]
                 if link.status != EntityStatus.DISABLED:
                     raise HTTPException(409, detail="Link is not disabled.")
-                if link.endpoint_a.link and link == link.endpoint_a.link:   
+                if link.endpoint_a.link and link == link.endpoint_a.link:
                     switch = link.endpoint_a.switch
                     link.endpoint_a.link = None
                     link.endpoint_a.nni = False
-                    self.topo_controller.upsert_switch(switch.id, switch.as_dict())
+                    self.topo_controller.upsert_switch(
+                        switch.id, switch.as_dict()
+                    )
                 if link.endpoint_a.link and link == link.endpoint_b.link:
                     switch = link.endpoint_b.switch
                     link.endpoint_b.link = None
                     link.endpoint_b.nni = False
-                    self.topo_controller.upsert_switch(switch.id, switch.as_dict())
+                    self.topo_controller.upsert_switch(
+                        switch.id, switch.as_dict()
+                    )
                 self.topo_controller.delete_link(link_id)
                 link = self.links.pop(link_id)
         except KeyError:

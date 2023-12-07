@@ -1893,7 +1893,7 @@ class TestMain:
         assert self.napp.topo_controller.delete_link.call_count == 1
         assert len(self.napp.links) == 0
         args = self.napp.controller.buffers.app.put.call_args[0]
-        assert args[0].content["reason"] == "link disabled"
+        assert args[0].content["reason"] == "link deleted"
         call_count = self.napp.controller.buffers.app.put.call_count
 
         # Link is up
