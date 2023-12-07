@@ -18,7 +18,7 @@ Added
 - Added listener for ``kytos/core.interface_tags`` event to save any changes made to ``Interface`` attributes ``tag_ranges`` and ``available_tags``
 - Added script ``special_vlan_allocation.py`` to add ``special_available_tags`` and ``special_tags`` fields to ``interface_details`` collection.
 - Added endpoint ``POST v3/interfaces/{interface_id}/special_tags`` to set ``special_tags`` to interfaces.
-- Added endpoint ``DELETE v3/links/{link_id}`` to delete a down link.
+- Added endpoint ``DELETE v3/links/{link_id}`` to delete a disabled link.
 
 Deprecated
 ==========

@@ -185,7 +185,7 @@ Content:
 
 
 kytos/topology.notify_link_up_if_status
-~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Event reporting that the link was changed to 'down'. It contains the link instance.
 
@@ -194,6 +194,20 @@ Content:
 .. code-block:: python3
 
    {
-     'reason': 'link_enabled'
+     'reason': 'link enabled'
      'link': <Link object>
    }
+
+
+kytos/topology.link.deleted
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Event reporting that a link was deleted. It contains the link instance.
+
+Content:
+
+.. code-block:: python3
+  {
+    'link': <Link object>
+    'reason': 'link deleted'
+  }

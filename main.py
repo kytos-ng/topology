@@ -681,27 +681,23 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 link = self.links[link_id]
                 if link.status != EntityStatus.DISABLED:
                     raise HTTPException(409, detail="Link is not disabled.")
-                link = self.links.pop(link_id)
-                switch_a = link.endpoint_a.switch
-                switch_b = link.endpoint_b.switch
-                if link.endpoint_a.link and link == link.endpoint_a.link:
+                if link.endpoint_a.link and link == link.endpoint_a.link:   
+                    switch = link.endpoint_a.switch
                     link.endpoint_a.link = None
                     link.endpoint_a.nni = False
+                    self.topo_controller.upsert_switch(switch.id, switch.as_dict())
                 if link.endpoint_a.link and link == link.endpoint_b.link:
+                    switch = link.endpoint_b.switch
                     link.endpoint_b.link = None
                     link.endpoint_b.nni = False
+                    self.topo_controller.upsert_switch(switch.id, switch.as_dict())
+                self.topo_controller.delete_link(link_id)
+                link = self.links.pop(link_id)
         except KeyError:
             raise HTTPException(404, detail="Link not found.")
-
-        self.topo_controller.upsert_switch(switch_a.id, switch_a.as_dict())
-        if switch_a != switch_b:
-            self.topo_controller.upsert_switch(
-                switch_b.id, switch_b.as_dict()
-            )
-        self.topo_controller.delete_link(link_id)
         self.notify_topology_update()
-        name = 'kytos/topology.link_down'
-        content = {'link': link, 'reason': "link disabled"}
+        name = 'kytos/topology.link.deleted'
+        content = {'link': link, 'reason': "link deleted"}
         event = KytosEvent(name=name, content=content)
         self.controller.buffers.app.put(event)
         return JSONResponse("Operation successful")
