@@ -209,5 +209,4 @@ Content:
 .. code-block:: python3
   {
     'link': <Link object>
-    'reason': 'link deleted'
   }
