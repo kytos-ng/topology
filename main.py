@@ -688,7 +688,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     self.topo_controller.upsert_switch(
                         switch.id, switch.as_dict()
                     )
-                if link.endpoint_a.link and link == link.endpoint_b.link:
+                if link.endpoint_b.link and link == link.endpoint_b.link:
                     switch = link.endpoint_b.switch
                     link.endpoint_b.link = None
                     link.endpoint_b.nni = False
