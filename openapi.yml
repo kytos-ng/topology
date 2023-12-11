@@ -561,6 +561,40 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/Link"
+  /v3/links/{link_id}:
+    delete:
+      summary: Delete a disable link
+      description: Delete a disabled link from the topology and databbase.
+        If the link is up or down, it will get rediscovered.
+      parameters:
+        - name: link_id
+          schema:
+            type: string
+          required: true
+          description: The link ID.
+          in: path
+      responses:
+        200:
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Operation successful
+        404:
+          description: Link not found
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Link not found
+        409:
+          description: Link is not disabled.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Link is not disabled.
   /v3/links/{link_id}/enable:
     post:
       summary: Administratively enable a link in the topology.

@@ -40,7 +40,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def setup(self):
         """Initialize the NApp's links list."""
-        self.links = {}
+        self.links: dict[str, Link] = {}
         self.intf_available_tags = {}
         self.link_up_timer = getattr(settings, 'LINK_UP_TIMER',
                                      DEFAULT_LINK_UP_TIMER)
@@ -668,6 +668,41 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         link.remove_metadata(key)
         self.notify_metadata_changes(link, 'removed')
         self.notify_topology_update()
+        return JSONResponse("Operation successful")
+
+    @rest('v3/links/{link_id}', methods=['DELETE'])
+    def delete_link(self, request: Request) -> JSONResponse:
+        """Delete a disabled link from topology.
+         It won't work for link with other statuses.
+        """
+        link_id = request.path_params["link_id"]
+        try:
+            with self._links_lock:
+                link = self.links[link_id]
+                if link.status != EntityStatus.DISABLED:
+                    raise HTTPException(409, detail="Link is not disabled.")
+                if link.endpoint_a.link and link == link.endpoint_a.link:
+                    switch = link.endpoint_a.switch
+                    link.endpoint_a.link = None
+                    link.endpoint_a.nni = False
+                    self.topo_controller.upsert_switch(
+                        switch.id, switch.as_dict()
+                    )
+                if link.endpoint_b.link and link == link.endpoint_b.link:
+                    switch = link.endpoint_b.switch
+                    link.endpoint_b.link = None
+                    link.endpoint_b.nni = False
+                    self.topo_controller.upsert_switch(
+                        switch.id, switch.as_dict()
+                    )
+                self.topo_controller.delete_link(link_id)
+                link = self.links.pop(link_id)
+        except KeyError:
+            raise HTTPException(404, detail="Link not found.")
+        self.notify_topology_update()
+        name = 'kytos/topology.link.deleted'
+        event = KytosEvent(name=name, content={'link': link})
+        self.controller.buffers.app.put(event)
         return JSONResponse("Operation successful")
 
     @listen_to("kytos/.*.liveness.(up|down)")
