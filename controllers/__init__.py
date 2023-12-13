@@ -316,3 +316,9 @@ class TopoController:
         return self.db.links.find_one_and_delete(
             {"_id": link_id}
         )
+
+    def delete_switch(self, switch_dpid: str) -> Optional[dict]:
+        """Delete a switch by its dpid."""
+        return self.db.switches.find_one_and_delete(
+            {"_id": switch_dpid}
+        )

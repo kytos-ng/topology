@@ -53,6 +53,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self._intfs_tags_updated_at = {}
         self.link_up = set()
         self.link_status_lock = Lock()
+        self._switch_lock = Lock()
         self.topo_controller = self.get_topo_controller()
         Link.register_status_func(f"{self.napp_id}_link_up_timer",
                                   self.link_status_hook_link_up_timer)
@@ -292,6 +293,30 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.notify_topology_update()
         self.notify_switch_links_status(switch, "link disabled")
         return JSONResponse("Operation successful", status_code=201)
+    
+    @rest('v3/switches/{dpid}', methods=['DELETE'])
+    def delete_switch(self, request: Request) -> JSONResponse:
+        """Delete switch"""
+        dpid = request.path_params["dpid"]
+        with self._switch_lock:
+            try:
+                switch: Switch = self.controller.switches[dpid]
+            except KeyError:
+                raise HTTPException(404, detail="Switch not found.")
+            if switch.status != EntityStatus.DISABLED:
+                raise HTTPException(409, detail=f"The switch is not disable.")
+            links = self.links.copy()
+            for link_id, link in links.items():
+                if link.endpoint_a.switch.dpid == dpid or link.endpoint_b.switch.dpid == dpid:
+                    raise HTTPException(409, detail=f"This switch have link {link_id}")
+            switch = self.controller.switches.pop(dpid)
+            self.topo_controller.delete_switch(dpid)
+
+        name = 'kytos/topology.switch.deleted'
+        event = KytosEvent(name=name, content={'switch': switch})
+        self.controller.buffers.app.put(event)
+        self.notify_topology_update()
+        return JSONResponse("Operation successful")
 
     @rest('v3/switches/{dpid}/metadata')
     def get_switch_metadata(self, request: Request) -> JSONResponse:
