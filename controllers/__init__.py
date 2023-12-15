@@ -2,6 +2,7 @@
 
 # pylint: disable=invalid-name
 import os
+import re
 from datetime import datetime
 from threading import Lock
 from typing import List, Optional, Tuple
@@ -317,8 +318,16 @@ class TopoController:
             {"_id": link_id}
         )
 
-    def delete_switch(self, switch_dpid: str) -> Optional[dict]:
-        """Delete a switch by its dpid."""
-        return self.db.switches.find_one_and_delete(
+    def delete_switch_data(
+        self,
+        switch_dpid: str
+    ) -> tuple[Optional[dict], int]:
+        """Delete a switch related data in database."""
+        regex = re.compile(rf'^{switch_dpid}:\d+$')
+        det_result = self.db.interface_details.delete_many(
+            {"_id": {"$regex": regex}}
+        )
+        swt_result = self.db.switches.find_one_and_delete(
             {"_id": switch_dpid}
         )
+        return (swt_result, det_result.deleted_count)

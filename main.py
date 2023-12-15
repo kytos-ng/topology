@@ -10,6 +10,8 @@ from datetime import timezone
 from threading import Lock
 from typing import List, Optional
 
+import requests
+
 from kytos.core import KytosEvent, KytosNApp, log, rest
 from kytos.core.common import EntityStatus
 from kytos.core.exceptions import (KytosInvalidTagRanges,
@@ -293,25 +295,41 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.notify_topology_update()
         self.notify_switch_links_status(switch, "link disabled")
         return JSONResponse("Operation successful", status_code=201)
-    
+
     @rest('v3/switches/{dpid}', methods=['DELETE'])
     def delete_switch(self, request: Request) -> JSONResponse:
         """Delete switch"""
         dpid = request.path_params["dpid"]
+        endpoint = settings.FLOW_MANAGER_URL +\
+            f'/stored_flows?state=installed&dpid={dpid}'
+        response = requests.get(endpoint)
+        flows = response.json().get(dpid)
+        if flows:
+            raise HTTPException(409, detail="Switch has flows. To delete a "
+                                            "switch, it should not be used.")
         with self._switch_lock:
             try:
                 switch: Switch = self.controller.switches[dpid]
             except KeyError:
                 raise HTTPException(404, detail="Switch not found.")
             if switch.status != EntityStatus.DISABLED:
-                raise HTTPException(409, detail=f"The switch is not disable.")
-            links = self.links.copy()
-            for link_id, link in links.items():
-                if link.endpoint_a.switch.dpid == dpid or link.endpoint_b.switch.dpid == dpid:
-                    raise HTTPException(409, detail=f"This switch have link {link_id}")
+                raise HTTPException(409, detail="Switch should be disable.")
+            for intf_id, interface in switch.interfaces.items():
+                if interface.available_tags != interface.tag_ranges:
+                    detail = f"Interface {intf_id} vlans are being used. "\
+                             "Delete any service using vlans."
+                    raise HTTPException(409, detail=detail)
+            with self._links_lock:
+                for link_id, link in self.links.items():
+                    if (dpid in
+                            (link.endpoint_a.switch.dpid,
+                             link.endpoint_b.switch.dpid)):
+                        raise HTTPException(
+                            409, detail=f"Switch should not have links. "
+                                        f"Link found {link_id}."
+                        )
             switch = self.controller.switches.pop(dpid)
-            self.topo_controller.delete_switch(dpid)
-
+            self.topo_controller.delete_switch_data(dpid)
         name = 'kytos/topology.switch.deleted'
         event = KytosEvent(name=name, content={'switch': switch})
         self.controller.buffers.app.put(event)

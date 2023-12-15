@@ -585,7 +585,8 @@ paths:
     delete:
       summary: Delete a disable link
       description: Delete a disabled link from the topology and databbase.
-        If the link is up or down, it will get rediscovered.
+        If the link is not disabled or one interface end is enabled,
+         it will get rediscovered.
       parameters:
         - name: link_id
           schema:
