@@ -213,7 +213,7 @@ Content:
 
 
 kytos/topology.switch.deleted
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Event reporting that a switch was deleted. It contains the switch instance.
 
@@ -222,4 +222,28 @@ Content:
 .. code-block:: python3
   {
     'switch': <switch object>
+  }
+
+kytos/topology.link.disabled
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Event reporting that a link status has changed to disabled
+
+Content:
+
+.. code-block:: python3
+  {
+    'link': <switch object>
+  }
+
+kytos/topology.link.enabled
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Event reporting that a link has been enabled.
+
+Content:
+
+.. code-block:: python3
+  {
+    'link': <switch object>
   }
