@@ -92,18 +92,18 @@
         </div>
       </k-accordion-item>            
       <k-accordion-item title="Metadata actions"> 
-         <k-textarea title="Add metadata" icon="arrow-right" placeholder='Eg. {"node_name": "some_name", "address": "some_address"}' :value.sync="to_add"></k-textarea>
+         <k-textarea title="Add metadata" icon="arrow-right" placeholder='Eg. {"node_name": "some_name", "address": "some_address"}' v-model:value="to_add"></k-textarea>
          <div class="metadata_container">
               <k-button title="Add metadata" :on_click="bt_add_metadata"></k-button>
          </div>
-         <k-input title="Delete metadata" icon="arrow-right" placeholder="Eg. node_name" :value.sync="to_delete"></k-input>
+         <k-input title="Delete metadata" icon="arrow-right" placeholder="Eg. node_name" v-model:value="to_delete"></k-input>
          <div class="metadata_container">
               <k-button title="Remove metadata" :on_click="bt_rmv_metadata"></k-button>
          </div>
       </k-accordion-item>
       <k-accordion-item title="LLDP Packets">
-        <k-select title="Interfaces:" :options="get_interfaces" :value.sync ="chosen_interfaces"></k-select>
-        <k-dropdown title="Action:" :options="get_actions" :value.sync="chosen_action"></k-dropdown>
+        <k-select title="Interfaces:" :options="get_interfaces" v-model:value ="chosen_interfaces"></k-select>
+        <k-dropdown title="Action:" :options="get_actions" v-model:value="chosen_action"></k-dropdown>
         <k-button title="Request" :on_click="bt_request"></k-button>
       </k-accordion-item>
     </k-accordion>

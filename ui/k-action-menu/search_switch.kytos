@@ -1,6 +1,6 @@
 <template>
   <div id="k-switch-search"  >
-    <k-input :value.sync="search" tooltip="Search for switches" placeholder="Search for switches" id="k-input-search"></k-input>
+    <k-input v-model:value="search" tooltip="Search for switches" placeholder="Search for switches" id="k-input-search"></k-input>
     <div id="search-result">
       <div class="item-search" :title="s.dpid" v-for="s in switchesFiltered" @click="open_switch(s)">
             <div class="item-switch"><span>{{s.name}} </span><br />({{s.connection}})</div>

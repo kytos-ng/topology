@@ -59,11 +59,11 @@
         </div>
       </k-accordion-item>
       <k-accordion-item title="Metadata actions">
-        <k-textarea title="Insert metadata" icon="arrow-right" placeholder='Eg. {"bandwidth": 100, "link_name": "some_name"}' :value.sync="to_add"></k-textarea>
+        <k-textarea title="Insert metadata" icon="arrow-right" placeholder='Eg. {"bandwidth": 100, "link_name": "some_name"}' v-model:value="to_add"></k-textarea>
         <div class="metadata_container">
           <k-button title="Add metadata" :on_click="bt_add_metadata"></k-button>
         </div>
-        <k-input title="Insert metadata" icon="arrow-right" placeholder="Eg. link_name" :value.sync="to_delete"></k-input>
+        <k-input title="Insert metadata" icon="arrow-right" placeholder="Eg. link_name" v-model:value="to_delete"></k-input>
         <div class="metadata_container">
           <k-button title="Remove metadata" :on_click="bt_rmv_metadata"></k-button>
         </div>
