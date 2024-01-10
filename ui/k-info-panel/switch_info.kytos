@@ -2,10 +2,10 @@
     <k-accordion>
       <div class="buttons">
         <div class="button-left">
-          <k-button :on_click="bt_state_toggle" :title="next_state"></k-button>
+          <k-button @click="bt_state_toggle" :title="next_state"></k-button>
         </div>
         <div class="button-right">
-          <k-button :on_click="bt_delete" title="Delete"></k-button>
+          <k-button @click="bt_delete" title="Delete"></k-button>
         </div>
       </div>
       <template v-if="show_modal">
@@ -23,9 +23,9 @@
               </div>
               <div class="modal-footer">
                 <slot name="footer">
-                  <k-button tooltip="Cancel" title="Cancel" :on_click="modal_cancel">
+                  <k-button tooltip="Cancel" title="Cancel" @click="modal_cancel">
                   </k-button>
-                  <k-button id="modal-delete" tooltip="Delete" title="Delete" :on_click="modal_delete">
+                  <k-button id="modal-delete" tooltip="Delete" title="Delete" @click="modal_delete">
                   </k-button>
                 </slot>
               </div>
@@ -94,17 +94,17 @@
       <k-accordion-item title="Metadata actions"> 
          <k-textarea title="Add metadata" icon="arrow-right" placeholder='Eg. {"node_name": "some_name", "address": "some_address"}' v-model:value="to_add"></k-textarea>
          <div class="metadata_container">
-              <k-button title="Add metadata" :on_click="bt_add_metadata"></k-button>
+              <k-button title="Add metadata" @click="bt_add_metadata"></k-button>
          </div>
          <k-input title="Delete metadata" icon="arrow-right" placeholder="Eg. node_name" v-model:value="to_delete"></k-input>
          <div class="metadata_container">
-              <k-button title="Remove metadata" :on_click="bt_rmv_metadata"></k-button>
+              <k-button title="Remove metadata" @click="bt_rmv_metadata"></k-button>
          </div>
       </k-accordion-item>
       <k-accordion-item title="LLDP Packets">
         <k-select title="Interfaces:" :options="get_interfaces" v-model:value ="chosen_interfaces"></k-select>
         <k-dropdown title="Action:" :options="get_actions" v-model:value="chosen_action"></k-dropdown>
-        <k-button title="Request" :on_click="bt_request"></k-button>
+        <k-button title="Request" @click="bt_request"></k-button>
       </k-accordion-item>
     </k-accordion>
 </template>
