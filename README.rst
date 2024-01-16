@@ -224,22 +224,10 @@ Content:
     'switch': <switch object>
   }
 
-kytos/topology.link.disabled
+kytos/topology.link.(enabled|disabled)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Event reporting that a link status has changed to disabled
-
-Content:
-
-.. code-block:: python3
-  {
-    'link': <switch object>
-  }
-
-kytos/topology.link.enabled
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Event reporting that a link has been enabled.
+Event reporting that a link status has changed to enabled or disabled.
 
 Content:
 

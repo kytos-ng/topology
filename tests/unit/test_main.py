@@ -4,7 +4,7 @@
 import pytest
 import time
 from datetime import timedelta
-from unittest.mock import MagicMock, create_autospec, patch, call
+from unittest.mock import MagicMock, create_autospec, patch, call, Mock
 
 from kytos.core.common import EntityStatus
 from kytos.core.helpers import now
@@ -13,6 +13,7 @@ from kytos.core.exceptions import (KytosSetTagRangeError,
                                    KytosTagtypeNotSupported)
 from kytos.core.interface import Interface
 from kytos.core.link import Link
+from kytos.core.rest_api import HTTPException
 from kytos.core.switch import Switch
 from kytos.lib.helpers import (get_interface_mock, get_link_mock,
                                get_controller_mock, get_switch_mock,
@@ -590,19 +591,24 @@ class TestMain:
         assert response.status_code == 404
         assert mock_switch.enable.call_count == 0
 
+    @patch('napps.kytos.topology.main.Main.notify_link_enabled_state')
     @patch('napps.kytos.topology.main.Main.notify_switch_links_status')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
-    async def test_disable_switch(self, mock_notify_topo, mock_sw_l_status):
+    async def test_disable_switch(self, *args):
         """Test disable_switch."""
+        mock_notify_topo, mock_sw_l_status, mock_noti_link = args
         dpid = "00:00:00:00:00:00:00:01"
         mock_switch = get_switch_mock(dpid)
-        mock_switch.interfaces = {}
+        interface = Mock()
+        interface.link.is_enabled = lambda: True
+        mock_switch.interfaces = {1: interface}
         self.napp.controller.switches = {dpid: mock_switch}
 
         endpoint = f"{self.base_endpoint}/switches/{dpid}/disable"
         response = await self.api_client.post(endpoint)
         assert response.status_code == 201
         assert mock_switch.disable.call_count == 1
+        assert mock_noti_link.call_count == 1
         self.napp.topo_controller.disable_switch.assert_called_once_with(dpid)
         mock_notify_topo.assert_called()
         mock_sw_l_status.assert_called()
@@ -695,7 +701,13 @@ class TestMain:
             dpid, key
         )
 
-        # fail case
+        # 404, Metadata not found
+        mock_switch.metadata = {}
+        endpoint = f"{self.base_endpoint}/switches/{dpid}/metadata/{key}"
+        response = await self.api_client.delete(endpoint)
+        assert response.status_code == 404
+
+        # 404, Switch not found
         key = "A"
         dpid = "00:00:00:00:00:00:00:02"
         endpoint = f"{self.base_endpoint}/switches/{dpid}/metadata/{key}"
@@ -703,25 +715,42 @@ class TestMain:
         assert mock_metadata_changes.call_count == 1
         assert response.status_code == 404
 
+    # pylint: disable=too-many-statements
+    @patch('napps.kytos.topology.main.Main._notify_link_from_interface')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
-    async def test_enable_interfaces(self, mock_notify_topo):
+    async def test_enable_interfaces(self, mock_notify_topo, mock_noti_link):
         """Test enable_interfaces."""
         dpid = '00:00:00:00:00:00:00:01'
         mock_switch = get_switch_mock(dpid)
         mock_interface_1 = get_interface_mock('s1-eth1', 1, mock_switch)
-        mock_interface_1.link = None
+        mock_interface_1.link = Mock()
+        mock_interface_1.link._enabled = True
         mock_interface_2 = get_interface_mock('s1-eth2', 2, mock_switch)
-        mock_interface_2.link = None
+        mock_interface_2.link = Mock()
+        mock_interface_2.link._enabled = False
         mock_switch.interfaces = {1: mock_interface_1, 2: mock_interface_2}
-        self.napp.controller.switches = {dpid: mock_switch}
 
+        # Switch not found
         interface_id = '00:00:00:00:00:00:00:01:1'
+        endpoint = f"{self.base_endpoint}/interfaces/{interface_id}/enable"
+        response = await self.api_client.post(endpoint)
+        assert response.status_code == 404
 
+        # Switch not enabled
+        mock_switch.is_enabled = lambda: False
+        self.napp.controller.switches = {dpid: mock_switch}
+        endpoint = f"{self.base_endpoint}/interfaces/{interface_id}/enable"
+        response = await self.api_client.post(endpoint)
+        assert response.status_code == 409
+
+        # Success
+        mock_switch.is_enabled = lambda: True
         endpoint = f"{self.base_endpoint}/interfaces/{interface_id}/enable"
         response = await self.api_client.post(endpoint)
         assert response.status_code == 200
         assert mock_interface_1.enable.call_count == 1
         assert mock_interface_2.enable.call_count == 0
+        assert mock_noti_link.call_count == 1
         self.napp.topo_controller.enable_interface.assert_called_with(
             interface_id
         )
@@ -737,6 +766,7 @@ class TestMain:
         )
         assert mock_interface_1.enable.call_count == 1
         assert mock_interface_2.enable.call_count == 1
+        assert mock_noti_link.call_count == 2
 
         # test interface not found
         interface_id = '00:00:00:00:00:00:00:01:3'
@@ -756,16 +786,19 @@ class TestMain:
         assert mock_interface_1.enable.call_count == 0
         assert mock_interface_2.enable.call_count == 0
 
+    @patch('napps.kytos.topology.main.Main.notify_link_enabled_state')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
-    async def test_disable_interfaces(self, mock_notify_topo):
+    async def test_disable_interfaces(self, mock_notify_topo, mock_noti_link):
         """Test disable_interfaces."""
         interface_id = '00:00:00:00:00:00:00:01:1'
         dpid = '00:00:00:00:00:00:00:01'
         mock_switch = get_switch_mock(dpid)
         mock_interface_1 = get_interface_mock('s1-eth1', 1, mock_switch)
-        mock_interface_1.link = None
+        mock_interface_1.link = Mock()
+        mock_interface_1.link.is_enabled = lambda: True
         mock_interface_2 = get_interface_mock('s1-eth2', 2, mock_switch)
-        mock_interface_2.link = None
+        mock_interface_2.link = Mock()
+        mock_interface_2.link.is_enabled = lambda: False
         mock_switch.interfaces = {1: mock_interface_1, 2: mock_interface_2}
         self.napp.controller.switches = {dpid: mock_switch}
 
@@ -778,6 +811,7 @@ class TestMain:
         )
         assert mock_interface_1.disable.call_count == 1
         assert mock_interface_2.disable.call_count == 0
+        assert mock_noti_link.call_count == 1
         mock_notify_topo.assert_called()
 
         mock_interface_1.disable.call_count = 0
@@ -792,6 +826,7 @@ class TestMain:
         )
         assert mock_interface_1.disable.call_count == 1
         assert mock_interface_2.disable.call_count == 1
+        assert mock_noti_link.call_count == 2
 
         # test interface not found
         interface_id = '00:00:00:00:00:00:00:01:3'
@@ -922,7 +957,7 @@ class TestMain:
         response = await self.api_client.delete(url)
         assert response.status_code == 404
 
-    @patch('napps.kytos.topology.main.Main.notify_link_status')
+    @patch('napps.kytos.topology.main.Main.notify_link_enabled_state')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     async def test_enable_link(self, mock_notify_topo, mock_notify):
         """Test enable_link."""
@@ -931,7 +966,22 @@ class TestMain:
         mock_link.endpoint_a = MagicMock(is_enabled=lambda: True)
         mock_link.endpoint_b = MagicMock(is_enabled=lambda: True)
         self.napp.links = {'1': mock_link}
+
+        # 409, endpoint is/are disabled
+        mock_link.endpoint_a.is_enabled = lambda: False
+        mock_link.endpoint_b.is_enabled = lambda: False
         link_id = "1"
+        endpoint = f"{self.base_endpoint}/links/{link_id}/enable"
+        response = await self.api_client.post(endpoint)
+        assert response.status_code == 409
+
+        mock_link.endpoint_a.is_enabled = lambda: True
+        endpoint = f"{self.base_endpoint}/links/{link_id}/enable"
+        response = await self.api_client.post(endpoint)
+        assert response.status_code == 409
+
+        # Success
+        mock_link.endpoint_b.is_enabled = lambda: True
         endpoint = f"{self.base_endpoint}/links/{link_id}/enable"
         response = await self.api_client.post(endpoint)
         assert response.status_code == 201
@@ -940,13 +990,13 @@ class TestMain:
         self.napp.topo_controller.enable_link.assert_called_with(link_id)
         mock_notify_topo.assert_called()
 
-        # fail case
+        # 404, link not found
         link_id = "2"
         endpoint = f"{self.base_endpoint}/links/{link_id}/enable"
         response = await self.api_client.post(endpoint)
         assert response.status_code == 404
 
-    @patch('napps.kytos.topology.main.Main.notify_link_status')
+    @patch('napps.kytos.topology.main.Main.notify_link_enabled_state')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     async def test_disable_link(self, mock_notify_topo, mock_notify):
         """Test disable_link."""
@@ -1924,25 +1974,27 @@ class TestMain:
         assert self.napp.topo_controller.delete_link.call_count == 1
         assert self.napp.controller.buffers.app.put.call_count == call_count
 
-    @patch('napps.kytos.topology.main.httpx.get')
+    @patch('napps.kytos.topology.main.Main.get_flows_by_switch')
     async def test_delete_switch(self, mock_get):
         """Test delete_switch"""
-        # Error 409 Switch has flows
-        dpid = '00:00:00:00:00:00:00:01'
-        endpoint = f"{self.base_endpoint}/switches/{dpid}"
-        response = await self.api_client.delete(endpoint)
-        assert response.status_code == 409, response
-
         # Error 404 NotFound
-        mock_get.return_value.json.return_value = {dpid: {}}
+        dpid = '00:00:00:00:00:00:00:01'
         endpoint = f"{self.base_endpoint}/switches/{dpid}"
         response = await self.api_client.delete(endpoint)
         assert response.status_code == 404, response
 
+        # Error 409 Switch has flows
+        self.napp.controller.switches = {dpid: {}}
+        mock_get.return_value = {dpid: {}}
+        endpoint = f"{self.base_endpoint}/switches/{dpid}"
+        response = await self.api_client.delete(endpoint)
+        assert response.status_code == 409, response
+
         # Error 409 Switch not disabled
+        mock_get.return_value = {}
         mock_switch = get_switch_mock(dpid)
-        self.napp.controller.switches = {dpid: mock_switch}
         mock_switch.status = EntityStatus.UP
+        self.napp.controller.switches = {dpid: mock_switch}
         endpoint = f"{self.base_endpoint}/switches/{dpid}"
         response = await self.api_client.delete(endpoint)
         assert response.status_code == 409, response
@@ -1951,14 +2003,12 @@ class TestMain:
         mock_intf = MagicMock(all_tags_available=lambda: False)
         mock_switch.interfaces = {1: mock_intf}
         mock_switch.status = EntityStatus.DISABLED
-        self.napp.controller.switches = {dpid: mock_switch}
         endpoint = f"{self.base_endpoint}/switches/{dpid}"
         response = await self.api_client.delete(endpoint)
         assert response.status_code == 409, response
 
         # Error 409 Swith have links
         mock_switch.interfaces[1].all_tags_available = lambda: True
-        self.napp.controller.switches = {dpid: mock_switch}
         mock_switch_2 = get_switch_mock("00:00:00:00:00:00:00:02")
         mock_interface_a = get_interface_mock('s1-eth1', 1, mock_switch)
         mock_interface_b = get_interface_mock('s2-eth1', 1, mock_switch_2)
@@ -1975,10 +2025,47 @@ class TestMain:
         assert response.status_code == 200, response
 
     def test_notify_link_status(self):
-        """Test notify_link_status"""
+        """Test notify_link_enabled_state"""
         self.napp.controller.buffers.app.put.reset_mock()
-        self.napp.notify_link_status('mock_link', 'enabled')
+        self.napp.notify_link_enabled_state('mock_link', 'enabled')
         assert self.napp.controller.buffers.app.put.call_count == 1
 
-        self.napp.notify_link_status('mock_link', 'disabled')
+        self.napp.notify_link_enabled_state('mock_link', 'disabled')
         assert self.napp.controller.buffers.app.put.call_count == 2
+
+    @patch('napps.kytos.topology.main.Main.notify_link_enabled_state')
+    def test_notify_link_from_interface(self, mock_noti_link):
+        """Test _notify_link_from_interface"""
+        interface = Mock()
+        interface.id = "01:1"
+        interface.is_enabled = lambda: False
+        interface.link.endpoint_a = interface
+        interface.link.endpoint_b.id = "01:2"
+        interface.link.endpoint_b.is_enabled = lambda: True
+        self.napp._notify_link_from_interface(interface)
+        assert mock_noti_link.call_count == 1
+
+        interface.link.endpoint_a = Mock()
+        interface.link.endpoint_a.id = "01:2"
+        interface.link.endpoint_a.is_enabled = lambda: True
+        interface.link.endpoint_b = interface
+        self.napp._notify_link_from_interface(interface)
+        assert mock_noti_link.call_count == 2
+
+        interface.is_enabled = lambda: True
+        self.napp._notify_link_from_interface(interface)
+        assert mock_noti_link.call_count == 2
+
+    @patch('napps.kytos.topology.main.httpx.get')
+    def test_get_flows_by_switch(self, mock_get):
+        """Test get_flows_by_switch"""
+        dpid = "00:01"
+        mock_get.return_value.status_code = 400
+        with pytest.raises(HTTPException):
+            self.napp.get_flows_by_switch(dpid)
+
+        mock_get.return_value.status_code = 200
+        expected = {dpid: "mocked_flows"}
+        mock_get.return_value.json.return_value = expected
+        actual = self.napp.get_flows_by_switch(dpid)
+        assert actual == "mocked_flows"
