@@ -335,7 +335,12 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                                 409, detail=f"Switch should not have links. "
                                             f"Link found {link_id}."
                             )
-                flows = self.get_flows_by_switch(dpid)
+                try:
+                    flows = self.get_flows_by_switch(dpid)
+                except tenacity.RetryError as err:
+                    detail = "Error while getting flows: "\
+                             f"{err.last_attempt.exception()}."
+                    raise HTTPException(409, detail=detail)
                 if flows:
                     raise HTTPException(409, detail="Switch has flows. Verify"
                                                     " if a switch is used.")
@@ -997,11 +1002,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             self.notify_link_enabled_state(link, "enabled")
 
     @tenacity.retry(
-        reraise=True,
         stop=stop_after_attempt(3),
         wait=wait_combine(wait_fixed(3), wait_random(min=2, max=7)),
         before_sleep=before_sleep,
-        retry=retry_if_exception_type(HTTPException),
+        retry=retry_if_exception_type(httpx.RequestError),
     )
     def get_flows_by_switch(self, dpid) -> dict:
         """Get installed flows by switch from flow_manager."""
@@ -1009,8 +1013,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             f'/stored_flows?state=installed&dpid={dpid}'
         res = httpx.get(endpoint)
         if res.is_server_error or res.status_code in (404, 400):
-            detail = f"Error while getting flows: {res.text}."
-            raise HTTPException(409, detail=detail)
+            raise httpx.RequestError(res.text)
         return res.json().get(dpid)
 
     def link_status_hook_link_up_timer(self, link) -> Optional[EntityStatus]:

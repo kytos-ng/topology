@@ -5,7 +5,7 @@ import pytest
 import time
 from datetime import timedelta
 from unittest.mock import MagicMock, create_autospec, patch, call, Mock
-
+import tenacity
 from kytos.core.common import EntityStatus
 from kytos.core.helpers import now
 from kytos.core.events import KytosEvent
@@ -13,7 +13,6 @@ from kytos.core.exceptions import (KytosSetTagRangeError,
                                    KytosTagtypeNotSupported)
 from kytos.core.interface import Interface
 from kytos.core.link import Link
-from kytos.core.rest_api import HTTPException
 from kytos.core.switch import Switch
 from kytos.lib.helpers import (get_interface_mock, get_link_mock,
                                get_controller_mock, get_switch_mock,
@@ -2021,7 +2020,6 @@ class TestMain:
         self.napp.links = {}
         endpoint = f"{self.base_endpoint}/switches/{dpid}"
         response = await self.api_client.delete(endpoint)
-        print(response.text)
         assert response.status_code == 200, response
 
     def test_notify_link_status(self):
@@ -2062,7 +2060,7 @@ class TestMain:
         """Test get_flows_by_switch"""
         dpid = "00:01"
         mock_get.return_value.status_code = 400
-        with pytest.raises(HTTPException):
+        with pytest.raises(tenacity.RetryError):
             self.napp.get_flows_by_switch(dpid)
 
         mock_get.return_value.status_code = 200
