@@ -279,8 +279,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         except KeyError:
             raise HTTPException(404, detail="Switch not found")
 
-        self.notify_switch_enabled(dpid)
         self.notify_topology_update()
+        self.notify_switch_enabled(dpid)
         self.notify_switch_links_status(switch, "link enabled")
         return JSONResponse("Operation successful", status_code=201)
 
@@ -298,8 +298,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         except KeyError:
             raise HTTPException(404, detail="Switch not found")
 
-        self.notify_switch_disabled(dpid)
         self.notify_topology_update()
+        self.notify_switch_disabled(dpid)
         self.notify_switch_links_status(switch, "link disabled")
         return JSONResponse("Operation successful", status_code=201)
 
