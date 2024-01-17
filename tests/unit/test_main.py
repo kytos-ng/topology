@@ -1983,15 +1983,7 @@ class TestMain:
         response = await self.api_client.delete(endpoint)
         assert response.status_code == 404, response
 
-        # Error 409 Switch has flows
-        self.napp.controller.switches = {dpid: {}}
-        mock_get.return_value = {dpid: {}}
-        endpoint = f"{self.base_endpoint}/switches/{dpid}"
-        response = await self.api_client.delete(endpoint)
-        assert response.status_code == 409, response
-
         # Error 409 Switch not disabled
-        mock_get.return_value = {}
         mock_switch = get_switch_mock(dpid)
         mock_switch.status = EntityStatus.UP
         self.napp.controller.switches = {dpid: mock_switch}
@@ -2018,10 +2010,18 @@ class TestMain:
         response = await self.api_client.delete(endpoint)
         assert response.status_code == 409, response
 
+        # Error 409 Switch has flows
+        mock_get.return_value = {dpid: {}}
+        endpoint = f"{self.base_endpoint}/switches/{dpid}"
+        response = await self.api_client.delete(endpoint)
+        assert response.status_code == 409, response
+
         # Success 202
+        mock_get.return_value = {}
         self.napp.links = {}
         endpoint = f"{self.base_endpoint}/switches/{dpid}"
         response = await self.api_client.delete(endpoint)
+        print(response.text)
         assert response.status_code == 200, response
 
     def test_notify_link_status(self):
@@ -2056,8 +2056,9 @@ class TestMain:
         self.napp._notify_link_from_interface(interface)
         assert mock_noti_link.call_count == 2
 
-    @patch('napps.kytos.topology.main.httpx.get')
-    def test_get_flows_by_switch(self, mock_get):
+    @patch('napps.kytos.topology.main.tenacity.nap.time')
+    @patch('httpx.get')
+    def test_get_flows_by_switch(self, mock_get, _):
         """Test get_flows_by_switch"""
         dpid = "00:01"
         mock_get.return_value.status_code = 400
@@ -2065,6 +2066,7 @@ class TestMain:
             self.napp.get_flows_by_switch(dpid)
 
         mock_get.return_value.status_code = 200
+        mock_get.return_value.is_server_error = False
         expected = {dpid: "mocked_flows"}
         mock_get.return_value.json.return_value = expected
         actual = self.napp.get_flows_by_switch(dpid)

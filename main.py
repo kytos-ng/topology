@@ -11,6 +11,9 @@ from threading import Lock
 from typing import List, Optional
 
 import httpx
+import tenacity
+from tenacity import (retry_if_exception_type, stop_after_attempt,
+                      wait_combine, wait_fixed, wait_random)
 
 from kytos.core import KytosEvent, KytosNApp, log, rest
 from kytos.core.common import EntityStatus
@@ -21,6 +24,7 @@ from kytos.core.interface import Interface
 from kytos.core.link import Link
 from kytos.core.rest_api import (HTTPException, JSONResponse, Request,
                                  content_type_json_or_415, get_json_or_400)
+from kytos.core.retry import before_sleep
 from kytos.core.switch import Switch
 from kytos.core.tag_ranges import get_tag_ranges
 from napps.kytos.topology import settings
@@ -312,10 +316,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         dpid = request.path_params["dpid"]
         try:
             switch: Switch = self.controller.switches[dpid]
-            flows = self.get_flows_by_switch(dpid)
-            if flows:
-                raise HTTPException(409, detail="Switch has flows. Verify"
-                                                " if a switch is used.")
             with self._switch_lock[dpid]:
                 if switch.status != EntityStatus.DISABLED:
                     raise HTTPException(
@@ -335,6 +335,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                                 409, detail=f"Switch should not have links. "
                                             f"Link found {link_id}."
                             )
+                flows = self.get_flows_by_switch(dpid)
+                if flows:
+                    raise HTTPException(409, detail="Switch has flows. Verify"
+                                                    " if a switch is used.")
                 switch = self.controller.switches.pop(dpid)
                 self.topo_controller.delete_switch_data(dpid)
         except KeyError:
@@ -992,15 +996,22 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if other_intf.is_enabled() and not interface.is_enabled():
             self.notify_link_enabled_state(link, "enabled")
 
+    @tenacity.retry(
+        reraise=True,
+        stop=stop_after_attempt(3),
+        wait=wait_combine(wait_fixed(3), wait_random(min=2, max=7)),
+        before_sleep=before_sleep,
+        retry=retry_if_exception_type(HTTPException),
+    )
     def get_flows_by_switch(self, dpid) -> dict:
         """Get installed flows by switch from flow_manager."""
         endpoint = settings.FLOW_MANAGER_URL +\
             f'/stored_flows?state=installed&dpid={dpid}'
-        response = httpx.get(endpoint)
-        if response.status_code != 200:
-            detail = f"Error while getting flows: {response.json()}."
+        res = httpx.get(endpoint)
+        if res.is_server_error or res.status_code in (404, 400):
+            detail = f"Error while getting flows: {res.text}."
             raise HTTPException(409, detail=detail)
-        return response.json().get(dpid)
+        return res.json().get(dpid)
 
     def link_status_hook_link_up_timer(self, link) -> Optional[EntityStatus]:
         """Link status hook link up timer."""
