@@ -13,7 +13,6 @@ from tenacity import retry_if_exception_type, stop_after_attempt, wait_random
 
 from kytos.core import log
 from kytos.core.db import Mongo
-from kytos.core.interface import Interface
 from kytos.core.retry import before_sleep, for_all_methods, retries
 from napps.kytos.topology.db.models import (InterfaceDetailDoc, LinkDoc,
                                             SwitchDoc)
@@ -272,11 +271,14 @@ class TopoController:
         return self.db.links.update_many({"_id": {"$in": link_ids}},
                                          update_expr)
 
+    # pylint: disable=too-many-arguments
     def upsert_interface_details(
         self,
         id_: str,
         available_tags: dict[str, list[list[int]]],
-        tag_ranges: dict[str, list[list[int]]]
+        tag_ranges: dict[str, list[list[int]]],
+        special_available_tags: dict[str, list[str]],
+        special_tags: dict[str, list[str]]
     ) -> Optional[dict]:
         """Update or insert interfaces details."""
         utc_now = datetime.utcnow()
@@ -284,6 +286,8 @@ class TopoController:
                 "_id": id_,
                 "available_tags": available_tags,
                 "tag_ranges": tag_ranges,
+                "special_available_tags": special_available_tags,
+                "special_tags": special_tags,
                 "updated_at": utc_now
         }).dict(exclude={"inserted_at"})
         updated = self.db.interface_details.find_one_and_update(
@@ -305,4 +309,10 @@ class TopoController:
             [
                 {"$match": {"_id": {"$in": interface_ids}}},
             ]
+        )
+
+    def delete_link(self, link_id: str) -> Optional[dict]:
+        """Delete a link by its id."""
+        return self.db.links.find_one_and_delete(
+            {"_id": link_id}
         )

@@ -58,31 +58,31 @@ def update_database(mongo: Mongo):
     intf_documents = db.interface_details.find()
     evc_documents = db.evcs.find({"archived": False})
 
-    evc_intf = defaultdict(set)
+    evc_intf = defaultdict(str)
     evc_tags = defaultdict(set)
 
     for evc in evc_documents:
         tag_a = evc["uni_a"].get("tag")
         if tag_a:
             intf_id = evc["uni_a"]["interface_id"]
-            if tag_a["value"] in evc_tags[intf_id]:
+            if tag_a["value"] in evc_tags[intf_id] and isinstance(tag_a["value"], int):
                 print(f"Error: Detected duplicated {tag_a['value']} TAG"
-                      f" in EVCs {evc['id']} and {evc_intf[intf_id].pop()}"
+                      f" in EVCs {evc['id']} and {evc_intf[intf_id+str(tag_a['value'])]}"
                       f" in interface {intf_id}")
                 sys.exit(1)
             evc_tags[intf_id].add(tag_a["value"])
-            evc_intf[intf_id].add(evc["id"])
+            evc_intf[intf_id+str(tag_a["value"])] = evc["id"]
 
         tag_z = evc["uni_z"].get("tag")
         if tag_z:
             intf_id = evc["uni_z"]["interface_id"]
-            if tag_z["value"] in evc_tags[intf_id]:
+            if tag_z["value"] in evc_tags[intf_id] and isinstance(tag_z["value"], int):
                 print(f"Error: Detected duplicated {tag_z['value']} TAG"
-                      f" in EVCs {evc['id']} and {evc_intf[intf_id].pop()}"
+                      f" in EVCs {evc['id']} and {evc_intf[intf_id+str(tag_z['value'])]}"
                       f" in interface {intf_id}")
                 sys.exit(1)
             evc_tags[intf_id].add(tag_z["value"])
-            evc_intf[intf_id].add(evc["id"])
+            evc_intf[intf_id+str(tag_z["value"])] = evc["id"]
 
     intf_count = 0
     for document in intf_documents:
@@ -151,31 +151,31 @@ def aggregate_outdated_interfaces(mongo: Mongo):
         print(messages)
     
     evc_documents = db.evcs.find({"archived": False})
-    evc_intf = defaultdict(set)
+    evc_intf = defaultdict(str)
     evc_tags = defaultdict(set)
 
     for evc in evc_documents:
         tag_a = evc["uni_a"].get("tag")
         if tag_a:
             intf_id = evc["uni_a"]["interface_id"]
-            if tag_a["value"] in evc_tags[intf_id]:
+            if tag_a["value"] in evc_tags[intf_id] and isinstance(tag_a["value"], int):
                 print(f"WARNING: Detected duplicated {tag_a['value']} TAG"
-                      f" in EVCs {evc['id']} and {evc_intf[intf_id].pop()}"
+                      f" in EVCs {evc['id']} and {evc_intf[intf_id+str(tag_a['value'])]}"
                       f" in interface {intf_id}")
                 print()
             evc_tags[intf_id].add(tag_a["value"])
-            evc_intf[intf_id].add(evc["id"])
+            evc_intf[intf_id+str(tag_a["value"])] = evc["id"]
 
         tag_z = evc["uni_z"].get("tag")
         if tag_z:
             intf_id = evc["uni_z"]["interface_id"]
-            if tag_z["value"] in evc_tags[intf_id]:
+            if tag_z["value"] in evc_tags[intf_id] and isinstance(tag_z["value"], int):
                 print(f"WARNING: Detected duplicated {tag_z['value']} TAG"
-                      f" in EVCs {evc['id']} and {evc_intf[intf_id].pop()}"
+                      f" in EVCs {evc['id']} and {evc_intf[intf_id+str(tag_z['value'])]}"
                       f" in interface {intf_id}")
                 print()
             evc_tags[intf_id].add(tag_z["value"])
-            evc_intf[intf_id].add(evc["id"])
+            evc_intf[intf_id+str(tag_z["value"])] = evc["id"]
 
     for id_ in document_ids:
         evc_tags.pop(id_, None)

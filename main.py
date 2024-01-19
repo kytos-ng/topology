@@ -12,15 +12,15 @@ from typing import List, Optional
 
 from kytos.core import KytosEvent, KytosNApp, log, rest
 from kytos.core.common import EntityStatus
-from kytos.core.exceptions import (KytosLinkCreationError,
-                                   KytosSetTagRangeError,
-                                   KytosTagtypeNotSupported)
+from kytos.core.exceptions import (KytosInvalidTagRanges,
+                                   KytosLinkCreationError, KytosTagError)
 from kytos.core.helpers import listen_to, load_spec, now, validate_openapi
 from kytos.core.interface import Interface
 from kytos.core.link import Link
 from kytos.core.rest_api import (HTTPException, JSONResponse, Request,
                                  content_type_json_or_415, get_json_or_400)
 from kytos.core.switch import Switch
+from kytos.core.tag_ranges import get_tag_ranges
 from napps.kytos.topology import settings
 
 from .controllers import TopoController
@@ -40,7 +40,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def setup(self):
         """Initialize the NApp's links list."""
-        self.links = {}
+        self.links: dict[str, Link] = {}
         self.intf_available_tags = {}
         self.link_up_timer = getattr(settings, 'LINK_UP_TIMER',
                                      DEFAULT_LINK_UP_TIMER)
@@ -484,54 +484,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.notify_metadata_changes(interface, 'removed')
         return JSONResponse("Operation successful")
 
-    @staticmethod
-    def map_singular_values(tag_range):
-        """Change integer or singular interger list to
-        list[int, int] when necessary"""
-        if isinstance(tag_range, int):
-            tag_range = [tag_range] * 2
-        elif len(tag_range) == 1:
-            tag_range = [tag_range[0]] * 2
-        return tag_range
-
-    def _get_tag_ranges(self, content: dict):
-        """Get tag_ranges and check validity:
-        - It should be ordered
-        - Not unnecessary partition (eg. [[10,20],[20,30]])
-        - Singular intergers are changed to ranges (eg. [10] to [[10, 10]])
-        The ranges are understood as [inclusive, inclusive]"""
-        ranges = content["tag_ranges"]
-        if len(ranges) < 1:
-            detail = "tag_ranges is empty"
-            raise HTTPException(400, detail=detail)
-        last_tag = 0
-        ranges_n = len(ranges)
-        for i in range(0, ranges_n):
-            ranges[i] = self.map_singular_values(ranges[i])
-            if ranges[i][0] > ranges[i][1]:
-                detail = f"The range {ranges[i]} is not ordered"
-                raise HTTPException(400, detail=detail)
-            if last_tag and last_tag > ranges[i][0]:
-                detail = f"tag_ranges is not ordered. {last_tag}"\
-                         f" is higher than {ranges[i][0]}"
-                raise HTTPException(400, detail=detail)
-            if last_tag and last_tag == ranges[i][0] - 1:
-                detail = f"tag_ranges has an unnecessary partition. "\
-                         f"{last_tag} is before to {ranges[i][0]}"
-                raise HTTPException(400, detail=detail)
-            if last_tag and last_tag == ranges[i][0]:
-                detail = f"tag_ranges has repetition. {ranges[i-1]}"\
-                         f" have same values as {ranges[i]}"
-                raise HTTPException(400, detail=detail)
-            last_tag = ranges[i][1]
-        if ranges[-1][1] > 4095:
-            detail = "Maximum value for tag_ranges is 4095"
-            raise HTTPException(400, detail=detail)
-        if ranges[0][0] < 1:
-            detail = "Minimum value for tag_ranges is 1"
-            raise HTTPException(400, detail=detail)
-        return ranges
-
     @rest('v3/interfaces/{interface_id}/tag_ranges', methods=['POST'])
     @validate_openapi(spec)
     def set_tag_range(self, request: Request) -> JSONResponse:
@@ -539,7 +491,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         content_type_json_or_415(request)
         content = get_json_or_400(request, self.controller.loop)
         tag_type = content.get("tag_type")
-        ranges = self._get_tag_ranges(content)
+        try:
+            ranges = get_tag_ranges(content["tag_ranges"])
+        except KytosInvalidTagRanges as err:
+            raise HTTPException(400, detail=str(err))
         interface_id = request.path_params["interface_id"]
         interface = self.controller.get_interface_by_id(interface_id)
         if not interface:
@@ -547,12 +502,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         try:
             interface.set_tag_ranges(ranges, tag_type)
             self.handle_on_interface_tags(interface)
-        except KytosSetTagRangeError as err:
-            detail = f"The new tag_ranges cannot be applied {err}"
-            raise HTTPException(400, detail=detail)
-        except KytosTagtypeNotSupported as err:
-            detail = f"Error with tag_type. {err}"
-            raise HTTPException(400, detail=detail)
+        except KytosTagError as err:
+            raise HTTPException(400, detail=str(err))
         return JSONResponse("Operation Successful", status_code=200)
 
     @rest('v3/interfaces/{interface_id}/tag_ranges', methods=['DELETE'])
@@ -568,28 +519,50 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         try:
             interface.remove_tag_ranges(tag_type)
             self.handle_on_interface_tags(interface)
-        except KytosTagtypeNotSupported as err:
-            detail = f"Error with tag_type. {err}"
-            raise HTTPException(400, detail=detail)
+        except KytosTagError as err:
+            raise HTTPException(400, detail=str(err))
+        return JSONResponse("Operation Successful", status_code=200)
+
+    @rest('v3/interfaces/{interface_id}/special_tags', methods=['POST'])
+    @validate_openapi(spec)
+    def set_special_tags(self, request: Request) -> JSONResponse:
+        """Set special_tags"""
+        content_type_json_or_415(request)
+        content = get_json_or_400(request, self.controller.loop)
+        tag_type = content.get("tag_type")
+        special_tags = content["special_tags"]
+        interface_id = request.path_params["interface_id"]
+        interface = self.controller.get_interface_by_id(interface_id)
+        if not interface:
+            raise HTTPException(404, detail="Interface not found")
+        try:
+            interface.set_special_tags(tag_type, special_tags)
+            self.handle_on_interface_tags(interface)
+        except KytosTagError as err:
+            raise HTTPException(400, detail=str(err))
         return JSONResponse("Operation Successful", status_code=200)
 
     @rest('v3/interfaces/tag_ranges', methods=['GET'])
     @validate_openapi(spec)
     def get_all_tag_ranges(self, _: Request) -> JSONResponse:
-        """Get all tag_ranges and available_tags from interfaces"""
+        """Get all tag_ranges, available_tags, special_tags
+         and special_available_tags from interfaces"""
         result = {}
         for switch in self.controller.switches.copy().values():
             for interface in switch.interfaces.copy().values():
                 result[interface.id] = {
                     "available_tags": interface.available_tags,
-                    "tag_ranges": interface.tag_ranges
+                    "tag_ranges": interface.tag_ranges,
+                    "special_tags": interface.special_tags,
+                    "special_available_tags": interface.special_available_tags
                 }
         return JSONResponse(result, status_code=200)
 
     @rest('v3/interfaces/{interface_id}/tag_ranges', methods=['GET'])
     @validate_openapi(spec)
     def get_tag_ranges_by_intf(self, request: Request) -> JSONResponse:
-        """Get tag_ranges and available_tags an interface"""
+        """Get tag_ranges, available_tags, special_tags
+         and special_available_tags from an interface"""
         interface_id = request.path_params["interface_id"]
         interface = self.controller.get_interface_by_id(interface_id)
         if not interface:
@@ -597,7 +570,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         result = {
             interface_id: {
                 "available_tags": interface.available_tags,
-                "tag_ranges": interface.tag_ranges
+                "tag_ranges": interface.tag_ranges,
+                "special_tags": interface.special_tags,
+                "special_available_tags": interface.special_available_tags
             }
         }
         return JSONResponse(result, status_code=200)
@@ -693,6 +668,41 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.notify_topology_update()
         return JSONResponse("Operation successful")
 
+    @rest('v3/links/{link_id}', methods=['DELETE'])
+    def delete_link(self, request: Request) -> JSONResponse:
+        """Delete a disabled link from topology.
+         It won't work for link with other statuses.
+        """
+        link_id = request.path_params["link_id"]
+        try:
+            with self._links_lock:
+                link = self.links[link_id]
+                if link.status != EntityStatus.DISABLED:
+                    raise HTTPException(409, detail="Link is not disabled.")
+                if link.endpoint_a.link and link == link.endpoint_a.link:
+                    switch = link.endpoint_a.switch
+                    link.endpoint_a.link = None
+                    link.endpoint_a.nni = False
+                    self.topo_controller.upsert_switch(
+                        switch.id, switch.as_dict()
+                    )
+                if link.endpoint_b.link and link == link.endpoint_b.link:
+                    switch = link.endpoint_b.switch
+                    link.endpoint_b.link = None
+                    link.endpoint_b.nni = False
+                    self.topo_controller.upsert_switch(
+                        switch.id, switch.as_dict()
+                    )
+                self.topo_controller.delete_link(link_id)
+                link = self.links.pop(link_id)
+        except KeyError:
+            raise HTTPException(404, detail="Link not found.")
+        self.notify_topology_update()
+        name = 'kytos/topology.link.deleted'
+        event = KytosEvent(name=name, content={'link': link})
+        self.controller.buffers.app.put(event)
+        return JSONResponse("Operation successful")
+
     @listen_to("kytos/.*.liveness.(up|down)")
     def on_link_liveness_status(self, event) -> None:
         """Handle link liveness up|down status event."""
@@ -767,7 +777,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Update interface details"""
         intf_id = interface.id
         self.topo_controller.upsert_interface_details(
-            intf_id, interface.available_tags, interface.tag_ranges
+            intf_id, interface.available_tags, interface.tag_ranges,
+            interface.special_available_tags,
+            interface.special_tags
         )
 
     @listen_to('.*.switch.(new|reconnected)')
@@ -1185,7 +1197,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             interface = switch.interfaces[port_number]
             interface.set_available_tags_tag_ranges(
                 available_tags,
-                interface_details['tag_ranges']
+                interface_details['tag_ranges'],
+                interface_details['special_available_tags'],
+                interface_details['special_tags'],
             )
 
     @listen_to('topology.interruption.start')

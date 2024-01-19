@@ -1,16 +1,17 @@
 """Module to TopoController."""
 
-from unittest import TestCase
 from unittest.mock import MagicMock
 
 from napps.kytos.topology.controllers import TopoController
 from napps.kytos.topology.db.models import LinkDoc, SwitchDoc
 
+# pylint: disable=too-many-public-methods,attribute-defined-outside-init
 
-class TestTopoController(TestCase):  # pylint: disable=too-many-public-methods
+
+class TestTopoController:
     """Test the Main class."""
 
-    def setUp(self) -> None:
+    def setup_method(self) -> None:
         """Execute steps before each tests."""
         self.topo = TopoController(MagicMock())
         self.dpid = "00:00:00:00:00:00:00:01"
@@ -196,8 +197,10 @@ class TestTopoController(TestCase):  # pylint: disable=too-many-public-methods
         id_ = "intf_id"
         available_tags = {'vlan': [[10, 4095]]}
         tag_ranges = {'vlan': [[5, 4095]]}
+        special_available_tags = {'vlan': ["untagged", "any"]}
         self.topo.upsert_interface_details(
-            id_, available_tags, tag_ranges
+            id_, available_tags, tag_ranges,
+            special_available_tags, special_available_tags
         )
         arg = self.topo.db.interface_details.find_one_and_update.call_args[0]
         assert arg[0] == {"_id": id_}
@@ -230,3 +233,10 @@ class TestTopoController(TestCase):  # pylint: disable=too-many-public-methods
         self.topo.upsert_link(self.link_id, link_dict)
         assert self.topo.db.switches.find_one_and_update.call_count == 2
         assert self.topo.db.links.find_one_and_update.call_count == 1
+
+    def test_delete_link(self) -> None:
+        """Test delete_link"""
+        link_id = "mock_link"
+        self.topo.delete_link(link_id)
+        args = self.topo.db.links.find_one_and_delete.call_args[0]
+        assert args[0] == {"_id": link_id}

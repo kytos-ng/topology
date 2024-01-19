@@ -1,10 +1,9 @@
 """Module to test model class."""
-from unittest import TestCase
 
 from napps.kytos.topology.models import Host
 
 
-class TestHost(TestCase):
+class TestHost:
     """Test the model class."""
 
     mac = "6e:c2:ea:c4:18:12"
@@ -13,9 +12,9 @@ class TestHost(TestCase):
         """Test as_dict."""
         host = Host(self.mac)
         expected = {'mac': self.mac, 'type': 'host'}
-        self.assertEqual(host.as_dict(), expected)
+        assert host.as_dict() == expected
 
     def test_id(self):
         """Test id."""
         host = Host(self.mac)
-        self.assertEqual(host.id, self.mac)
+        assert host.id == self.mac
