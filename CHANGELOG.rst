@@ -19,6 +19,7 @@ Added
 - Added script ``special_vlan_allocation.py`` to add ``special_available_tags`` and ``special_tags`` fields to ``interface_details`` collection.
 - Added endpoint ``POST v3/interfaces/{interface_id}/special_tags`` to set ``special_tags`` to interfaces.
 - Added endpoint ``DELETE v3/links/{link_id}`` to delete a disabled link. To avoid rediscovery, the link needs to be physically disconnected or both interface ends (switches) need to be disabled.
+- Added endpoint ``DELETE /v3/switches/{dpid}`` to delete a disabled switch. This endpoint is for decomisioned switches. The switch will get rediscovered if it is found physically connected in the topology.
 
 Deprecated
 ==========

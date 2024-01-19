@@ -319,7 +319,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             with self._switch_lock[dpid]:
                 if switch.status != EntityStatus.DISABLED:
                     raise HTTPException(
-                        409, detail="Switch should be disable."
+                        409, detail="Switch should be disabled."
                     )
                 for intf_id, interface in switch.interfaces.copy().items():
                     if not interface.all_tags_available():
