@@ -290,9 +290,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         dpid = request.path_params["dpid"]
         try:
             switch = self.controller.switches[dpid]
+            link_ids = set()
             for _, interface in switch.interfaces.copy().items():
                 if (interface.link and interface.link.is_enabled()):
+                    link_ids.add(interface.link.id)
+                    interface.link.disable()
                     self.notify_link_enabled_state(interface.link, "disabled")
+            self.topo_controller.bulk_disable_links(link_ids)
             self.topo_controller.disable_switch(dpid)
             switch.disable()
         except KeyError:
@@ -465,6 +469,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 interface = switch.interfaces[interface_number]
                 self.topo_controller.disable_interface(interface.id)
                 if interface.link and interface.link.is_enabled():
+                    self.topo_controller.disable_link(interface.link.id)
+                    interface.link.disable()
                     self.notify_link_enabled_state(interface.link, "disabled")
                 interface.disable()
                 self.notify_interface_link_status(interface, "link disabled")
@@ -472,11 +478,15 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 msg = f"Switch {dpid} interface {interface_number} not found"
                 raise HTTPException(404, detail=msg)
         else:
+            link_ids = set()
             for interface in switch.interfaces.copy().values():
                 if interface.link and interface.link.is_enabled():
+                    link_ids.add(interface.link.id)
+                    interface.link.disable()
                     self.notify_link_enabled_state(interface.link, "disabled")
                 interface.disable()
                 self.notify_interface_link_status(interface, "link disabled")
+            self.topo_controller.bulk_disable_links(link_ids)
             self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         self.notify_topology_update()
         return JSONResponse("Operation successful")
@@ -669,6 +679,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     detail = f"{link.endpoint_b.id} needs enabling."
                     raise HTTPException(409, detail=detail)
                 if not link.is_enabled():
+                    self.topo_controller.enable_link(link.id)
+                    link.enable()
                     self.notify_link_enabled_state(link, "enabled")
         except KeyError:
             raise HTTPException(404, detail="Link not found")
@@ -687,6 +699,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             with self._links_lock:
                 link = self.links[link_id]
                 if link.is_enabled():
+                    self.topo_controller.disable_link(link.id)
+                    link.disable()
                     self.notify_link_enabled_state(link, "disabled")
         except KeyError:
             raise HTTPException(404, detail="Link not found")
@@ -700,12 +714,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def notify_link_enabled_state(self, link: Link, action: str):
         """Send a KytosEvent whether a link status (enabled/disabled)
          has changed its status."""
-        if action == "disabled":
-            self.topo_controller.disable_link(link.id)
-            link.disable()
-        else:
-            self.topo_controller.enable_link(link.id)
-            link.enable()
         name = f'kytos/topology.link.{action}'
         content = {'link': link}
         event = KytosEvent(name=name, content=content)

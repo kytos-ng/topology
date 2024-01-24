@@ -610,6 +610,8 @@ class TestMain:
         assert mock_noti_link.call_count == 1
         assert mock_noti_link.call_args[0][0] == interface.link
         assert mock_noti_link.call_args[0][1] == "disabled"
+        assert interface.link.disable.call_count == 1
+        assert self.napp.topo_controller.bulk_disable_links.call_count == 1
         self.napp.topo_controller.disable_switch.assert_called_once_with(dpid)
         mock_notify_topo.assert_called()
         mock_sw_l_status.assert_called()
@@ -809,9 +811,11 @@ class TestMain:
         )
         assert mock_interface_1.disable.call_count == 1
         assert mock_interface_2.disable.call_count == 0
+        assert mock_interface_1.link.disable.call_count == 1
         assert mock_noti_link.call_count == 1
         assert mock_noti_link.call_args[0][0] == mock_interface_1.link
         assert mock_noti_link.call_args[0][1] == "disabled"
+        assert self.napp.topo_controller.disable_interface.call_count == 1
         mock_notify_topo.assert_called()
 
         mock_interface_1.disable.call_count = 0
@@ -825,10 +829,14 @@ class TestMain:
             mock_switch.id, mock_switch.as_dict()
         )
         assert mock_interface_1.disable.call_count == 1
+        assert mock_interface_1.link.disable.call_count == 2
         assert mock_interface_2.disable.call_count == 1
         assert mock_noti_link.call_count == 2
         assert mock_noti_link.call_args[0][0] == mock_interface_1.link
         assert mock_noti_link.call_args[0][1] == "disabled"
+        bulk_controller = self.napp.topo_controller.bulk_disable_links
+        assert bulk_controller.call_count == 1
+        assert len(bulk_controller.call_args[0][0]) == 1
 
         # test interface not found
         interface_id = '00:00:00:00:00:00:00:01:3'
@@ -1005,6 +1013,7 @@ class TestMain:
     async def test_disable_link(self, mock_notify_topo, mock_notify):
         """Test disable_link."""
         mock_link = MagicMock(Link)
+        mock_link.is_enabled = lambda: True
         self.napp.links = {'1': mock_link}
 
         link_id = "1"
@@ -1015,6 +1024,8 @@ class TestMain:
         assert mock_notify.call_count == 1
         assert mock_notify.call_args[0][0] == mock_link
         assert mock_notify.call_args[0][1] == "disabled"
+        assert mock_link.disable.call_count == 1
+        assert self.napp.topo_controller.disable_link.call_count == 1
 
         # fail case
         link_id = "2"
@@ -2034,11 +2045,9 @@ class TestMain:
         link.id = 'mock_link'
         self.napp.notify_link_enabled_state(link, 'enabled')
         assert self.napp.controller.buffers.app.put.call_count == 1
-        assert link.enable.call_count == 1
 
         self.napp.notify_link_enabled_state(link, 'disabled')
         assert self.napp.controller.buffers.app.put.call_count == 2
-        assert link.disable.call_count == 1
 
     @patch('napps.kytos.topology.main.tenacity.nap.time')
     @patch('httpx.get')

@@ -10,6 +10,7 @@ from typing import List, Optional, Tuple
 import pymongo
 from pymongo.collection import ReturnDocument
 from pymongo.errors import AutoReconnect
+from pymongo.operations import UpdateOne
 from tenacity import retry_if_exception_type, stop_after_attempt, wait_random
 
 from kytos.core import log
@@ -247,6 +248,24 @@ class TopoController:
     def disable_link(self, link_id: str) -> Optional[dict]:
         """Try to find one link and disable it."""
         return self._update_link(link_id, {"$set": {"enabled": False}})
+
+    def bulk_disable_links(self, link_ids: set[str]) -> int:
+        """Bulk update that disables found links."""
+        ops = []
+        for _id in link_ids:
+            ops.append(
+                UpdateOne(
+                    {"_id": _id},
+                    {
+                        "$set":
+                        {
+                            "updated_at": datetime.utcnow(),
+                            "enabled": False,
+                        }
+                    }
+                )
+            )
+        return self.db.links.bulk_write(ops).modified_count
 
     def add_link_metadata(
         self, link_id: str, metadata: dict
