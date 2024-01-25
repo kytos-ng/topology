@@ -254,6 +254,10 @@ class TestTopoController:
 
     def test_bulk_disable_links(self) -> None:
         """Test bulk_disable_links"""
+        result = self.topo.bulk_disable_links(set())
+        assert result == 0
+        assert self.topo.db.links.bulk_write.call_count == 0
+
         link_ids = {"link_1", "link_2"}
         self.topo.bulk_disable_links(link_ids)
         assert self.topo.db.links.bulk_write.call_count == 1

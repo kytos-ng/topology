@@ -251,6 +251,8 @@ class TopoController:
 
     def bulk_disable_links(self, link_ids: set[str]) -> int:
         """Bulk update that disables found links."""
+        if not link_ids:
+            return 0
         ops = []
         for _id in link_ids:
             ops.append(
