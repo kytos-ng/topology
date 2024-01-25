@@ -10,6 +10,11 @@ from datetime import timezone
 from threading import Lock
 from typing import List, Optional
 
+import httpx
+import tenacity
+from tenacity import (retry_if_exception_type, stop_after_attempt,
+                      wait_combine, wait_fixed, wait_random)
+
 from kytos.core import KytosEvent, KytosNApp, log, rest
 from kytos.core.common import EntityStatus
 from kytos.core.exceptions import (KytosInvalidTagRanges,
@@ -19,6 +24,7 @@ from kytos.core.interface import Interface
 from kytos.core.link import Link
 from kytos.core.rest_api import (HTTPException, JSONResponse, Request,
                                  content_type_json_or_415, get_json_or_400)
+from kytos.core.retry import before_sleep
 from kytos.core.switch import Switch
 from kytos.core.tag_ranges import get_tag_ranges
 from napps.kytos.topology import settings
@@ -53,6 +59,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self._intfs_tags_updated_at = {}
         self.link_up = set()
         self.link_status_lock = Lock()
+        self._switch_lock = defaultdict(Lock)
         self.topo_controller = self.get_topo_controller()
         Link.register_status_func(f"{self.napp_id}_link_up_timer",
                                   self.link_status_hook_link_up_timer)
@@ -270,8 +277,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         except KeyError:
             raise HTTPException(404, detail="Switch not found")
 
-        self.notify_switch_enabled(dpid)
         self.notify_topology_update()
+        self.notify_switch_enabled(dpid)
         self.notify_switch_links_status(switch, "link enabled")
         return JSONResponse("Operation successful", status_code=201)
 
@@ -281,15 +288,73 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         dpid = request.path_params["dpid"]
         try:
             switch = self.controller.switches[dpid]
+            link_ids = set()
+            for _, interface in switch.interfaces.copy().items():
+                if (interface.link and interface.link.is_enabled()):
+                    link_ids.add(interface.link.id)
+                    interface.link.disable()
+                    self.notify_link_enabled_state(interface.link, "disabled")
+            self.topo_controller.bulk_disable_links(link_ids)
             self.topo_controller.disable_switch(dpid)
             switch.disable()
         except KeyError:
             raise HTTPException(404, detail="Switch not found")
 
-        self.notify_switch_disabled(dpid)
         self.notify_topology_update()
+        self.notify_switch_disabled(dpid)
         self.notify_switch_links_status(switch, "link disabled")
         return JSONResponse("Operation successful", status_code=201)
+
+    @rest('v3/switches/{dpid}', methods=['DELETE'])
+    def delete_switch(self, request: Request) -> JSONResponse:
+        """Delete a switch.
+
+        Requirements:
+            - There should not be installed flows related to switch.
+            - The switch should be disabled.
+            - All tags from switch interfaces should be available.
+            - The switch should not have links.
+        """
+        dpid = request.path_params["dpid"]
+        try:
+            switch: Switch = self.controller.switches[dpid]
+            with self._switch_lock[dpid]:
+                if switch.status != EntityStatus.DISABLED:
+                    raise HTTPException(
+                        409, detail="Switch should be disabled."
+                    )
+                for intf_id, interface in switch.interfaces.copy().items():
+                    if not interface.all_tags_available():
+                        detail = f"Interface {intf_id} vlans are being used."\
+                                 " Delete any service using vlans."
+                        raise HTTPException(409, detail=detail)
+                with self._links_lock:
+                    for link_id, link in self.links.items():
+                        if (dpid in
+                                (link.endpoint_a.switch.dpid,
+                                 link.endpoint_b.switch.dpid)):
+                            raise HTTPException(
+                                409, detail=f"Switch should not have links. "
+                                            f"Link found {link_id}."
+                            )
+                try:
+                    flows = self.get_flows_by_switch(dpid)
+                except tenacity.RetryError as err:
+                    detail = "Error while getting flows: "\
+                             f"{err.last_attempt.exception()}."
+                    raise HTTPException(409, detail=detail)
+                if flows:
+                    raise HTTPException(409, detail="Switch has flows. Verify"
+                                                    " if a switch is used.")
+                switch = self.controller.switches.pop(dpid)
+                self.topo_controller.delete_switch_data(dpid)
+        except KeyError:
+            raise HTTPException(404, detail="Switch not found.")
+        name = 'kytos/topology.switch.deleted'
+        event = KytosEvent(name=name, content={'switch': switch})
+        self.controller.buffers.app.put(event)
+        self.notify_topology_update()
+        return JSONResponse("Operation successful")
 
     @rest('v3/switches/{dpid}/metadata')
     def get_switch_metadata(self, request: Request) -> JSONResponse:
@@ -358,6 +423,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             dpid = ":".join(interface_enable_id.split(":")[:-1])
         try:
             switch = self.controller.switches[dpid]
+            if not switch.is_enabled():
+                raise HTTPException(409, detail="Enable Switch first")
         except KeyError:
             raise HTTPException(404, detail="Switch not found")
 
@@ -399,15 +466,25 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             try:
                 interface = switch.interfaces[interface_number]
                 self.topo_controller.disable_interface(interface.id)
+                if interface.link and interface.link.is_enabled():
+                    self.topo_controller.disable_link(interface.link.id)
+                    interface.link.disable()
+                    self.notify_link_enabled_state(interface.link, "disabled")
                 interface.disable()
                 self.notify_interface_link_status(interface, "link disabled")
             except KeyError:
                 msg = f"Switch {dpid} interface {interface_number} not found"
                 raise HTTPException(404, detail=msg)
         else:
+            link_ids = set()
             for interface in switch.interfaces.copy().values():
+                if interface.link and interface.link.is_enabled():
+                    link_ids.add(interface.link.id)
+                    interface.link.disable()
+                    self.notify_link_enabled_state(interface.link, "disabled")
                 interface.disable()
                 self.notify_interface_link_status(interface, "link disabled")
+            self.topo_controller.bulk_disable_links(link_ids)
             self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         self.notify_topology_update()
         return JSONResponse("Operation successful")
@@ -593,8 +670,16 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         try:
             with self._links_lock:
                 link = self.links[link_id]
-                self.topo_controller.enable_link(link_id)
-                link.enable()
+                if not link.endpoint_a.is_enabled():
+                    detail = f"{link.endpoint_a.id} needs enabling."
+                    raise HTTPException(409, detail=detail)
+                if not link.endpoint_b.is_enabled():
+                    detail = f"{link.endpoint_b.id} needs enabling."
+                    raise HTTPException(409, detail=detail)
+                if not link.is_enabled():
+                    self.topo_controller.enable_link(link.id)
+                    link.enable()
+                    self.notify_link_enabled_state(link, "enabled")
         except KeyError:
             raise HTTPException(404, detail="Link not found")
         self.notify_link_status_change(
@@ -611,8 +696,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         try:
             with self._links_lock:
                 link = self.links[link_id]
-                self.topo_controller.disable_link(link_id)
-                link.disable()
+                if link.is_enabled():
+                    self.topo_controller.disable_link(link.id)
+                    link.disable()
+                    self.notify_link_enabled_state(link, "disabled")
         except KeyError:
             raise HTTPException(404, detail="Link not found")
         self.notify_link_status_change(
@@ -621,6 +708,14 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         )
         self.notify_topology_update()
         return JSONResponse("Operation successful", status_code=201)
+
+    def notify_link_enabled_state(self, link: Link, action: str):
+        """Send a KytosEvent whether a link status (enabled/disabled)
+         has changed its status."""
+        name = f'kytos/topology.link.{action}'
+        content = {'link': link}
+        event = KytosEvent(name=name, content=content)
+        self.controller.buffers.app.put(event)
 
     @rest('v3/links/{link_id}/metadata')
     def get_link_metadata(self, request: Request) -> JSONResponse:
@@ -900,6 +995,21 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             self._intfs_updated_at[interface.id] = event.timestamp
         self.handle_link_up(interface)
 
+    @tenacity.retry(
+        stop=stop_after_attempt(3),
+        wait=wait_combine(wait_fixed(3), wait_random(min=2, max=7)),
+        before_sleep=before_sleep,
+        retry=retry_if_exception_type(httpx.RequestError),
+    )
+    def get_flows_by_switch(self, dpid) -> dict:
+        """Get installed flows by switch from flow_manager."""
+        endpoint = settings.FLOW_MANAGER_URL +\
+            f'/stored_flows?state=installed&dpid={dpid}'
+        res = httpx.get(endpoint)
+        if res.is_server_error or res.status_code in (404, 400):
+            raise httpx.RequestError(res.text)
+        return res.json().get(dpid)
+
     def link_status_hook_link_up_timer(self, link) -> Optional[EntityStatus]:
         """Link status hook link up timer."""
         tnow = time.time()
@@ -1109,7 +1219,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 self.notify_link_status_change(link, reason)
 
     def notify_link_status_change(self, link, reason='not given'):
-        """Send an event to notify about a status change on a link."""
+        """Send an event to notify (up/down) from a status change on
+         a link."""
         link_id = link.id
         with self.link_status_lock:
             if (

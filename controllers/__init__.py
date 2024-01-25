@@ -2,6 +2,7 @@
 
 # pylint: disable=invalid-name
 import os
+import re
 from datetime import datetime
 from threading import Lock
 from typing import List, Optional, Tuple
@@ -9,6 +10,7 @@ from typing import List, Optional, Tuple
 import pymongo
 from pymongo.collection import ReturnDocument
 from pymongo.errors import AutoReconnect
+from pymongo.operations import UpdateOne
 from tenacity import retry_if_exception_type, stop_after_attempt, wait_random
 
 from kytos.core import log
@@ -247,6 +249,26 @@ class TopoController:
         """Try to find one link and disable it."""
         return self._update_link(link_id, {"$set": {"enabled": False}})
 
+    def bulk_disable_links(self, link_ids: set[str]) -> int:
+        """Bulk update that disables found links."""
+        if not link_ids:
+            return 0
+        ops = []
+        for _id in link_ids:
+            ops.append(
+                UpdateOne(
+                    {"_id": _id},
+                    {
+                        "$set":
+                        {
+                            "updated_at": datetime.utcnow(),
+                            "enabled": False,
+                        }
+                    }
+                )
+            )
+        return self.db.links.bulk_write(ops).modified_count
+
     def add_link_metadata(
         self, link_id: str, metadata: dict
     ) -> Optional[dict]:
@@ -316,3 +338,17 @@ class TopoController:
         return self.db.links.find_one_and_delete(
             {"_id": link_id}
         )
+
+    def delete_switch_data(
+        self,
+        switch_dpid: str
+    ) -> tuple[Optional[dict], int]:
+        """Delete a switch related data in database."""
+        regex = re.compile(rf'^{switch_dpid}:\d+$')
+        det_result = self.db.interface_details.delete_many(
+            {"_id": {"$regex": regex}}
+        )
+        swt_result = self.db.switches.find_one_and_delete(
+            {"_id": switch_dpid}
+        )
+        return (swt_result, det_result.deleted_count)

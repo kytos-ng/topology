@@ -1,5 +1,6 @@
 """Module to TopoController."""
 
+import re
 from unittest.mock import MagicMock
 
 from napps.kytos.topology.controllers import TopoController
@@ -240,3 +241,25 @@ class TestTopoController:
         self.topo.delete_link(link_id)
         args = self.topo.db.links.find_one_and_delete.call_args[0]
         assert args[0] == {"_id": link_id}
+
+    def test_delete_switch_data(self) -> None:
+        """Test delete_switch_data"""
+        regex = re.compile(r'^00:1:\d+$')
+        self.topo.delete_switch_data('00:1')
+        args = self.topo.db.interface_details.delete_many.call_args[0]
+        assert args[0]["_id"] == {"$regex": regex}
+
+        args = self.topo.db.switches.find_one_and_delete.call_args[0]
+        assert args[0] == {"_id": "00:1"}
+
+    def test_bulk_disable_links(self) -> None:
+        """Test bulk_disable_links"""
+        result = self.topo.bulk_disable_links(set())
+        assert result == 0
+        assert self.topo.db.links.bulk_write.call_count == 0
+
+        link_ids = {"link_1", "link_2"}
+        self.topo.bulk_disable_links(link_ids)
+        assert self.topo.db.links.bulk_write.call_count == 1
+        args = self.topo.db.links.bulk_write.call_args[0]
+        assert len(args[0]) == 2
