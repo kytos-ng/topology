@@ -40,6 +40,7 @@ Changed
 - An interface can't be enabled if its switch is disabled.
 - A link can't be enabled if its interface is disabled.
 - Enabling interface can't not longer enabled its link. To enable a link, the endpoint ``POST v3/links/{link_id}/enable`` should be used.
+- If a KytosEvent can't be put on ``buffers.app`` during ``setup()``, it'll make the NApp to fail to start
 
 General Information
 ===================

@@ -210,7 +210,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                                                   'state': interface.state
                                                   }
                                               })
-            self.controller.buffers.app.put(event)
+            self.controller.buffers.app.put(event, timeout=1)
 
         intf_ids = [v["id"] for v in switch_att.get("interfaces", {}).values()]
         intf_details = self.topo_controller.get_interfaces_details(intf_ids)
@@ -229,8 +229,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         for switch_id, switch_att in switches.items():
             try:
                 self._load_switch(switch_id, switch_att)
-            # pylint: disable=broad-except
-            except Exception as err:
+            except (KeyError, AttributeError, TypeError) as err:
                 failed_switches[switch_id] = err
                 log.error(f'Error loading switch: {err}')
 
@@ -239,8 +238,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         for link_id, link_att in links.items():
             try:
                 self._load_link(link_att)
-            # pylint: disable=broad-except
-            except Exception as err:
+            except (KeyError, AttributeError, TypeError) as err:
                 failed_links[link_id] = err
                 log.error(f'Error loading link {link_id}: {err}')
 
@@ -252,7 +250,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 'failed_switches': failed_switches,
                 'failed_links': failed_links
             })
-        self.controller.buffers.app.put(event)
+        self.controller.buffers.app.put(event, timeout=1)
 
     @rest('v3/')
     def get_topology(self, _request: Request) -> JSONResponse:
