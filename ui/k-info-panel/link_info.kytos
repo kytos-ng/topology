@@ -324,15 +324,14 @@
   vertical-align: middle;
 }
 .modal-container {
-  width: 300px;
+  word-break: keep-all;
+  width: fit-content;
   margin: 0px auto;
   background-color: #e8e8e8;
   border-radius: 2px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.33);
   transition: all 0.3s ease;
   font-family: Helvetica, Arial, sans-serif;
-  word-break: keep-all;
-  width: fit-content;
 }
 .modal-body {
   margin: 20px 0;
