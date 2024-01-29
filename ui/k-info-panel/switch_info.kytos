@@ -18,7 +18,7 @@
               </div>
               <div class="modal-body">
                 <slot name="body">
-                  Delete Switch? 
+                  Delete {{metadata.dpid}} Switch? 
                 </slot>
               </div>
               <div class="modal-footer">
@@ -514,8 +514,9 @@
 .link-table-divisor {
   height: 190px;
 }
-.buttons .button-right{
+.buttons .button-right button{
   float: right;
+  background: darkred;
 }
 .buttons .button-left{
   float: left;
@@ -539,12 +540,13 @@
 .modal-container {
   width: 300px;
   margin: 0px auto;
-  padding: 10px 10px 10px 20px;;
   background-color: #e8e8e8;
   border-radius: 2px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.33);
   transition: all 0.3s ease;
   font-family: Helvetica, Arial, sans-serif;
+  word-break: keep-all;
+  width: fit-content;
 }
 .modal-body {
   margin: 20px 0;
