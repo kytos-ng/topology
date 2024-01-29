@@ -18,7 +18,7 @@
               </div>
               <div class="modal-body">
                 <slot name="body">
-                  Delete {{metadata.dpid}} Switch? 
+                  Delete Switch {{metadata.node_name !== undefined && metadata.node_name.length !== 0? metadata.node_name : metadata.id}}
                 </slot>
               </div>
               <div class="modal-footer">
@@ -342,7 +342,7 @@
        })
      },
      bt_delete(){
-       this.show_modal = true; 
+       this.show_modal = true;
      },
      modal_cancel(){
        this.show_modal = false;

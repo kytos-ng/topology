@@ -18,7 +18,7 @@
               </div>
               <div class="modal-body">
                 <slot name="body">
-                  Delete {{metadata.link_name !== undefined && metadata.link_name.length !== 0? '"' + metadata.link_name + '"' : details.id}} Link? 
+                  Delete Link {{metadata.link_name !== undefined && metadata.link_name.length !== 0? '"' + metadata.link_name + '"' : details.id}}? 
                 </slot>
               </div>
               <div class="modal-footer">
