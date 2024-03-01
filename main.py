@@ -5,7 +5,7 @@ Manage the network topology
 # pylint: disable=wrong-import-order
 import pathlib
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import timezone
 from threading import Lock
 from typing import List, Optional
@@ -57,6 +57,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self._intfs_lock = defaultdict(Lock)
         self._intfs_updated_at = {}
         self._intfs_tags_updated_at = {}
+        self._links_act_ccheck = Counter()
         self.link_up = set()
         self.link_status_lock = Lock()
         self._switch_lock = defaultdict(Lock)
@@ -65,6 +66,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                                   self.link_status_hook_link_up_timer)
         self.topo_controller.bootstrap_indexes()
         self.load_topology()
+        self.execute_as_loop(settings.CONSISTENCY_INTERVAL)
 
     @staticmethod
     def get_topo_controller() -> TopoController:
@@ -73,7 +75,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def execute(self):
         """Execute once when the napp is running."""
-        pass
+        self.links_activation_consistency_check()
 
     def shutdown(self):
         """Do nothing."""
@@ -216,6 +218,51 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         intf_details = self.topo_controller.get_interfaces_details(intf_ids)
         with self._links_lock:
             self.load_interfaces_tags_values(switch, intf_details)
+
+    def links_activation_consistency_check(self) -> None:
+        """Links activation consistency check.
+
+        Currently, there was a case where a link was down but
+        its interfaces were up. This shouldn't happen in normal circumstances,
+        and consistency will aid these cases if they ever happen while the
+        root case is still being identified and fixed. Either way, consistency
+        will provide an extra guarantee here for links activation.
+
+        https://github.com/kytos-ng/topology/issues/188
+        """
+        with self._links_lock:
+            inconsistent_links = []
+            for link in self.links.values():
+                if not all((
+                    not link._active,
+                    link.status_reason == {"deactivated"},
+                    link.status == EntityStatus.DOWN,
+                    link.endpoint_a.is_active(),
+                    link.endpoint_b.is_active(),
+                )):
+                    self._links_act_ccheck[link.id] = 0
+                    continue
+
+                self._links_act_ccheck[link.id] += 1
+                min_count = settings.CONSISTENCY_MIN_COUNT
+                if self._links_act_ccheck[link.id] >= min_count:
+                    inconsistent_links.append(link)
+
+            metadata = {
+                'last_status_change': time.time(),
+                'last_status_is_active': True
+            }
+            for link in inconsistent_links:
+                link.extend_metadata(metadata)
+                link.activate()
+                log.info(f"consistency check: activated {link}")
+                self.link_up.discard(link.id)
+                name = 'kytos/topology.notify_link_up_if_status'
+                reason = "consistency check"
+                content = {'reason': reason, "link": link}
+                event = KytosEvent(name=name, content=content)
+                self.controller.buffers.app.put(event)
+                self._links_act_ccheck[link.id] = 0
 
     # pylint: disable=attribute-defined-outside-init
     def load_topology(self):
