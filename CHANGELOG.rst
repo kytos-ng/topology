@@ -22,6 +22,7 @@ Added
 - Added endpoint ``DELETE /v3/switches/{dpid}`` to delete a disabled switch. This endpoint is for decommissioned switches. The switch will get rediscovered if it reconnects to the controller. So, after deleting a switch on ``topology``, you're expected to also remove the TCP connection configuration on the switch.
 - Added ``Delete`` button to delete switch in the switch panel UI interface.
 - Added ``Delete`` button to delete link in the link panel UI interface.
+- Added links activation consistency check, and exposed ``CONSISTENCY_LINK_INTERVAL`` and ``CONSISTENCY_LINK_MIN_COUNT`` on settings.
 
 Deprecated
 ==========
