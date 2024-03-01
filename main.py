@@ -66,7 +66,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                                   self.link_status_hook_link_up_timer)
         self.topo_controller.bootstrap_indexes()
         self.load_topology()
-        self.execute_as_loop(settings.CONSISTENCY_INTERVAL)
+        self.execute_as_loop(settings.CONSISTENCY_LINK_INTERVAL)
 
     @staticmethod
     def get_topo_controller() -> TopoController:
@@ -244,7 +244,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     continue
 
                 self._links_act_ccheck[link.id] += 1
-                min_count = settings.CONSISTENCY_MIN_COUNT
+                min_count = settings.CONSISTENCY_LINK_MIN_COUNT
                 if self._links_act_ccheck[link.id] >= min_count:
                     inconsistent_links.append(link)
 
