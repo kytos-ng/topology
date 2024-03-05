@@ -34,6 +34,7 @@ Fixed
 =====
 - An interface cannot be enabled if its switch is disabled.
 - Handled deactivated interfaces when an interface gets created.
+- Allowed interface speed to be null on ``switches`` collection
 
 Security
 ========
