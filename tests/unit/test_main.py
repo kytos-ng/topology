@@ -1,6 +1,7 @@
 """Module to test the main napp file."""
 # pylint: disable=import-error,no-name-in-module,wrong-import-order
 # pylint: disable=import-outside-toplevel,attribute-defined-outside-init
+import asyncio
 import pytest
 import time
 from datetime import timedelta
@@ -648,10 +649,10 @@ class TestMain:
 
     @patch('napps.kytos.topology.main.Main.notify_metadata_changes')
     async def test_add_switch_metadata(
-        self, mock_metadata_changes, event_loop
+        self, mock_metadata_changes
     ):
         """Test add_switch_metadata."""
-        self.napp.controller.loop = event_loop
+        self.napp.controller.loop = asyncio.get_running_loop()
         dpid = "00:00:00:00:00:00:00:01"
         mock_switch = get_switch_mock(dpid)
         self.napp.controller.switches = {dpid: mock_switch}
@@ -672,9 +673,9 @@ class TestMain:
         response = await self.api_client.post(endpoint, json=payload)
         assert response.status_code == 404
 
-    async def test_add_switch_metadata_wrong_format(self, event_loop):
+    async def test_add_switch_metadata_wrong_format(self):
         """Test add_switch_metadata_wrong_format."""
-        self.napp.controller.loop = event_loop
+        self.napp.controller.loop = asyncio.get_running_loop()
         dpid = "00:00:00:00:00:00:00:01"
         payload = 'A'
 
@@ -688,10 +689,10 @@ class TestMain:
 
     @patch('napps.kytos.topology.main.Main.notify_metadata_changes')
     async def test_delete_switch_metadata(
-        self, mock_metadata_changes, event_loop
+        self, mock_metadata_changes
     ):
         """Test delete_switch_metadata."""
-        self.napp.controller.loop = event_loop
+        self.napp.controller.loop = asyncio.get_running_loop()
         dpid = "00:00:00:00:00:00:00:01"
         mock_switch = get_switch_mock(dpid)
         mock_switch.metadata = {"A": "A"}
@@ -890,10 +891,10 @@ class TestMain:
 
     @patch('napps.kytos.topology.main.Main.notify_metadata_changes')
     async def test_add_interface_metadata(
-        self, mock_metadata_changes, event_loop
+        self, mock_metadata_changes
     ):
         """Test add_interface_metadata."""
-        self.napp.controller.loop = event_loop
+        self.napp.controller.loop = asyncio.get_running_loop()
         interface_id = '00:00:00:00:00:00:00:01:1'
         dpid = '00:00:00:00:00:00:00:01'
         mock_switch = get_switch_mock(dpid)
@@ -919,9 +920,9 @@ class TestMain:
         response = await self.api_client.post(endpoint, json=payload)
         assert response.status_code == 404
 
-    async def test_add_interface_metadata_wrong_format(self, event_loop):
+    async def test_add_interface_metadata_wrong_format(self):
         """Test add_interface_metadata_wrong_format."""
-        self.napp.controller.loop = event_loop
+        self.napp.controller.loop = asyncio.get_running_loop()
         interface_id = "00:00:00:00:00:00:00:01:1"
         endpoint = f"{self.base_endpoint}/interfaces/{interface_id}/metadata"
         response = await self.api_client.post(endpoint, json='A')
@@ -929,9 +930,9 @@ class TestMain:
         response = await self.api_client.post(endpoint, json=None)
         assert response.status_code == 415
 
-    async def test_delete_interface_metadata(self, event_loop):
+    async def test_delete_interface_metadata(self):
         """Test delete_interface_metadata."""
-        self.napp.controller.loop = event_loop
+        self.napp.controller.loop = asyncio.get_running_loop()
         interface_id = '00:00:00:00:00:00:00:01:1'
         dpid = '00:00:00:00:00:00:00:01'
         mock_switch = get_switch_mock(dpid)
@@ -1089,11 +1090,10 @@ class TestMain:
     async def test_add_link_metadata(
         self,
         mock_metadata_changes,
-        mock_topology_update,
-        event_loop
+        mock_topology_update
     ):
         """Test add_link_metadata."""
-        self.napp.controller.loop = event_loop
+        self.napp.controller.loop = asyncio.get_running_loop()
         mock_link = MagicMock(Link)
         mock_link.metadata = "A"
         self.napp.links = {'1': mock_link}
@@ -1112,9 +1112,9 @@ class TestMain:
         response = await self.api_client.post(endpoint, json=payload)
         assert response.status_code == 404
 
-    async def test_add_link_metadata_wrong_format(self, event_loop):
+    async def test_add_link_metadata_wrong_format(self):
         """Test add_link_metadata_wrong_format."""
-        self.napp.controller.loop = event_loop
+        self.napp.controller.loop = asyncio.get_running_loop()
         link_id = 'cf0f4071be426b3f745027f5d22'
         payload = "A"
         endpoint = f"{self.base_endpoint}/links/{link_id}/metadata"
@@ -1719,9 +1719,9 @@ class TestMain:
         assert mock_notify_link_status_change.call_count == 2
         mock_notify_topology_update.assert_called_once()
 
-    async def test_set_tag_range(self, event_loop):
+    async def test_set_tag_range(self):
         """Test set_tag_range"""
-        self.napp.controller.loop = event_loop
+        self.napp.controller.loop = asyncio.get_running_loop()
         interface_id = '00:00:00:00:00:00:00:01:1'
         dpid = '00:00:00:00:00:00:00:01'
         mock_switch = get_switch_mock(dpid)
@@ -1743,9 +1743,9 @@ class TestMain:
         assert args[1] == payload['tag_type']
         assert self.napp.handle_on_interface_tags.call_count == 1
 
-    async def test_set_tag_range_not_found(self, event_loop):
+    async def test_set_tag_range_not_found(self):
         """Test set_tag_range. Not found"""
-        self.napp.controller.loop = event_loop
+        self.napp.controller.loop = asyncio.get_running_loop()
         interface_id = '00:00:00:00:00:00:00:01:1'
         self.napp.controller.get_interface_by_id = MagicMock()
         self.napp.controller.get_interface_by_id.return_value = None
@@ -1757,9 +1757,9 @@ class TestMain:
         response = await self.api_client.post(url, json=payload)
         assert response.status_code == 404
 
-    async def test_set_tag_range_tag_error(self, event_loop):
+    async def test_set_tag_range_tag_error(self):
         """Test set_tag_range TagRangeError"""
-        self.napp.controller.loop = event_loop
+        self.napp.controller.loop = asyncio.get_running_loop()
         interface_id = '00:00:00:00:00:00:00:01:1'
         dpid = '00:00:00:00:00:00:00:01'
         mock_switch = get_switch_mock(dpid)
@@ -1778,9 +1778,9 @@ class TestMain:
         assert response.status_code == 400
         assert mock_interface.notify_interface_tags.call_count == 0
 
-    async def test_set_tag_range_type_error(self, event_loop):
+    async def test_set_tag_range_type_error(self):
         """Test set_tag_range TagRangeError"""
-        self.napp.controller.loop = event_loop
+        self.napp.controller.loop = asyncio.get_running_loop()
         interface_id = '00:00:00:00:00:00:00:01:1'
         dpid = '00:00:00:00:00:00:00:01'
         mock_switch = get_switch_mock(dpid)
@@ -1801,9 +1801,9 @@ class TestMain:
         assert response.status_code == 400
         assert self.napp.handle_on_interface_tags.call_count == 0
 
-    async def test_delete_tag_range(self, event_loop):
+    async def test_delete_tag_range(self):
         """Test delete_tag_range"""
-        self.napp.controller.loop = event_loop
+        self.napp.controller.loop = asyncio.get_running_loop()
         interface_id = '00:00:00:00:00:00:00:01:1'
         dpid = '00:00:00:00:00:00:00:01'
         mock_switch = get_switch_mock(dpid)
@@ -1817,9 +1817,9 @@ class TestMain:
         assert response.status_code == 200
         assert mock_interface.remove_tag_ranges.call_count == 1
 
-    async def test_delete_tag_range_not_found(self, event_loop):
+    async def test_delete_tag_range_not_found(self):
         """Test delete_tag_range. Not found"""
-        self.napp.controller.loop = event_loop
+        self.napp.controller.loop = asyncio.get_running_loop()
         interface_id = '00:00:00:00:00:00:00:01:1'
         dpid = '00:00:00:00:00:00:00:01'
         mock_switch = get_switch_mock(dpid)
@@ -1832,9 +1832,9 @@ class TestMain:
         assert response.status_code == 404
         assert mock_interface.remove_tag_ranges.call_count == 0
 
-    async def test_delete_tag_range_type_error(self, event_loop):
+    async def test_delete_tag_range_type_error(self):
         """Test delete_tag_range TagRangeError"""
-        self.napp.controller.loop = event_loop
+        self.napp.controller.loop = asyncio.get_running_loop()
         interface_id = '00:00:00:00:00:00:00:01:1'
         dpid = '00:00:00:00:00:00:00:01'
         mock_switch = get_switch_mock(dpid)
@@ -1848,9 +1848,9 @@ class TestMain:
         response = await self.api_client.delete(url)
         assert response.status_code == 400
 
-    async def test_get_all_tag_ranges(self, event_loop):
+    async def test_get_all_tag_ranges(self):
         """Test get_all_tag_ranges"""
-        self.napp.controller.loop = event_loop
+        self.napp.controller.loop = asyncio.get_running_loop()
         dpid = '00:00:00:00:00:00:00:01'
         switch = get_switch_mock(dpid)
         interface = get_interface_mock('s1-eth1', 1, switch)
@@ -1873,9 +1873,9 @@ class TestMain:
         assert response.status_code == 200
         assert response.json() == expected
 
-    async def test_get_tag_ranges_by_intf(self, event_loop):
+    async def test_get_tag_ranges_by_intf(self):
         """Test get_tag_ranges_by_intf"""
-        self.napp.controller.loop = event_loop
+        self.napp.controller.loop = asyncio.get_running_loop()
         dpid = '00:00:00:00:00:00:00:01'
         switch = get_switch_mock(dpid)
         interface = get_interface_mock('s1-eth1', 1, switch)
@@ -1900,9 +1900,9 @@ class TestMain:
         assert response.status_code == 200
         assert response.json() == expected
 
-    async def test_get_tag_ranges_by_intf_error(self, event_loop):
+    async def test_get_tag_ranges_by_intf_error(self):
         """Test get_tag_ranges_by_intf with NotFound"""
-        self.napp.controller.loop = event_loop
+        self.napp.controller.loop = asyncio.get_running_loop()
         dpid = '00:00:00:00:00:00:00:01'
         self.napp.controller.get_interface_by_id = MagicMock()
         self.napp.controller.get_interface_by_id.return_value = None
@@ -1910,9 +1910,9 @@ class TestMain:
         response = await self.api_client.get(url)
         assert response.status_code == 404
 
-    async def test_set_special_tags(self, event_loop):
+    async def test_set_special_tags(self):
         """Test set_special_tags"""
-        self.napp.controller.loop = event_loop
+        self.napp.controller.loop = asyncio.get_running_loop()
         interface_id = '00:00:00:00:00:00:00:01:1'
         dpid = '00:00:00:00:00:00:00:01'
         mock_switch = get_switch_mock(dpid)

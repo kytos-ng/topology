@@ -23,7 +23,8 @@ def get_switch_mock(of_version, connection_state=ConnectionState.NEW,
     address = Mock()
     port = Mock()
     socket = Mock()
-    switch.connection = Connection(address, port, socket)
+    transport = Mock()
+    switch.connection = Connection(address, port, socket, transport)
     switch.connection.protocol.version = of_version
     switch.connection.state = connection_state
     return switch

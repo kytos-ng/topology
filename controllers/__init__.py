@@ -113,7 +113,7 @@ class TopoController:
         updated = self.db.switches.find_one_and_update(
             {"_id": dpid},
             {
-                "$set": model.dict(exclude={"inserted_at"}),
+                "$set": model.model_dump(exclude={"inserted_at"}),
                 "$setOnInsert": {"inserted_at": utc_now},
             },
             return_document=ReturnDocument.AFTER,
@@ -208,7 +208,7 @@ class TopoController:
         updated = self.db.links.find_one_and_update(
             {"_id": link_id},
             {
-                "$set": model.dict(exclude={"inserted_at"}),
+                "$set": model.model_dump(exclude={"inserted_at"}),
                 "$setOnInsert": {"inserted_at": utc_now},
             },
             return_document=ReturnDocument.AFTER,
@@ -311,7 +311,7 @@ class TopoController:
                 "special_available_tags": special_available_tags,
                 "special_tags": special_tags,
                 "updated_at": utc_now
-        }).dict(exclude={"inserted_at"})
+        }).model_dump(exclude={"inserted_at"})
         updated = self.db.interface_details.find_one_and_update(
             {"_id": id_},
             {

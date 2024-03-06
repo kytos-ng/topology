@@ -5,19 +5,20 @@
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field, conlist, validator
+from pydantic import BaseModel, Field, field_validator
+from typing_extensions import Annotated
 
 
 class DocumentBaseModel(BaseModel):
     """DocumentBaseModel."""
 
     id: str = Field(None, alias="_id")
-    inserted_at: Optional[datetime]
-    updated_at: Optional[datetime]
+    inserted_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
-    def dict(self, **kwargs) -> dict:
+    def model_dump(self, **kwargs) -> dict:
         """Model to dict."""
-        values = super().dict(**kwargs)
+        values = super().model_dump(**kwargs)
         if "id" in values and values["id"]:
             values["_id"] = values["id"]
         if "exclude" in kwargs and "_id" in kwargs["exclude"]:
@@ -37,27 +38,27 @@ class InterfaceSubDoc(BaseModel):
     nni: bool = False
     lldp: bool
     switch: str
-    link: Optional[str]
-    link_side: Optional[str]
+    link: Optional[str] = None
+    link_side: Optional[str] = None
     metadata: dict = {}
-    updated_at: Optional[datetime]
+    updated_at: Optional[datetime] = None
 
 
 class SwitchDoc(DocumentBaseModel):
     """Switch DB Document Model."""
 
     enabled: bool
-    data_path: Optional[str]
-    hardware: Optional[str]
-    manufacturer: Optional[str]
-    software: Optional[str]
-    connection: Optional[str]
-    ofp_version: Optional[str]
-    serial: Optional[str]
+    data_path: Optional[str] = None
+    hardware: Optional[str] = None
+    manufacturer: Optional[str] = None
+    software: Optional[str] = None
+    connection: Optional[str] = None
+    ofp_version: Optional[str] = None
+    serial: Optional[str] = None
     metadata: dict = {}
     interfaces: List[InterfaceSubDoc] = []
 
-    @validator("interfaces", pre=True)
+    @field_validator("interfaces", mode="before")
     def preset_interfaces(cls, v, values, **kwargs) -> List[InterfaceSubDoc]:
         """Preset interfaces."""
         if isinstance(v, dict):
@@ -104,7 +105,8 @@ class LinkDoc(DocumentBaseModel):
 
     enabled: bool
     metadata: dict = {}
-    endpoints: conlist(InterfaceIdSubDoc, min_items=2, max_items=2)
+    endpoints: Annotated[List[InterfaceIdSubDoc],
+                         Field(min_length=2, max_length=2)]
 
     @staticmethod
     def projection() -> dict:
