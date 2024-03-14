@@ -7,6 +7,14 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+Changed
+=======
+- Updated python environment installation from 3.9 to 3.11
+- Updated test dependencies
+
+[UNRELEASED] - Under development
+********************************
+
 Added
 =====
 - Added endpoint ``POST v3/interfaces/{interface_id}/tag_ranges`` to set ``tag_ranges`` to interfaces.
