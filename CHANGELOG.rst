@@ -7,6 +7,9 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2023.2.0] - 2024-02-16
+***********************
+
 Added
 =====
 - Added endpoint ``POST v3/interfaces/{interface_id}/tag_ranges`` to set ``tag_ranges`` to interfaces.
