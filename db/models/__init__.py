@@ -32,7 +32,7 @@ class InterfaceSubDoc(BaseModel):
     id: str
     enabled: bool
     mac: str
-    speed: float
+    speed: Optional[float]
     port_number: int
     name: str
     nni: bool = False

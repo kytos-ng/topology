@@ -933,8 +933,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """
         interface = event.content['interface']
         if not interface.is_active():
-            return
-        self.handle_interface_link_up(interface, event)
+            self.handle_interface_link_down(interface, event)
+        else:
+            self.handle_interface_link_up(interface, event)
 
     @listen_to('.*.topology.switch.interface.created')
     def on_interface_created(self, event):
