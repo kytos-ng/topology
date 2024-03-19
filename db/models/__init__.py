@@ -3,7 +3,7 @@
 # pylint: disable=no-name-in-module
 
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from pydantic import BaseModel, Field, field_validator
 from typing_extensions import Annotated
@@ -56,10 +56,10 @@ class SwitchDoc(DocumentBaseModel):
     ofp_version: Optional[str] = None
     serial: Optional[str] = None
     metadata: dict = {}
-    interfaces: List[InterfaceSubDoc] = []
+    interfaces: list[InterfaceSubDoc] = []
 
     @field_validator("interfaces", mode="before")
-    def preset_interfaces(cls, v, values, **kwargs) -> List[InterfaceSubDoc]:
+    def preset_interfaces(cls, v, values, **kwargs) -> list[InterfaceSubDoc]:
         """Preset interfaces."""
         if isinstance(v, dict):
             return list(v.values())
@@ -105,7 +105,7 @@ class LinkDoc(DocumentBaseModel):
 
     enabled: bool
     metadata: dict = {}
-    endpoints: Annotated[List[InterfaceIdSubDoc],
+    endpoints: Annotated[list[InterfaceIdSubDoc],
                          Field(min_length=2, max_length=2)]
 
     @staticmethod
@@ -126,7 +126,7 @@ class LinkDoc(DocumentBaseModel):
 class InterfaceDetailDoc(DocumentBaseModel):
     """InterfaceDetail DB Document Model."""
 
-    available_tags: Dict[str, List[List[int]]]
-    tag_ranges: Dict[str, List[List[int]]]
-    special_available_tags: Dict[str, List[str]]
-    special_tags: Dict[str, List[str]]
+    available_tags: Dict[str, list[list[int]]]
+    tag_ranges: Dict[str, list[list[int]]]
+    special_available_tags: Dict[str, list[str]]
+    special_tags: Dict[str, list[str]]
