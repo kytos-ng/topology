@@ -130,7 +130,12 @@ class Linter(SimpleCommand):
     def run(self):
         """Run yala."""
         print('Yala is running. It may take several seconds...')
-        check_call('yala *.py controllers db tests', shell=True)
+        try:
+            check_call('yala *.py controllers db tests', shell=True)
+            print('No linter error found.')
+        except CalledProcessError:
+            print('Linter check failed. Fix the error(s) above and try again.')
+            sys.exit(-1)
 
 
 class KytosInstall:

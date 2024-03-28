@@ -14,8 +14,8 @@ def test_document_base_model_dict() -> None:
     utcnow = datetime.utcnow()
     payload = {"_id": _id, "inserted_at": utcnow, "updated_at": utcnow}
     model = DocumentBaseModel(**payload)
-    assert model.dict() == {**payload, **{"id": _id}}
-    assert "_id" not in model.dict(exclude={"_id"})
+    assert model.model_dump() == {**payload, **{"id": _id}}
+    assert "_id" not in model.model_dump(exclude={"_id"})
 
 
 def test_switch_doc_preset_interfaces() -> None:
