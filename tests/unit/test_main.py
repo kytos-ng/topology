@@ -1184,8 +1184,9 @@ class TestMain:
         self.napp.handle_connection_lost(mock_event)
         mock_notify_topology_update.assert_called()
 
+    @patch('napps.kytos.topology.main.Main.handle_interface_link_down')
     @patch('napps.kytos.topology.main.Main.handle_interface_link_up')
-    def test_handle_interface_created(self, mock_link_up):
+    def test_handle_interface_created(self, mock_link_up, mock_link_down):
         """Test handle_interface_created."""
         mock_event = MagicMock()
         mock_interface = create_autospec(Interface)
@@ -1193,9 +1194,12 @@ class TestMain:
         mock_event.content = {'interface': mock_interface}
         self.napp.handle_interface_created(mock_event)
         mock_link_up.assert_called()
+        mock_link_down.assert_not_called()
 
+    @patch('napps.kytos.topology.main.Main.handle_interface_link_down')
     @patch('napps.kytos.topology.main.Main.handle_interface_link_up')
-    def test_handle_interface_created_inactive(self, mock_link_up):
+    def test_handle_interface_created_inactive(self, mock_link_up,
+                                               mock_link_down):
         """Test handle_interface_created inactive."""
         mock_event = MagicMock()
         mock_interface = create_autospec(Interface)
@@ -1204,6 +1208,7 @@ class TestMain:
         mock_interface.is_active.return_value = False
         self.napp.handle_interface_created(mock_event)
         mock_link_up.assert_not_called()
+        mock_link_down.assert_called()
 
     def test_handle_interfaces_created(self):
         """Test handle_interfaces_created."""

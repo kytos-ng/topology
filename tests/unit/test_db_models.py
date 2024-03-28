@@ -46,6 +46,35 @@ def test_switch_doc_preset_interfaces() -> None:
     assert interface_id == model.interfaces[0].id
 
 
+def test_switch_doc_preset_interfaces_speed_none() -> None:
+    """test_switch_doc_preset_interfaces speed none."""
+    dpid = "00:00:00:00:00:00:00:01"
+    interface_id = f"{dpid}:1"
+    interfaces = {
+        interface_id: {
+            "id": interface_id,
+            "port_number": 1,
+            "lldp": True,
+            "enabled": True,
+            "active": True,
+            "mac": "some_mac",
+            "speed": None,
+            "name": "some_name",
+            "switch": dpid,
+        }
+    }
+    payload = {
+        "_id": dpid,
+        "enabled": True,
+        "active": True,
+        "interfaces": interfaces,
+    }
+    model = SwitchDoc(**payload)
+    assert model
+    assert interface_id == model.interfaces[0].id
+    assert model.interfaces[0].speed is None
+
+
 def test_switch_doc_no_preset_interfaces() -> None:
     """test_switch_doc_no_preset_interfaces."""
     dpid = "00:00:00:00:00:00:00:01"
