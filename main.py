@@ -797,11 +797,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         event = KytosEvent(name=name, content={'link': link})
         self.controller.buffers.app.put(event)
         return JSONResponse("Operation successful")
-    
+
     @rest('v3/interfaces/{intf_id}', methods=['DELETE'])
     def delete_interface(self, request: Request) -> JSONResponse:
         """Delete an interface only if it is not used."""
-        intf_id:str = request.path_params.get("intf_id")
+        intf_id = request.path_params.get("intf_id")
         intf_split = intf_id.split(":")
         switch_id = ":".join(intf_split[:-1])
         intf_port = int(intf_split[-1])
@@ -1014,7 +1014,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         if not interface.all_tags_available():
             return "There is an allocated TAG."
-        
+
         link = self._get_link_from_interface(interface)
         if link:
             return f"It has a link, {link.id}."
@@ -1036,13 +1036,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             actions = flow["flow"].get("actions", [])
             for action in actions:
                 if (action["action_type"] == "output"
-                    and action.get("port") == port_n):
+                        and action.get("port") == port_n):
                     return flow["flow_id"]
         return None
-    
+
     def _delete_interface(self, interface: Interface):
-        """Delete any trace of an interface. Only use this method when 
-        it was confirmed that the interface is not used."""
+        """Delete any trace of an interface. Only use this method when
+         it was confirmed that the interface is not used."""
         switch: Switch = interface.switch
         switch.remove_interface(interface)
         self.topo_controller.upsert_switch(switch.id, switch.as_dict())
@@ -1074,14 +1074,14 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         before_sleep=before_sleep,
         retry=retry_if_exception_type(httpx.RequestError),
     )
-    def get_flows_by_switch(self, dpid: str) -> dict:
+    def get_flows_by_switch(self, dpid: str) -> list:
         """Get installed flows by switch from flow_manager."""
         endpoint = settings.FLOW_MANAGER_URL +\
             f'/stored_flows?state=installed&dpid={dpid}'
         res = httpx.get(endpoint)
         if res.is_server_error or res.status_code in (404, 400):
             raise httpx.RequestError(res.text)
-        return res.json().get(dpid, {})
+        return res.json().get(dpid, [])
 
     def link_status_hook_link_up_timer(self, link) -> Optional[EntityStatus]:
         """Link status hook link up timer."""

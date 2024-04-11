@@ -263,3 +263,11 @@ class TestTopoController:
         assert self.topo.db.links.bulk_write.call_count == 1
         args = self.topo.db.links.bulk_write.call_args[0]
         assert len(args[0]) == 2
+
+    def test_delete_interface_from_details(self) -> None:
+        """Test delete_interface_from_details"""
+        self.topo.delete_interface_from_details("mock_intf")
+        intf_details = self.topo.db.interface_details
+        assert intf_details.find_one_and_delete.call_count == 1
+        args = intf_details.find_one_and_delete.call_args[0]
+        assert args[0] == {"_id": "mock_intf"}
