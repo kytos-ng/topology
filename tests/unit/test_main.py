@@ -2118,11 +2118,6 @@ class TestMain:
         assert actual_usage == "It is enabled or active."
 
         mock_intf.is_active.return_value = False
-        mock_intf.all_tags_available.return_value = False
-        actual_usage = self.napp.get_intf_usage(mock_intf)
-        assert actual_usage == "There is an allocated TAG."
-
-        mock_intf.all_tags_available.return_value = True
         self.napp._get_link_from_interface = MagicMock(return_value=Mock())
         actual_usage = self.napp.get_intf_usage(mock_intf)
         assert "It has a link," in actual_usage
@@ -2154,9 +2149,18 @@ class TestMain:
             },
             {
                 "flow": {
-                    "match": {"dl_src": "ee:ee:ee:ee:ee:02"},
+                    "instructions": [{
+                        "instruction_type": "apply_actions",
+                        "actions": [{"action_type": "output", "port": 1}]
+                    }]
                 },
                 "flow_id": "flow_2",
+            },
+            {
+                "flow": {
+                    "match": {"dl_src": "ee:ee:ee:ee:ee:02"},
+                },
+                "flow_id": "flow_3",
             }
         ]
 
@@ -2173,6 +2177,10 @@ class TestMain:
         assert flow_id == flows[1]["flow_id"]
 
         mock_flows.return_value = [flows[2]]
+        flow_id = self.napp.get_flow_id_by_intf(mock_intf)
+        assert flow_id == flows[2]["flow_id"]
+
+        mock_flows.return_value = [flows[3]]
         flow_id = self.napp.get_flow_id_by_intf(mock_intf)
         assert flow_id is None
 

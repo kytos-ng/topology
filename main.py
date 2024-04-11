@@ -1012,9 +1012,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if interface.is_enabled() or interface.is_active():
             return "It is enabled or active."
 
-        if not interface.all_tags_available():
-            return "There is an allocated TAG."
-
         link = self._get_link_from_interface(interface)
         if link:
             return f"It has a link, {link.id}."
@@ -1033,6 +1030,16 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             in_port = flow["flow"].get("match", {}).get("in_port")
             if in_port == port_n:
                 return flow["flow_id"]
+
+            instructions = flow["flow"].get("instructions", [])
+            for instruction in instructions:
+                if instruction["instruction_type"] == "apply_actions":
+                    actions = instruction["actions"]
+                    for action in actions:
+                        if (action["action_type"] == "output"
+                                and action.get("port") == port_n):
+                            return flow["flow_id"]
+
             actions = flow["flow"].get("actions", [])
             for action in actions:
                 if (action["action_type"] == "output"
