@@ -2096,7 +2096,7 @@ class TestMain:
         # Error 409 Interface is used
         mock_switch.interfaces = {1: Mock()}
         self.napp.controller.switches = {switch_id: mock_switch}
-        mock_usage.return_value = "There is an allocated TAG."
+        mock_usage.return_value = "It is enabled or active."
         response = await self.api_client.delete(endpoint)
         assert response.status_code == 409, response
 
