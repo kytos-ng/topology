@@ -804,15 +804,18 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         intf_id = request.path_params.get("intf_id")
         intf_split = intf_id.split(":")
         switch_id = ":".join(intf_split[:-1])
-        intf_port = int(intf_split[-1])
+        try:
+            intf_port = int(intf_split[-1])
+        except ValueError:
+            raise HTTPException(400, detail="Invalid interface id.")
         try:
             switch = self.controller.switches[switch_id]
         except KeyError:
-            raise HTTPException(404, detail="Switch not found")
+            raise HTTPException(404, detail="Switch not found.")
         try:
             interface = switch.interfaces[intf_port]
         except KeyError:
-            raise HTTPException(404, detail="Interface not found")
+            raise HTTPException(404, detail="Interface not found.")
 
         usage = self.get_intf_usage(interface)
         if usage:

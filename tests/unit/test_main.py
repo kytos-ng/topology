@@ -2081,6 +2081,11 @@ class TestMain:
         switch_id = "00:00:00:00:00:00:00:01"
         intf_id = "00:00:00:00:00:00:00:01:1"
 
+        # Error 400 Invalid interface id
+        endpoint = f"{self.base_endpoint}/interfaces/{intf_id}x"
+        response = await self.api_client.delete(endpoint)
+        assert response.status_code == 400, response
+
         # Error 404 Switch not found
         endpoint = f"{self.base_endpoint}/interfaces/{intf_id}"
         response = await self.api_client.delete(endpoint)
