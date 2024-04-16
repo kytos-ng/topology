@@ -352,3 +352,9 @@ class TopoController:
             {"_id": switch_dpid}
         )
         return (swt_result, det_result.deleted_count)
+
+    def delete_interface_from_details(self, intf_id: str) -> Optional[dict]:
+        """Delete interface from interface_details."""
+        return self.db.interface_details.find_one_and_delete(
+            {"_id": intf_id}
+        )

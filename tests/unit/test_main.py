@@ -2073,3 +2073,129 @@ class TestMain:
         mock_get.return_value.json.return_value = expected
         actual = self.napp.get_flows_by_switch(dpid)
         assert actual == "mocked_flows"
+
+    @patch('napps.kytos.topology.main.Main.get_intf_usage')
+    @patch('napps.kytos.topology.main.Main._delete_interface')
+    async def test_delete_interface_api(self, mock_delete, mock_usage):
+        """Test delete interface API call"""
+        switch_id = "00:00:00:00:00:00:00:01"
+        intf_id = "00:00:00:00:00:00:00:01:1"
+
+        # Error 400 Invalid interface id
+        endpoint = f"{self.base_endpoint}/interfaces/{intf_id}x"
+        response = await self.api_client.delete(endpoint)
+        assert response.status_code == 400, response
+
+        # Error 404 Switch not found
+        endpoint = f"{self.base_endpoint}/interfaces/{intf_id}"
+        response = await self.api_client.delete(endpoint)
+        assert response.status_code == 404, response
+
+        # Error 404 Interface not found
+        mock_switch = get_switch_mock(switch_id)
+        mock_switch.interfaces = {}
+        self.napp.controller.switches = {switch_id: mock_switch}
+        response = await self.api_client.delete(endpoint)
+        assert response.status_code == 404, response
+
+        # Error 409 Interface is used
+        mock_switch.interfaces = {1: Mock()}
+        self.napp.controller.switches = {switch_id: mock_switch}
+        mock_usage.return_value = "It is enabled or active."
+        response = await self.api_client.delete(endpoint)
+        assert response.status_code == 409, response
+
+        # Success
+        mock_usage.return_value = None
+        mock_delete.return_value = True
+        response = await self.api_client.delete(endpoint)
+        assert response.status_code == 200, response
+
+    def test_get_intf_usage(self):
+        """Test get_intf_usage"""
+        switch_id = "00:00:00:00:00:00:00:01"
+        mock_switch = get_switch_mock(switch_id)
+        mock_intf = get_interface_mock('s1-eth1', 1, mock_switch)
+
+        mock_intf.is_enabled.return_value = False
+        mock_intf.is_active.return_value = True
+        actual_usage = self.napp.get_intf_usage(mock_intf)
+        assert actual_usage == "It is enabled or active."
+
+        mock_intf.is_active.return_value = False
+        self.napp._get_link_from_interface = MagicMock(return_value=Mock())
+        actual_usage = self.napp.get_intf_usage(mock_intf)
+        assert "It has a link," in actual_usage
+
+        self.napp._get_link_from_interface.return_value = None
+        self.napp.get_flow_id_by_intf = MagicMock(return_value="mock_flow")
+        actual_usage = self.napp.get_intf_usage(mock_intf)
+        assert "There is a flow installed" in actual_usage
+
+        self.napp.get_flow_id_by_intf.return_value = None
+        actual_usage = self.napp.get_intf_usage(mock_intf)
+        assert actual_usage is None
+
+    @patch('napps.kytos.topology.main.Main.get_flows_by_switch')
+    def test_get_flow_id_by_intf(self, mock_flows):
+        """Test get_flow_id_by_intf"""
+        flows = [
+            {
+                "flow": {
+                    "match": {"in_port": 1, "dl_vlan": 200},
+                },
+                "flow_id": "flow_0",
+            },
+            {
+                "flow": {
+                    "actions": [{"action_type": "output", "port": 1}]
+                },
+                "flow_id": "flow_1",
+            },
+            {
+                "flow": {
+                    "instructions": [{
+                        "instruction_type": "apply_actions",
+                        "actions": [{"action_type": "output", "port": 1}]
+                    }]
+                },
+                "flow_id": "flow_2",
+            },
+            {
+                "flow": {
+                    "match": {"dl_src": "ee:ee:ee:ee:ee:02"},
+                },
+                "flow_id": "flow_3",
+            }
+        ]
+
+        switch_id = "00:00:00:00:00:00:00:01"
+        mock_switch = get_switch_mock(switch_id)
+        mock_intf = get_interface_mock('s1-eth1', 1, mock_switch)
+
+        mock_flows.return_value = [flows[0]]
+        flow_id = self.napp.get_flow_id_by_intf(mock_intf)
+        assert flow_id == flows[0]["flow_id"]
+
+        mock_flows.return_value = [flows[1]]
+        flow_id = self.napp.get_flow_id_by_intf(mock_intf)
+        assert flow_id == flows[1]["flow_id"]
+
+        mock_flows.return_value = [flows[2]]
+        flow_id = self.napp.get_flow_id_by_intf(mock_intf)
+        assert flow_id == flows[2]["flow_id"]
+
+        mock_flows.return_value = [flows[3]]
+        flow_id = self.napp.get_flow_id_by_intf(mock_intf)
+        assert flow_id is None
+
+    def test_delete_interface(self):
+        """Test _delete_interface"""
+        switch_id = "00:00:00:00:00:00:00:01"
+        mock_switch = get_switch_mock(switch_id)
+        mock_intf = get_interface_mock('s1-eth1', 1, mock_switch)
+        self.napp._delete_interface(mock_intf)
+        assert mock_switch.remove_interface.call_count == 1
+        assert self.napp.topo_controller.upsert_switch.call_count == 1
+        delete = self.napp.topo_controller.delete_interface_from_details
+        assert delete.call_count == 1

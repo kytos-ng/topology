@@ -89,7 +89,8 @@ class TestMain:
         event_response = self.napp.controller.buffers.app.get()
         assert event_response.name == 'kytos/topology.updated'
 
-    async def test_handle_interface_deleted(self):
+    @patch('napps.kytos.topology.main.log')
+    async def test_handle_interface_deleted(self, mock_log):
         """Test handle interface deleted."""
         self.napp.controller._buffers = KytosBuffers()
         event_name = '.*.switch.interface.deleted'
@@ -97,9 +98,19 @@ class TestMain:
         interface.switch.dpid = "00:00:00:00:00:00:00:01"
         stats_event = KytosEvent(name=event_name,
                                  content={'interface': interface})
+        self.napp.get_intf_usage = MagicMock(return_value="Usage")
+        self.napp._delete_interface = MagicMock()
         self.napp.handle_interface_deleted(stats_event)
         event_updated_response = self.napp.controller.buffers.app.get()
         assert event_updated_response.name == 'kytos/topology.updated'
+        assert not self.napp._delete_interface.call_count
+        assert mock_log.info.call_count == 1
+
+        self.napp.get_intf_usage.return_value = None
+        self.napp.handle_interface_deleted(stats_event)
+        event_updated_response = self.napp.controller.buffers.app.get()
+        assert event_updated_response.name == 'kytos/topology.updated'
+        assert self.napp._delete_interface.call_count == 1
 
     async def test_handle_connection_lost(self):
         """Test handle connection lost."""

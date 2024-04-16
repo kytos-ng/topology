@@ -129,7 +129,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Return an object representing the topology."""
         return Topology(self.controller.switches.copy(), self.links.copy())
 
-    def _get_link_from_interface(self, interface):
+    def _get_link_from_interface(self, interface: Interface):
         """Return the link of the interface, or None if it does not exist."""
         for link in list(self.links.values()):
             if interface in (link.endpoint_a, link.endpoint_b):
@@ -798,6 +798,32 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.controller.buffers.app.put(event)
         return JSONResponse("Operation successful")
 
+    @rest('v3/interfaces/{intf_id}', methods=['DELETE'])
+    def delete_interface(self, request: Request) -> JSONResponse:
+        """Delete an interface only if it is not used."""
+        intf_id = request.path_params.get("intf_id")
+        intf_split = intf_id.split(":")
+        switch_id = ":".join(intf_split[:-1])
+        try:
+            intf_port = int(intf_split[-1])
+        except ValueError:
+            raise HTTPException(400, detail="Invalid interface id.")
+        try:
+            switch = self.controller.switches[switch_id]
+        except KeyError:
+            raise HTTPException(404, detail="Switch not found.")
+        try:
+            interface = switch.interfaces[intf_port]
+        except KeyError:
+            raise HTTPException(404, detail="Interface not found.")
+
+        usage = self.get_intf_usage(interface)
+        if usage:
+            raise HTTPException(409, detail=f"Interface could not be "
+                                            f"deleted. Reason: {usage}")
+        self._delete_interface(interface)
+        return JSONResponse("Operation Successful", status_code=200)
+
     @listen_to("kytos/.*.liveness.(up|down)")
     def on_link_liveness_status(self, event) -> None:
         """Handle link liveness up|down status event."""
@@ -975,6 +1001,62 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def handle_interface_deleted(self, event):
         """Update the topology based on a Port Delete event."""
         self.handle_interface_down(event)
+        interface = event.content['interface']
+        usage = self.get_intf_usage(interface)
+        if usage:
+            log.info(f"Interface {interface.id} could not be safely removed."
+                     f" Reason: {usage}")
+        else:
+            self._delete_interface(interface)
+
+    def get_intf_usage(self, interface: Interface) -> Optional[str]:
+        """Determines how an interface is used explained in a string,
+        returns None if unused."""
+        if interface.is_enabled() or interface.is_active():
+            return "It is enabled or active."
+
+        link = self._get_link_from_interface(interface)
+        if link:
+            return f"It has a link, {link.id}."
+
+        flow_id = self.get_flow_id_by_intf(interface)
+        if flow_id:
+            return f"There is a flow installed, {flow_id}."
+
+        return None
+
+    def get_flow_id_by_intf(self, interface: Interface) -> str:
+        """Return flow_id from first found flow used by interface."""
+        flows = self.get_flows_by_switch(interface.switch.id)
+        port_n = int(interface.id.split(":")[-1])
+        for flow in flows:
+            in_port = flow["flow"].get("match", {}).get("in_port")
+            if in_port == port_n:
+                return flow["flow_id"]
+
+            instructions = flow["flow"].get("instructions", [])
+            for instruction in instructions:
+                if instruction["instruction_type"] == "apply_actions":
+                    actions = instruction["actions"]
+                    for action in actions:
+                        if (action["action_type"] == "output"
+                                and action.get("port") == port_n):
+                            return flow["flow_id"]
+
+            actions = flow["flow"].get("actions", [])
+            for action in actions:
+                if (action["action_type"] == "output"
+                        and action.get("port") == port_n):
+                    return flow["flow_id"]
+        return None
+
+    def _delete_interface(self, interface: Interface):
+        """Delete any trace of an interface. Only use this method when
+         it was confirmed that the interface is not used."""
+        switch: Switch = interface.switch
+        switch.remove_interface(interface)
+        self.topo_controller.upsert_switch(switch.id, switch.as_dict())
+        self.topo_controller.delete_interface_from_details(interface.id)
 
     @listen_to('.*.switch.interface.link_up')
     def on_interface_link_up(self, event):
@@ -1002,14 +1084,14 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         before_sleep=before_sleep,
         retry=retry_if_exception_type(httpx.RequestError),
     )
-    def get_flows_by_switch(self, dpid) -> dict:
+    def get_flows_by_switch(self, dpid: str) -> list:
         """Get installed flows by switch from flow_manager."""
         endpoint = settings.FLOW_MANAGER_URL +\
             f'/stored_flows?state=installed&dpid={dpid}'
         res = httpx.get(endpoint)
         if res.is_server_error or res.status_code in (404, 400):
             raise httpx.RequestError(res.text)
-        return res.json().get(dpid)
+        return res.json().get(dpid, [])
 
     def link_status_hook_link_up_timer(self, link) -> Optional[EntityStatus]:
         """Link status hook link up timer."""
