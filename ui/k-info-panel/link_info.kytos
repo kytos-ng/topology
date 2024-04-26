@@ -35,9 +35,11 @@
       </template>
       <k-accordion-item title="Basic Details">
         <k-property-panel>
-          <k-property-panel-item :name="key" :value="value" 
-          :key="key" v-if="content" v-for="(value, key) in this.details">
-          </k-property-panel-item>
+          <template v-if="content" >
+            <k-property-panel-item :name="key" :value="value" 
+            :key="key" v-for="(value, key) in this.details">
+            </k-property-panel-item>
+          </template>
         </k-property-panel>
       </k-accordion-item>
       <k-accordion-item title="Metadata" v-if="Object.keys(this.metadata).length > 0">

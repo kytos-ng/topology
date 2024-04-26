@@ -38,12 +38,16 @@
       </k-accordion-item>
       <k-accordion-item title="Basic Details">
           <k-property-panel>
-              <k-property-panel-item :name="key" :value="value" :key="key" v-if="content" v-for="(value, key) in this.metadata"></k-property-panel-item>
+            <template v-if="content" >
+              <k-property-panel-item :name="key" :value="value" :key="key" v-for="(value, key) in this.metadata"></k-property-panel-item>
+            </template>
           </k-property-panel>
       </k-accordion-item>
       <k-accordion-item title="Custom Properties" v-if="this.custom_properties">
           <k-property-panel>
-              <k-property-panel-item :name="key" :value="value" v-if="content" :key="key" v-for="(value, key) in this.custom_properties"></k-property-panel-item>
+            <template v-if="content" >
+              <k-property-panel-item :name="key" :value="value" :key="key" v-for="(value, key) in this.custom_properties"></k-property-panel-item>
+            </template>
           </k-property-panel>
       </k-accordion-item>
       <k-accordion-item title="Interfaces" v-if="this.interfaces">
@@ -116,7 +120,7 @@
      return {
        content_switch: [],
        chosen_action: '',
-       chosen_interfaces: '',
+       chosen_interfaces: [],
        table_link_header: ['Links'],
        table_link_body: [],
        next_state: '',
