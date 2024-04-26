@@ -7,7 +7,7 @@
             <div class="item-content" v-if="s.metadata && s.metadata.description"><b>Description:</b> {{s.metadata.description}}</div>
             <div class="item-content" v-if="s.metadata && s.metadata.city"><b>City:</b> {{s.metadata.city}}</div>
             <div class="item-content" v-if="s.metadata && s.metadata.network"><b>Network:</b> {{s.metadata.network}}</div>
-            <div class="item-content"><b>Interfaces:</b> {{s.interfaces | length}}</div>
+            <div class="item-content"><b>Interfaces:</b> {{ interfaceLength(s.interfaces) }}</div>
       </div>
     </div>
   </div>
@@ -43,7 +43,10 @@ module.exports = {
           self.switches.push(result.switches[key])
         }
       })
-    }
+    },
+    interfaceLength(interface) {
+      return interface.length;
+    },
   },
   data() {
     return {
@@ -55,11 +58,6 @@ module.exports = {
          shortkey: 'ctrl+alt+s',
          action: this.show,
         }
-    }
-  },
-  filters: {
-    length(items) {
-     return Object.keys(items).length
     }
   },
   mounted() {
