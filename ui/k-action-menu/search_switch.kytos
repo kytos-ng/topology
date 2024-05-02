@@ -44,8 +44,8 @@ module.exports = {
         }
       })
     },
-    interfaceLength(interface) {
-      return interface.length;
+    interfaceLength(items) {
+      return Object.keys(items).length;
     },
   },
   data() {
