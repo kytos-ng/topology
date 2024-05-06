@@ -4,7 +4,7 @@ This folder contains Topology's related scripts:
 
 <details><summary><h3>Change <code>tag_type</code> from integer to string type</h3></summary>
 
-[`000_vlan_pool.py`](.000_vlan_pool.py) is a script to change ``available_vlans`` to ``available_tags``. Also adding new field ``tag_ranges``. These new fields have the type ``dict[str, list[list[int]]]``. Example
+[`000_vlan_pool.py`](./000_vlan_pool.py) is a script to change ``available_vlans`` to ``available_tags``. Also adding new field ``tag_ranges``. These new fields have the type ``dict[str, list[list[int]]]``. Example
 
 ```
     available_tags = {"vlan": [[1, 299], [301, 4095]]}
