@@ -130,8 +130,8 @@ def aggregate_outdated_interfaces(mongo: Mongo):
             {"$project": {
                 "_id": 0,
                 "id": 1,
-                "max_number": {"$max": "$available_vlans"},
-                "min_number": {"$min": "$available_vlans"},
+                "max_number": {"$max": "$available_vlans"}, # MAX deleted in 6.0
+                "min_number": {"$min": "$available_vlans"}, # MIN deleted in 6.0
                 "available_vlans": 1,
             }}
         ]
