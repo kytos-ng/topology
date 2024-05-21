@@ -95,9 +95,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """
         new_link = Link(endpoint_a, endpoint_b)
 
-        for link in self.links.values():
-            if new_link == link:
-                return (link, False)
+        if new_link.id in self.links:
+            return (self.links[new_link.id], False)
 
         self.links[new_link.id] = new_link
         return (new_link, True)
