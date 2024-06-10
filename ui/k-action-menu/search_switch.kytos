@@ -1,13 +1,13 @@
 <template>
   <div id="k-switch-search"  >
-    <k-input :value.sync="search" tooltip="Search for switches" placeholder="Search for switches" id="k-input-search"></k-input>
+    <k-input v-model:value="search" tooltip="Search for switches" placeholder="Search for switches" id="k-input-search"></k-input>
     <div id="search-result">
       <div class="item-search" :title="s.dpid" v-for="s in switchesFiltered" @click="open_switch(s)">
             <div class="item-switch"><span>{{s.name}} </span><br />({{s.connection}})</div>
             <div class="item-content" v-if="s.metadata && s.metadata.description"><b>Description:</b> {{s.metadata.description}}</div>
             <div class="item-content" v-if="s.metadata && s.metadata.city"><b>City:</b> {{s.metadata.city}}</div>
             <div class="item-content" v-if="s.metadata && s.metadata.network"><b>Network:</b> {{s.metadata.network}}</div>
-            <div class="item-content"><b>Interfaces:</b> {{s.interfaces | length}}</div>
+            <div class="item-content"><b>Interfaces:</b> {{ interfaceLength(s.interfaces) }}</div>
       </div>
     </div>
   </div>
@@ -25,7 +25,7 @@ module.exports = {
                       "title": "Switch Search",
                       "subtitle": "by kytos/topology"
                      }
-       this.$kytos.$emit("showInfoPanel", content)
+       this.$kytos.eventBus.$emit("showInfoPanel", content)
     },
     open_switch(s){
       var content = {"component": 'kytos-topology-k-info-panel-switch_info',
@@ -33,7 +33,7 @@ module.exports = {
                      "icon": "gear",
                      "title": "Switch Details",
                      "subtitle": s.connection}
-      this.$kytos.$emit("showInfoPanel", content)
+      this.$kytos.eventBus.$emit("showInfoPanel", content)
     },
     get_switches () {
       var endpoint = this.$kytos_server_api + "kytos/topology/v3/switches"
@@ -43,7 +43,10 @@ module.exports = {
           self.switches.push(result.switches[key])
         }
       })
-    }
+    },
+    interfaceLength(items) {
+      return Object.keys(items).length;
+    },
   },
   data() {
     return {
@@ -57,14 +60,9 @@ module.exports = {
         }
     }
   },
-  filters: {
-    length(items) {
-     return Object.keys(items).length
-    }
-  },
   mounted() {
     this.get_switches()
-    this.$kytos.$emit('addActionMenuItem', this.options)
+    this.$kytos.eventBus.$emit('addActionMenuItem', this.options)
   },
   computed: {
     switchesFiltered() {

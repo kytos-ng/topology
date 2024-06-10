@@ -2,10 +2,10 @@
     <k-accordion>
       <div class="buttons">
         <div class="button-left">
-          <k-button :on_click="bt_state_toggle" :title="next_state"></k-button>
+          <k-button @click="bt_state_toggle" :title="next_state"></k-button>
         </div>
         <div class="button-right">
-          <k-button :on_click="bt_delete" title="Delete"></k-button>
+          <k-button @click="bt_delete" title="Delete"></k-button>
         </div>
       </div>
       <template v-if="show_modal">
@@ -23,9 +23,9 @@
               </div>
               <div class="modal-footer">
                 <slot name="footer">
-                  <k-button tooltip="Cancel" title="Cancel" :on_click="modal_cancel">
+                  <k-button tooltip="Cancel" title="Cancel" @click="modal_cancel">
                   </k-button>
-                  <k-button id="modal-delete" tooltip="Delete" title="Delete" :on_click="modal_delete">
+                  <k-button id="modal-delete" tooltip="Delete" title="Delete" @click="modal_delete">
                   </k-button>
                 </slot>
               </div>
@@ -38,12 +38,16 @@
       </k-accordion-item>
       <k-accordion-item title="Basic Details">
           <k-property-panel>
-              <k-property-panel-item :name="key" :value="value" :key="key" v-if="content" v-for="(value, key) in this.metadata"></k-property-panel-item>
+            <template v-if="content" >
+              <k-property-panel-item :name="key" :value="value" :key="key" v-for="(value, key) in this.metadata"></k-property-panel-item>
+            </template>
           </k-property-panel>
       </k-accordion-item>
       <k-accordion-item title="Custom Properties" v-if="this.custom_properties">
           <k-property-panel>
-              <k-property-panel-item :name="key" :value="value" v-if="content" :key="key" v-for="(value, key) in this.custom_properties"></k-property-panel-item>
+            <template v-if="content" >
+              <k-property-panel-item :name="key" :value="value" :key="key" v-for="(value, key) in this.custom_properties"></k-property-panel-item>
+            </template>
           </k-property-panel>
       </k-accordion-item>
       <k-accordion-item title="Interfaces" v-if="this.interfaces">
@@ -92,19 +96,19 @@
         </div>
       </k-accordion-item>            
       <k-accordion-item title="Metadata actions"> 
-         <k-textarea title="Add metadata" icon="arrow-right" placeholder='Eg. {"node_name": "some_name", "address": "some_address"}' :value.sync="to_add"></k-textarea>
+         <k-textarea title="Add metadata" icon="arrow-right" placeholder='Eg. {"node_name": "some_name", "address": "some_address"}' v-model:value="to_add"></k-textarea>
          <div class="metadata_container">
-              <k-button title="Add metadata" :on_click="bt_add_metadata"></k-button>
+              <k-button title="Add metadata" @click="bt_add_metadata"></k-button>
          </div>
-         <k-input title="Delete metadata" icon="arrow-right" placeholder="Eg. node_name" :value.sync="to_delete"></k-input>
+         <k-input title="Delete metadata" icon="arrow-right" placeholder="Eg. node_name" v-model:value="to_delete"></k-input>
          <div class="metadata_container">
-              <k-button title="Remove metadata" :on_click="bt_rmv_metadata"></k-button>
+              <k-button title="Remove metadata" @click="bt_rmv_metadata"></k-button>
          </div>
       </k-accordion-item>
       <k-accordion-item title="LLDP Packets">
-        <k-select title="Interfaces:" :options="get_interfaces" :value.sync ="chosen_interfaces"></k-select>
-        <k-dropdown title="Action:" :options="get_actions" :value.sync="chosen_action"></k-dropdown>
-        <k-button title="Request" :on_click="bt_request"></k-button>
+        <k-select title="Interfaces:" :options="get_interfaces" v-model:value ="chosen_interfaces"></k-select>
+        <k-dropdown title="Action:" :options="get_actions" v-model:value="chosen_action"></k-dropdown>
+        <k-button title="Request" @click="bt_request"></k-button>
       </k-accordion-item>
     </k-accordion>
 </template>
@@ -116,7 +120,7 @@
      return {
        content_switch: [],
        chosen_action: '',
-       chosen_interfaces: '',
+       chosen_interfaces: [],
        table_link_header: ['Links'],
        table_link_body: [],
        next_state: '',
@@ -179,7 +183,7 @@
          title: 'Could not reach links data (' + data.status + '):',
          description: data.responseJSON.description,
        }
-       this.$kytos.$emit("setNotification", notification);
+       this.$kytos.eventBus.$emit("setNotification", notification);
      },
      get_links_and_interfaces(){
        var self = this
@@ -219,7 +223,7 @@
               title: 'Add metadata: Success',
               description: '"' + _this.to_add + '" was added to the metadata. Switch: ' + _this.metadata.id,
          }
-         _this.$kytos.$emit("setNotification", notification)
+         _this.$kytos.eventBus.$emit("setNotification", notification)
          let temp = JSON.parse(_this.to_add)
          for (key in temp){
            _this.content.metadata[key] = temp[key]
@@ -232,7 +236,7 @@
               title: 'Add metadata: Failure',
               description: data.status + ': ' + data.responseJSON.description + ' "' + _this.to_add + '" was not added to the metadata. Switch: ' + _this.metadata.id,
          }
-         _this.$kytos.$emit("setNotification", notification)
+         _this.$kytos.eventBus.$emit("setNotification", notification)
        });
      },
      bt_rmv_metadata() {
@@ -249,7 +253,7 @@
               title: 'Delete metadata: Success',
               description: '"' + _this.to_delete + '" was deleted from the metadata. Switch: ' + _this.metadata.id,
          }
-         _this.$kytos.$emit("setNotification", notification)
+         _this.$kytos.eventBus.$emit("setNotification", notification)
          delete _this.content.metadata[_this.to_delete]
          _this.to_delete = ''
        });
@@ -259,7 +263,7 @@
               title: 'Delete metadata: Failure',
               description: data.status + ': ' + data.responseJSON.description + ' "' + _this.to_delete + '" was not deleted from the metadata. Switch: ' + _this.metadata.id,
          }
-         _this.$kytos.$emit("setNotification", notification)
+         _this.$kytos.eventBus.$emit("setNotification", notification)
        });
      },
      rowClicked (link) {
@@ -280,7 +284,7 @@
                       "subtitle": subtitle,
                       "content": link,
        }
-       this.$kytos.$emit("showInfoPanel", content)
+       this.$kytos.eventBus.$emit("showInfoPanel", content)
      },
      get_enabled_value() {
        this.next_state = this.metadata.enabled == 'true'? 'Disable' : 'Enable'
@@ -294,7 +298,7 @@
        this.next_state = this.next_state == 'Enable'? 'Disable' : 'Enable'
        this.content['enabled'] = this.next_state == 'Enable'? 'false' : 'true'
        this.metadata['enabled'] = this.content['enabled']
-       this.$kytos.$emit("setNotification", notification)
+       this.$kytos.eventBus.$emit("setNotification", notification)
      },
      msg_state_failure(data){
        let notification = {
@@ -302,7 +306,7 @@
          description: data.status + ': ' + data.responseJSON.description + '. The switch ' + this.metadata.dpid + ' was not ' + this.next_state.toLowerCase() + 'd.',
          icon: 'gear',
        }
-       this.$kytos.$emit("setNotification", notification)
+       this.$kytos.eventBus.$emit("setNotification", notification)
      },
      bt_state_toggle(){
        let request = $.ajax({
@@ -330,7 +334,7 @@
            description: 'The interfaces ' + interfaces["interfaces"] + ' is/are ' + _this.chosen_action.toLowerCase() + 'd to send lldp packet',
            icon: 'gear',
          }
-         _this.$kytos.$emit("setNotification", notification)
+         _this.$kytos.eventBus.$emit("setNotification", notification)
        })
        request.fail(function(data){
          let notification = {
@@ -338,7 +342,7 @@
            description: data.status + ': ' + data.responseJSON.description + ' The interfaces ' + interfaces["interfaces"] + ' is/are not ' + _this.chosen_action.toLowerCase() + 'd to send lldp packet',
            icon: 'gear',
            }
-         _this.$kytos.$emit("setNotification", notification)
+         _this.$kytos.eventBus.$emit("setNotification", notification)
        })
      },
      bt_delete(){
