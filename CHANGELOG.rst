@@ -7,6 +7,9 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2024.1.0] - 2024-07-23
+***********************
+
 Added
 =====
 - Added endpoint ``DELETE v3/interfaces/{interface_id}`` to delete an interface.
@@ -14,7 +17,6 @@ Added
 Changed
 =======
 - Updated python environment installation from 3.9 to 3.11
-- Updated test dependencies
 - After ``*.*.switch.interface.deleted`` event, the interface, if not used, will be automatically removed from memory.
 - Upgraded UI framework to Vue3
 
