@@ -13,6 +13,7 @@ All notable changes to the ``topology`` project will be documented in this file.
 Added
 =====
 - Added endpoint ``DELETE v3/interfaces/{interface_id}`` to delete an interface.
+- Added confirmation windown to confirm the disabling or enabling of a switch in the UI interface.
 
 Changed
 =======
