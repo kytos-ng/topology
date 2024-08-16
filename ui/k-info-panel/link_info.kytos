@@ -236,8 +236,8 @@
               title: 'Delete link: Success',
               description: 'The link ' + name + ' was deleted.',
          }
-         _this.$kytos.$emit("setNotification", notification)
-         _this.$kytos.$emit("hideInfoPanel")
+         _this.$kytos.eventBus.$emit("setNotification", notification)
+         _this.$kytos.eventBus.$emit("hideInfoPanel")
        });
        request.fail(function(data) {
          let notification = {
@@ -245,7 +245,7 @@
               title: 'Delete link: Failure',
               description: data.status + ': ' + data.responseJSON.description + ' The link ' + name + ' was not deleted.',
          }
-         _this.$kytos.$emit("setNotification", notification)
+         _this.$kytos.eventBus.$emit("setNotification", notification)
        });
      },
    },
