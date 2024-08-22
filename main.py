@@ -865,7 +865,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             ):
                 return
             self._intfs_tags_updated_at[interface.id] = event.timestamp
-        self.handle_on_interface_tags(interface)
+            self.handle_on_interface_tags(interface)
 
     def handle_on_interface_tags(self, interface):
         """Update interface details"""
