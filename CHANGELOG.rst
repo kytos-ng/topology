@@ -7,6 +7,13 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2024.1.1] - 2024-08-23
+***********************
+
+Fixed
+=====
+- Update ``interface_detail`` document in the DB can handle multiple and fast changes.
+  
 [2024.1.0] - 2024-07-23
 ***********************
 
