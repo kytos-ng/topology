@@ -7,6 +7,10 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+Changed
+=======
+- The topology modal now uses the modal component
+
 [2024.1.1] - 2024-08-23
 ***********************
 
