@@ -10,6 +10,7 @@
       </div>
       <k-modal
         :message="modal_message"
+        buttonTitle="Delete"
         :action="delete_link"
         v-model:show-modal="show_modal">
       </k-modal>
