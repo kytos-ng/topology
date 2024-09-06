@@ -394,10 +394,10 @@
        return interfaces;
      },
      modal_message_dl() {
-       return `Delete Switch ${metadata.node_name !== undefined && metadata.node_name.length !== 0? metadata.node_name : metadata.id}?`
+       return `Delete Switch ${this.metadata.node_name !== undefined && this.metadata.node_name.length !== 0? this.metadata.node_name : this.metadata.id}?`
      },
      modal_message_dis() {
-       return `${next_state} Switch ${metadata.node_name !== undefined && metadata.node_name.length !== 0? metadata.node_name : metadata.id}?`
+       return `${this.next_state} Switch ${this.metadata.node_name !== undefined && this.metadata.node_name.length !== 0? this.metadata.node_name : this.metadata.id}?`
      }
    },
  }
