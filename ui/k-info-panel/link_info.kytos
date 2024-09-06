@@ -43,7 +43,7 @@
       <k-accordion-item title="Metadata actions">
         <k-textarea title="Insert metadata" icon="arrow-right" placeholder='Eg. {"bandwidth": 100, "link_name": "some_name"}' v-model:value="to_add"></k-textarea>
         <div class="metadata_container">
-          <k-button title="Add metadata" @click="bt_delete"></k-button>
+          <k-button title="Add metadata" @click="bt_add_metadata"></k-button>
         </div>
         <k-input title="Insert metadata" icon="arrow-right" placeholder="Eg. link_name" v-model:value="to_delete"></k-input>
         <div class="metadata_container">
