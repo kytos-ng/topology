@@ -1228,6 +1228,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 (not link.status_reason and link.status == EntityStatus.UP)
                 and link_id not in self.link_up
             ):
+                log.info(f"{link} changed status {link.status}, "
+                         f"reason: {reason}")
                 self.link_up.add(link_id)
                 event = KytosEvent(
                     name='kytos/topology.link_up',
@@ -1240,6 +1242,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 (link.status_reason or link.status != EntityStatus.UP)
                 and link_id in self.link_up
             ):
+                log.info(f"{link} changed status {link.status}, "
+                         f"reason: {reason}")
                 self.link_up.remove(link_id)
                 event = KytosEvent(
                     name='kytos/topology.link_down',
