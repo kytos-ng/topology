@@ -52,7 +52,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                                      DEFAULT_LINK_UP_TIMER)
 
         self._links_lock = Lock()
-        self._links_notify_lock = defaultdict(Lock)
         # to keep track of potential unorded scheduled interface events
         self._intfs_lock = defaultdict(Lock)
         self._intfs_updated_at = {}
@@ -989,7 +988,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             ):
                 return
             self._intfs_updated_at[interface.id] = event.timestamp
-        interface.deactivate()
+            interface.deactivate()
         self.handle_interface_link_down(interface, event)
 
     @listen_to('.*.switch.interface.deleted')
@@ -1075,7 +1074,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             ):
                 return
             self._intfs_updated_at[interface.id] = event.timestamp
-        self.handle_link_up(interface)
+            self.handle_link_up(interface)
 
     @tenacity.retry(
         stop=stop_after_attempt(3),
@@ -1111,7 +1110,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         time.sleep(self.link_up_timer)
         if link.status != EntityStatus.UP:
             return
-        with self._links_notify_lock[link.id]:
+        with self._links_lock:
             notified_at = link.get_metadata("notified_up_at")
             if (
                 notified_at
@@ -1145,7 +1144,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             link.extend_metadata(metadata)
             link.activate()
             self.notify_topology_update()
-        self.notify_link_up_if_status(link, "link up")
+            event = KytosEvent(
+                name="kytos/topology.notify_link_up_if_status",
+                content={"reason": "link up", "link": link}
+            )
+            self.controller.buffers.app.put(event)
 
     @listen_to('.*.switch.interface.link_down')
     def on_interface_link_down(self, event):
@@ -1165,7 +1168,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             ):
                 return
             self._intfs_updated_at[interface.id] = event.timestamp
-        self.handle_link_down(interface)
+            self.handle_link_down(interface)
 
     def handle_link_down(self, interface):
         """Notify a link is down."""
@@ -1309,6 +1312,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 (not link.status_reason and link.status == EntityStatus.UP)
                 and link_id not in self.link_up
             ):
+                log.info(f"{link} changed status {link.status}, "
+                         f"reason: {reason}")
                 self.link_up.add(link_id)
                 event = KytosEvent(
                     name='kytos/topology.link_up',
@@ -1321,6 +1326,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 (link.status_reason or link.status != EntityStatus.UP)
                 and link_id in self.link_up
             ):
+                log.info(f"{link} changed status {link.status}, "
+                         f"reason: {reason}")
                 self.link_up.remove(link_id)
                 event = KytosEvent(
                     name='kytos/topology.link_down',
