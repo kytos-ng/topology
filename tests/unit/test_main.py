@@ -82,8 +82,7 @@ class TestMain:
             'kytos/.*.liveness.disabled',
             '.*.switch.port.created',
             'kytos/topology.notify_link_up_if_status',
-            'topology.interruption.start',
-            'topology.interruption.end',
+            'topology.interruption.(start|end)',
             'kytos/core.interface_tags',
         ]
         actual_events = self.napp.listeners()
