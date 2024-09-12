@@ -11,6 +11,17 @@ Changed
 =======
 - The topology modal now uses the modal component
 
+[2024.1.2] - 2024-09-10
+***********************
+
+Fixed
+=====
+- Fixed link down thread safety notification issue
+
+Added
+=====
+- Included link changed status log info for correlation
+
 [2024.1.1] - 2024-08-23
 ***********************
 
