@@ -54,8 +54,7 @@ class TestMain:
             '.*.switch.(new|reconnected)',
             '.*.switch.port.created',
             'kytos/topology.notify_link_up_if_status',
-            'topology.interruption.start',
-            'topology.interruption.end',
+            'topology.interruption.(start|end)',
             'kytos/core.interface_tags',
         ]
         assert sorted(expected_events) == sorted(actual_events)
