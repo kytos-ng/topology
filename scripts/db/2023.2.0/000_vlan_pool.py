@@ -1,10 +1,16 @@
 import datetime
+import json
 import sys
 import os
 from collections import defaultdict
 from kytos.core.db import Mongo
 
 DEFAULT_TAG_RANGES = [[1, 4095]]
+custom_tag_range = json.loads(os.environ.get("CUSTOM_TAG_RANGE", "{}"))
+
+
+def get_tag_range(intf_id) -> [list[list[int]]]:
+    return custom_tag_range.get(intf_id, DEFAULT_TAG_RANGES)
 
 def get_range(vlans, avoid) -> list[list[int]]:
     """Convert available_vlans to available_tags.
@@ -34,10 +40,10 @@ def get_range(vlans, avoid) -> list[list[int]]:
     result.append([start, end])
     return result
 
-def generate_ranges(avoid) -> [list[list[int]]]:
+def generate_ranges(avoid, intf_id) -> [list[list[int]]]:
     """Generate available_tags only from avoid"""
     if not avoid:
-        return DEFAULT_TAG_RANGES
+        return get_tag_range(intf_id)
 
     avoid.sort()
     ranges = []
@@ -93,10 +99,10 @@ def update_database(mongo: Mongo):
         result = db.interface_details.update_one(
             {"id": document["id"]},
             {
-                "$set": 
+                "$set":
                 {
                     "available_tags": {"vlan": ranges},
-                    "tag_ranges": {"vlan": DEFAULT_TAG_RANGES}
+                    "tag_ranges": {"vlan": get_tag_range(document["id"])}
                 },
                 "$unset": {"available_vlans": ""}
             }
@@ -105,7 +111,7 @@ def update_database(mongo: Mongo):
 
     evc_intf_count = 0
     for intf_id, avoid_tags in evc_tags.items():
-        available_tags = generate_ranges(list(avoid_tags))
+        available_tags = generate_ranges(list(avoid_tags), intf_id)
         utc_now = datetime.datetime.utcnow()
         result = db.interface_details.insert_one({
             "_id": intf_id,
@@ -113,7 +119,7 @@ def update_database(mongo: Mongo):
             "inserted_at": utc_now,
             "updated_at": utc_now,
             "available_tags": {"vlan": available_tags},
-            "tag_ranges": {"vlan": DEFAULT_TAG_RANGES},
+            "tag_ranges": {"vlan": get_tag_range(intf_id)},
         })
         if result:
             evc_intf_count += 1
