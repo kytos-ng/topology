@@ -11,6 +11,14 @@ Changed
 =======
 - The topology modal now uses the modal component
 
+[2024.1.3] - 2024-09-13
+***********************
+
+Changed
+=======
+- Combined  ``interruption.start`` and ``interruption.end`` handlers to use a single event ``interruption.(start|end)`` handler. The new handler is also uses the ``dynamic_single`` pool when processing events to ensure in order processing.
+
+
 [2024.1.2] - 2024-09-10
 ***********************
 
