@@ -78,6 +78,12 @@ An `ERROR` can be shown if a duplicated `TAG` is detected in different `EVC`s. A
 Error: Detected duplicated 200 TAG in EVCs 861a11d8fce148 and d74e18464d524b in interface 00:00:00:00:00:00:00:01:1
 ```
 
+If needed, you can also specify a custom VLAN tag range per interface:
+
+```
+CMD=update_database CUSTOM_TAG_RANGE='{"00:00:00:00:00:00:00:01:1": [[2100, 2999]], "00:00:00:00:00:00:00:02:32": [[1000, 1399]]}' python3 scripts/db/2023.2.0/000_vlan_pool.py
+```
+
 </details>
 
 <details><summary><h3>Add <code>special_available_tags</code> and <code>special_tags</code> field to each Interface document in <code>interface_details</code> collection </h3></summary>
