@@ -8,6 +8,31 @@
           <k-button :on_click="bt_delete" title="Delete"></k-button>
         </div>
       </div>
+      <template v-if="show_modal_state_toggle">
+        <div class="modal-mask">
+          <div class="modal-wrapper">
+            <div class="modal-container">
+              <div class="modal-header">
+                <slot name="header">
+                </slot>
+              </div>
+              <div class="modal-body">
+                <slot name="body">
+                  {{next_state}} Link {{metadata.link_name !== undefined && metadata.link_name.length !== 0? '"' + metadata.link_name + '"' : details.id}}?
+                </slot>
+              </div>
+              <div class="modal-footer">
+                <slot name="footer">
+                  <k-button tooltip="Cancel" title="Cancel" :on_click="modal_cancel_state_toggle">
+                  </k-button>
+                  <k-button id="modal-delete" :title="next_state" :on_click="modal_proceed_state_toggle">
+                  </k-button>
+                </slot>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
       <template v-if="show_modal">
         <div class="modal-mask">
           <div class="modal-wrapper">
@@ -91,6 +116,7 @@
                    'status_reason': '',
                    },
          show_modal: false,
+         show_modal_state_toggle: false,
      }
    },
    methods: {
@@ -138,6 +164,16 @@
        this.$kytos.$emit("setNotification", notification)
      },
      bt_state_toggle(){
+       this.show_modal_state_toggle = true;
+     },
+     modal_cancel_state_toggle(){
+       this.show_modal_state_toggle = false;
+     },
+     modal_proceed_state_toggle(){
+       this.show_modal_state_toggle = false;
+       this.state_toggle_link();
+     },
+     state_toggle_link(){
        let request = $.ajax({
                         type:"POST",
                         url: this.$kytos_server_api + "kytos/topology/v3/links/" + this.details.id
