@@ -8,6 +8,7 @@ All notable changes to the ``topology`` project will be documented in this file.
 ********************************
 
 [2023.2.1] - 2024-10-04
+***********************
 
 Fixed
 =====
