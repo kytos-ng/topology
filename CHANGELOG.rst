@@ -10,6 +10,7 @@ All notable changes to the ``topology`` project will be documented in this file.
 Changed
 =======
 - The topology modal now uses the modal component
+- UI: topology link now asks for confirmation when enabling/disabling
 
 [2024.1.3] - 2024-09-13
 ***********************

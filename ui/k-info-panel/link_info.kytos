@@ -14,6 +14,12 @@
         :action="delete_link"
         v-model:show-modal="show_modal">
       </k-modal>
+      <k-modal
+        :message="modal_toggle_message"
+        :button-title="next_state"
+        :action="state_toggle"
+        v-model:show-modal="show_toggle_modal">
+      </k-modal>
       <k-accordion-item title="Basic Details">
         <k-property-panel>
           <template v-if="content" >
@@ -73,7 +79,8 @@
                    'status': '',
                    'status_reason': '',
                    },
-         show_modal: false
+         show_modal: false,
+         show_toggle_modal: false,
      }
    },
    methods: {
@@ -121,6 +128,9 @@
        this.$kytos.eventBus.$emit("setNotification", notification)
      },
      bt_state_toggle(){
+       this.show_toggle_modal = true;
+     },
+     state_toggle(){
        let request = $.ajax({
                         type:"POST",
                         url: this.$kytos_server_api + "kytos/topology/v3/links/" + this.details.id
@@ -226,7 +236,10 @@
    computed: {
        modal_message() {
           return `Delete Link ${this.metadata.link_name !== undefined && this.metadata.link_name.length !== 0 ? '"' + this.metadata.link_name + '"' : this.details.id}?`
-       }
+       },
+       modal_toggle_message() {
+          return `${this.next_state} Link ${this.metadata.link_name !== undefined && this.metadata.link_name.length !== 0 ? '"' + this.metadata.link_name + '"' : this.details.id}?`
+       },
    },
    mounted () {
        this.get_details()
