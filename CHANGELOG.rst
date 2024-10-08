@@ -7,6 +7,13 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2024.1.4] - 2024-10-08
+***********************
+
+Changed
+=======
+- UI: topology link now asks for confirmation when enabling/disabling
+
 [2024.1.3] - 2024-09-13
 ***********************
 
