@@ -82,8 +82,7 @@ class TestMain:
             'kytos/.*.liveness.disabled',
             '.*.switch.port.created',
             'kytos/topology.notify_link_up_if_status',
-            'topology.interruption.start',
-            'topology.interruption.end',
+            'topology.interruption.(start|end)',
             'kytos/core.interface_tags',
         ]
         actual_events = self.napp.listeners()
@@ -1245,12 +1244,10 @@ class TestMain:
         mock_handle_interface_link_down.assert_called()
 
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
-    @patch('napps.kytos.topology.main.Main.notify_link_up_if_status')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     def test_interface_link_up(self, *args):
         """Test interface link_up."""
         (mock_notify_topology_update,
-         mock_notify_link_up_if_status,
          mock_link_from_interface) = args
 
         tnow = time.time()
@@ -1270,7 +1267,9 @@ class TestMain:
         mock_notify_topology_update.assert_called()
         mock_link.extend_metadata.assert_called()
         mock_link.activate.assert_called()
-        mock_notify_link_up_if_status.assert_called()
+        assert self.napp.controller.buffers.app.put.call_count == 2
+        ev = "kytos/topology.notify_link_up_if_status"
+        assert self.napp.controller.buffers.app.put.call_args[0][0].name == ev
 
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
@@ -1375,12 +1374,10 @@ class TestMain:
         mock_status_change.assert_called()
 
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
-    @patch('napps.kytos.topology.main.Main.notify_link_up_if_status')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     def test_handle_link_up(self, *args):
         """Test handle link up."""
         (mock_notify_topology_update,
-         mock_notify_link_up_if_status,
          mock_link_from_interface) = args
 
         mock_interface = create_autospec(Interface)
@@ -1389,8 +1386,10 @@ class TestMain:
         mock_link_from_interface.return_value = mock_link
         self.napp.handle_link_up(mock_interface)
         mock_interface.activate.assert_not_called()
-        assert mock_notify_link_up_if_status.call_count == 1
         mock_notify_topology_update.assert_called()
+        assert self.napp.controller.buffers.app.put.call_count == 2
+        ev = "kytos/topology.notify_link_up_if_status"
+        assert self.napp.controller.buffers.app.put.call_args[0][0].name == ev
 
     @patch('time.sleep')
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')

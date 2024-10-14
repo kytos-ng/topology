@@ -10,6 +10,26 @@ All notable changes to the ``topology`` project will be documented in this file.
 Changed
 =======
 - The topology modal now uses the modal component
+- UI: topology link now asks for confirmation when enabling/disabling
+
+[2024.1.3] - 2024-09-13
+***********************
+
+Changed
+=======
+- Combined  ``interruption.start`` and ``interruption.end`` handlers to use a single event ``interruption.(start|end)`` handler. The new handler is also uses the ``dynamic_single`` pool when processing events to ensure in order processing.
+
+
+[2024.1.2] - 2024-09-10
+***********************
+
+Fixed
+=====
+- Fixed link down thread safety notification issue
+
+Added
+=====
+- Included link changed status log info for correlation
 
 [2024.1.1] - 2024-08-23
 ***********************
