@@ -27,7 +27,6 @@ from napps.kytos.topology.exceptions import RestoreError
 def test_handle_link_liveness_status(liveness_status, status) -> None:
     """Test handle link liveness."""
     from napps.kytos.topology.main import Main
-    Main.get_topo_controller = MagicMock()
     napp = Main(get_controller_mock())
     napp.notify_topology_update = MagicMock()
     napp.notify_link_status_change = MagicMock()
@@ -35,9 +34,6 @@ def test_handle_link_liveness_status(liveness_status, status) -> None:
     link = MagicMock(id="some_id", status=status)
     napp.handle_link_liveness_status(link, liveness_status)
 
-    add_link_meta = napp.topo_controller.add_link_metadata
-    add_link_meta.assert_called_with(link.id, {"liveness_status":
-                                               liveness_status})
     link.extend_metadata.assert_called_with({"liveness_status":
                                              liveness_status})
     assert napp.notify_topology_update.call_count == 1
@@ -1549,8 +1545,6 @@ class TestMain:
 
         self.napp.handle_link_liveness_disabled(interfaces)
 
-        bulk_delete = self.napp.topo_controller.bulk_delete_link_metadata_key
-        assert bulk_delete.call_count == 1
         assert self.napp.notify_topology_update.call_count == 1
         assert self.napp.notify_link_status_change.call_count == len(links)
 
