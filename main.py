@@ -797,35 +797,38 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.controller.buffers.app.put(event)
         return JSONResponse("Operation successful")
 
-    @listen_to("kytos/.*.liveness.(up|down)")
-    def on_link_liveness_status(self, event) -> None:
-        """Handle link liveness up|down status event."""
-        link = Link(event.content["interface_a"], event.content["interface_b"])
-        try:
-            link = self.links[link.id]
-        except KeyError:
-            log.error(f"Link id {link.id} not found, {link}")
-            return
-        liveness_status = event.name.split(".")[-1]
-        self.handle_link_liveness_status(self.links[link.id], liveness_status)
+    @listen_to(
+        "kytos/.*.liveness.(up|down|disabled)",
+        pool="dynamic_single"
+    )
+    def on_link_liveness(self, event) -> None:
+        """Handle link liveness up|down|disabled event."""
+        with self._links_lock:
+            liveness_status = event.name.split(".")[-1]
+            if liveness_status == "disabled":
+                interfaces = event.content["interfaces"]
+                self.handle_link_liveness_disabled(interfaces)
+            elif liveness_status in ("up", "down"):
+                link = Link(event.content["interface_a"],
+                            event.content["interface_b"])
+                try:
+                    link = self.links[link.id]
+                except KeyError:
+                    log.error(f"Link id {link.id} not found, {link}")
+                    return
+                self.handle_link_liveness_status(self.links[link.id],
+                                                 liveness_status)
 
     def handle_link_liveness_status(self, link, liveness_status) -> None:
         """Handle link liveness."""
         metadata = {"liveness_status": liveness_status}
         log.info(f"Link liveness {liveness_status}: {link}")
-        self.topo_controller.add_link_metadata(link.id, metadata)
         link.extend_metadata(metadata)
         self.notify_topology_update()
         if link.status == EntityStatus.UP and liveness_status == "up":
             self.notify_link_status_change(link, reason="liveness_up")
         if link.status == EntityStatus.DOWN and liveness_status == "down":
             self.notify_link_status_change(link, reason="liveness_down")
-
-    @listen_to("kytos/.*.liveness.disabled")
-    def on_link_liveness_disabled(self, event) -> None:
-        """Handle link liveness disabled event."""
-        interfaces = event.content["interfaces"]
-        self.handle_link_liveness_disabled(interfaces)
 
     def get_links_from_interfaces(self, interfaces) -> dict:
         """Get links from interfaces."""
@@ -848,8 +851,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         links = self.get_links_from_interfaces(interfaces)
         for link in links.values():
             link.remove_metadata(key)
-        link_ids = list(links.keys())
-        self.topo_controller.bulk_delete_link_metadata_key(link_ids, key)
         self.notify_topology_update()
         for link in links.values():
             self.notify_link_status_change(link, reason="liveness_disabled")
