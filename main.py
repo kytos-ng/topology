@@ -823,22 +823,26 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         return JSONResponse("Operation Successful", status_code=200)
 
     @listen_to(
-        "kytos/.*.liveness.(up|down)",
+        "kytos/.*.liveness.(up|down|disabled)",
         pool="dynamic_single"
     )
-    def on_link_liveness_status(self, event) -> None:
-        """Handle link liveness up|down status event."""
+    def on_link_liveness(self, event) -> None:
+        """Handle link liveness up|down|disabled event."""
         with self._links_lock:
-            link = Link(event.content["interface_a"],
-                        event.content["interface_b"])
-            try:
-                link = self.links[link.id]
-            except KeyError:
-                log.error(f"Link id {link.id} not found, {link}")
-                return
             liveness_status = event.name.split(".")[-1]
-            self.handle_link_liveness_status(self.links[link.id],
-                                             liveness_status)
+            if liveness_status == "disabled":
+                interfaces = event.content["interfaces"]
+                self.handle_link_liveness_disabled(interfaces)
+            elif liveness_status in ("up", "down"):
+                link = Link(event.content["interface_a"],
+                            event.content["interface_b"])
+                try:
+                    link = self.links[link.id]
+                except KeyError:
+                    log.error(f"Link id {link.id} not found, {link}")
+                    return
+                self.handle_link_liveness_status(self.links[link.id],
+                                                 liveness_status)
 
     def handle_link_liveness_status(self, link, liveness_status) -> None:
         """Handle link liveness."""
@@ -850,16 +854,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             self.notify_link_status_change(link, reason="liveness_up")
         if link.status == EntityStatus.DOWN and liveness_status == "down":
             self.notify_link_status_change(link, reason="liveness_down")
-
-    @listen_to(
-        "kytos/.*.liveness.disabled",
-        pool="dynamic_single"
-    )
-    def on_link_liveness_disabled(self, event) -> None:
-        """Handle link liveness disabled event."""
-        with self._links_lock:
-            interfaces = event.content["interfaces"]
-            self.handle_link_liveness_disabled(interfaces)
 
     def get_links_from_interfaces(self, interfaces) -> dict:
         """Get links from interfaces."""
