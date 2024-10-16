@@ -12,6 +12,10 @@ Changed
 - The topology modal now uses the modal component
 - UI: topology link now asks for confirmation when enabling/disabling
 
+Fixed
+=====
+- Fixed liveness handler potential out of order execution issue
+
 [2024.1.3] - 2024-09-13
 ***********************
 

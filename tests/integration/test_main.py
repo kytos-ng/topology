@@ -40,8 +40,7 @@ class TestMain:
         expected_events = [
             'kytos/core.shutdown',
             'kytos/core.shutdown.kytos/topology',
-            'kytos/.*.liveness.(up|down)',
-            'kytos/.*.liveness.disabled',
+            'kytos/.*.liveness.(up|down|disabled)',
             '.*.topo_controller.upsert_switch',
             '.*.of_lldp.network_status.updated',
             '.*.interface.is.nni',
