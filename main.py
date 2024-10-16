@@ -833,14 +833,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def get_links_from_interfaces(self, interfaces) -> dict:
         """Get links from interfaces."""
         links_found = {}
-        with self._links_lock:
-            for interface in interfaces:
-                for link in self.links.values():
-                    if any((
-                        interface.id == link.endpoint_a.id,
-                        interface.id == link.endpoint_b.id,
-                    )):
-                        links_found[link.id] = link
+        for interface in interfaces:
+            for link in list(self.links.values()):
+                if any((
+                    interface.id == link.endpoint_a.id,
+                    interface.id == link.endpoint_b.id,
+                )):
+                    links_found[link.id] = link
         return links_found
 
     def handle_link_liveness_disabled(self, interfaces) -> None:
