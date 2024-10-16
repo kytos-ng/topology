@@ -7,6 +7,14 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2023.2.3] - 2024-10-15
+***********************
+
+Fixed
+=====
+- Fixed liveness handler potential out of order execution issue
+
+
 [2023.2.2] - 2024-10-08
 ***********************
 
