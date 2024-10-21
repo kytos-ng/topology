@@ -245,10 +245,13 @@
        this.get_details()
    },
    watch:{
-       content(){
-           if (this.content){
-               this.get_details()
-           }
+       content: {
+        handler: function () {
+          if (this.content){
+            this.get_details()
+          }
+        },
+        deep: true
        }
    }
  }

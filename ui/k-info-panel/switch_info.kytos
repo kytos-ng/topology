@@ -38,9 +38,9 @@
           </k-property-panel>
       </k-accordion-item>
       <k-accordion-item title="Interfaces" v-if="this.interfaces">
-         <k-interface :interface_id="interface.id" :name="interface.name" :port_number="interface.port_number" :mac="interface.mac" 
-                      :speed="interface.speed" :key="interface.name" :enabled="interface.enabled" :metadata="interface.metadata"
-                      :active="interface.active" :lldp="interface.lldp" :nni="interface.nni" :uni="interface.uni" :content_switch="content_switch" v-for="interface in this.interfaces">
+         <k-interface :interface_id="k_interface.id" :name="k_interface.name" :port_number="k_interface.port_number" :mac="k_interface.mac" 
+                      :speed="k_interface.speed" :key="k_interface.name" :enabled="k_interface.enabled" :metadata="k_interface.metadata"
+                      :active="k_interface.active" :lldp="k_interface.lldp" :nni="k_interface.nni" :uni="k_interface.uni" :content_switch="content_switch" v-for="k_interface in this.interfaces">
          </k-interface>
       </k-accordion-item>
       <k-accordion-item title="Flows" v-if="this.flows">
@@ -157,8 +157,8 @@
        this.interfaces = data['topology']['switches'][this.metadata['id']]['interfaces']
        this.table_link_body = []
        var id = ""
-       for (interface in this.interfaces){
-         id = this.interfaces[interface].link
+       for (k_interface in this.interfaces){
+         id = this.interfaces[k_interface].link
   
          if (id != ""){
           this.table_link_body.push(this.links[id])
@@ -368,10 +368,13 @@
      this.update_switch_content()
    },
    watch: {
-     content () {
+     content: {
+      handler: function () {
        if (this.content) {
          this.update_switch_content()
        }
+      },
+      deep: true
      },
    },
    computed: {
