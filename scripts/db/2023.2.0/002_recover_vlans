@@ -1,0 +1,60 @@
+from collections import defaultdict
+from kytos.core.tag_ranges import range_difference
+
+def get_range(vlans, avoid) -> list[list[int]]:
+    """Convert available_vlans to available_tags.
+    From list[int] to list[list[int]]"""
+    result = []
+    if not vlans:
+        return result
+    vlans.sort()
+    i = 0
+    while i < len(vlans):
+        if vlans[i] in avoid:
+            i += 1
+        else:
+            break
+    if not vlans[i:]:
+        return result
+
+    start = end = vlans[i]
+    for tag in vlans[i+1:]:
+        if tag in avoid:
+            continue
+        if tag == end + 1:
+            end = tag
+        else:
+            result.append([start, end])
+            start = end = tag
+    result.append([start, end])
+    return result
+
+mef_eline = controller.napps[('kytos', 'mef_eline')]
+evcs = {evc_id: evc.as_dict() for evc_id, evc in mef_eline.circuits.items() if not evc.archived}
+
+in_use_tags = defaultdict(set)
+for evc_id, evc in evcs.items():
+    for link in evc["current_path"]:
+        svlan = link["metadata"]["s_vlan"]["value"]
+        intfa = link["endpoint_a"]["id"]
+        intfb = link["endpoint_b"]["id"]
+        in_use_tags[intfa].add(svlan)
+        in_use_tags[intfb].add(svlan)
+    for link in evc["failover_path"]:
+        svlan = link["metadata"]["s_vlan"]["value"]
+        intfa = link["endpoint_a"]["id"]
+        intfb = link["endpoint_b"]["id"]
+        in_use_tags[intfa].add(svlan)
+        in_use_tags[intfb].add(svlan)
+
+of_lldp_vlan = 3799			# Modify with VLAN used in of_lldp
+for intf_id, vlans in in_use_tags.items():
+	if of_lldp_vlan:
+		vlans.add(of_lldp_vlan)
+    vlans = get_range(sorted(list(vlans)), set())
+    intf = controller.get_interface_by_id(intf_id)
+    tag_range = intf.tag_ranges["vlan"]
+    available_tags = range_difference(tag_range, vlans)
+    if intf.available_tags["vlan"] != available_tags:
+        print("Missing available tags in interface ", intf_id)
+        intf.make_tags_available(controller, available_tags, 'vlan')
