@@ -7,9 +7,12 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2023.2.4] - 2024-10-29
+********************************
+
 Fixed
 =====
-- Backported fix for performing ``handole_on_interface_tags`` within lock to prevent race condition.
+- Backported fix for performing ``handle_on_interface_tags`` within lock to prevent race condition.
 
 [2023.2.3] - 2024-10-15
 ***********************
