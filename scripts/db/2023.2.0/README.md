@@ -153,19 +153,3 @@ Error: Detected duplicated vlan 'any' TAG in EVCs d68eb033688a48 and 861a11d8fce
 ```
 
 </details>
-
-<details><summary><h3>Recover missing VLANs in <code>interface.available_vlans</code></h3></summary>
-
-After the migration to ranges of VLANs, if some VLANs are missing from ``interface.available_vlans`` use this the script [`002_recover_vlans`](./002_recover_vlans) in kytos console.
-
-### Disclaimer
-
-This script only takes into account the VLANs from ``failover_paths`` and ``current_path``. UNI VLANs will be made available if any was removed from ``interface.available_vlans`` during migration.
-
-### How to use
-
-Change ``of_lldp_vlan`` in line 50 to the correct VLAN that ``of_lldp`` uses which by default is 3799.
-
-Copy all the lines and paste them inside kytos console.
-
-</details>
