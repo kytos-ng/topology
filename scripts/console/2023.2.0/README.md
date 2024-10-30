@@ -2,9 +2,9 @@
 
 This folder contains Topology's related scripts that should be run on kytos console:
 
-<details><summary><h3>Dealocate VLANs in <code>interface.available_vlans</code></h3></summary>
+<details><summary><h3>Use VLANs in <code>interface.available_vlans</code></h3></summary>
 
-Some paths were not dealocating VLANs from their respective interfaces. This script [`001_use_tags.py`](./001_use_tags.py) identifies them and dealocates them.
+Some paths were not dealocating VLANs from their respective interfaces. This script [`001_use_tags.py`](./001_use_tags.py) identifies them and allocates them.
 
 ### How to use
 

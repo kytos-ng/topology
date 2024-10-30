@@ -62,6 +62,7 @@ for evc_id, evc in evcs.items():
         intf_id = evc[uni]["interface_id"]
         if (
             "tag" in evc[uni]
+            and evc[uni]["tag"]
             and "tag_type" in evc[uni]["tag"]
             and evc[uni]["tag"]["tag_type"] in ("vlan", 1)
         ):
