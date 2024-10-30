@@ -16,6 +16,11 @@ Fixed
 =====
 - Fixed liveness handler potential out of order execution issue
 
+General Information
+===================
+- Added the script ``001_use_tags.py`` to use TAGs that were found in an EVC path or UNI.
+- Added the script ``002_recover_vlans.py`` to make available TAGs that were not found in an EVC path or UNI.
+
 [2024.1.3] - 2024-09-13
 ***********************
 
