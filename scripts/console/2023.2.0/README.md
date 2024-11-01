@@ -32,6 +32,7 @@ This script will also log inconsistencies in ``interface.available_vlans`` but i
 - Change ``DRY_RUN`` to ``False`` for the script to make changes. Otherwise it will only print out the incorrect and correct ``available_tags`` in each interface. 
 - Change ``OF_LLDP_VLAN`` to the correct VLAN that ``of_lldp`` uses which by default is 3799.
 - Change ``PRINT_MISSING`` to ``False`` so missing VLANs ranges are not printed. Changing to False will help with performance.
+- Change ``REMOVE_LLDP_FLOWS`` to ``True`` so the script tries to remove the LLDP flows from disabled switches.
 - Copy all the lines and paste them inside kytos console.
 
 ### Output example
