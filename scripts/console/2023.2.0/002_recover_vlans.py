@@ -8,6 +8,11 @@ OF_LLDP_VLAN = 3799
 # Change to False to not print the missing VLANs
 PRINT_MISSING = True
 
+def get_cookie(dpid: str) -> int:
+    """Return the cookie integer given a dpid."""
+    COOKIE_PREFIX = 0xab
+    return (0x0000FFFFFFFFFFFF & int(dpid.replace(":", ""), 16) | (COOKIE_PREFIX << 56))
+
 def get_range(vlans, avoid) -> list[list[int]]:
     """Convert available_vlans to available_tags.
     From list[int] to list[list[int]]"""
@@ -38,11 +43,6 @@ def get_range(vlans, avoid) -> list[list[int]]:
 
 mef_eline = controller.napps[('kytos', 'mef_eline')]
 evcs = {evc_id: evc.as_dict() for evc_id, evc in mef_eline.circuits.items() if not evc.archived}
-interfaces = {}
-for dpid, switch in controller.switches.items():
-    for intf_id, interface in switch.interfaces.items():
-        interfaces[interface.id] = interface
-
 
 in_use_tags = defaultdict(set)
 for evc_id, evc in evcs.items():
@@ -68,7 +68,7 @@ for evc_id, evc in evcs.items():
         ):
             tag = evc[uni]["tag"]["value"]
             if isinstance(tag, int):
-                in_use_tags[intf_id].add((tag, evc_id))
+                in_use_tags[intf_id].add(tag)
             elif isinstance(tag, list):
                 for tag_item in tag:
                     if isinstance(tag_item, int):
@@ -79,20 +79,31 @@ for evc_id, evc in evcs.items():
                         for val in range(tag_item[0], tag_item[1]+1):
                             in_use_tags[intf_id].add(val)
 
-for intf_id, interface in interfaces.items():
-    vlans = in_use_tags.get(intf_id, set())
-    if OF_LLDP_VLAN:
-        vlans.add(OF_LLDP_VLAN)
-    vlans = get_range(sorted(list(vlans)), set())
-    intf = controller.get_interface_by_id(intf_id)
-    tag_range = intf.tag_ranges["vlan"]
-    available_tags = range_difference(tag_range, vlans)
-    if intf.available_tags["vlan"] != available_tags:
-        print(f"Missing available tags in interface {intf_id}:\n"
-              f"WRONG -> {intf.available_tags['vlan']}\n"
-              f"CORRECT -> {available_tags}")
-        if PRINT_MISSING:
-            print(f"MISSING -> {range_difference(available_tags, intf.available_tags['vlan'])}")
-        print("\n")
-        if not DRY_RUN:
-            intf.make_tags_available(controller, available_tags, 'vlan')
+switch_rm_flows = {}
+flow_manager = controller.napps[('kytos', 'flow_manager')]
+for dpid in list(controller.switches.keys()):
+    switch = controller.get_switch_by_dpid(dpid)
+    of_lldp_cookie = get_cookie(switch.id)
+    switch_lldp_flow = flow_manager.flow_controller.get_flows_by_cookie_ranges(
+        [dpid], [(of_lldp_cookie, of_lldp_cookie)]
+    )
+    of_lldp_flow_flag = bool(switch_lldp_flow[dpid])
+
+    for interface in switch.interfaces.copy().values():
+        intf_id = interface.id
+        vlans = in_use_tags.get(intf_id, set())
+        if OF_LLDP_VLAN and switch.is_enabled() and of_lldp_flow_flag:
+            vlans.add(OF_LLDP_VLAN)
+        vlans = get_range(sorted(list(vlans)), set())
+        intf = controller.get_interface_by_id(intf_id)
+        tag_range = intf.tag_ranges["vlan"]
+        available_tags = range_difference(tag_range, vlans)
+        if intf.available_tags["vlan"] != available_tags:
+            print(f"Inconsistent available tags in interface {intf_id}:\n"
+                  f"WRONG -> {intf.available_tags['vlan']}\n"
+                  f"CORRECT -> {available_tags}")
+            if PRINT_MISSING:
+                print(f"AVAILABLE MISSING -> {range_difference(available_tags, intf.available_tags['vlan'])}")
+            if not DRY_RUN:
+                intf.make_tags_available(controller, available_tags, 'vlan')
+            print("\n")
