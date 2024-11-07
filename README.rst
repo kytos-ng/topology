@@ -155,7 +155,7 @@ Content:
    }
 
 
-kytos/topology.(switches|interfaces|links).(added|removed)
+kytos/topology.(switches|interfaces|links).metadata.(added|removed)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Event reporting metadata changes. 
