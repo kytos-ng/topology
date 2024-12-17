@@ -157,7 +157,7 @@
        this.interfaces = data['topology']['switches'][this.metadata['id']]['interfaces']
        this.table_link_body = []
        var id = ""
-       for (k_interface in this.interfaces){
+       for (let k_interface in this.interfaces){
          id = this.interfaces[k_interface].link
   
          if (id != ""){
