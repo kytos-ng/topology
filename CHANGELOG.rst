@@ -15,6 +15,7 @@ Changed
 Fixed
 =====
 - Fixed liveness handler potential out of order execution issue
+- DB controller now retries for ``ExecutionTimeout`` and ``ConnectionFailure`` instead of just ``AutoReconnect``
 
 General Information
 ===================
