@@ -7,6 +7,13 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2024.1.5] - 2025-03-03
+***********************
+
+Fixed
+=====
+- DB controller now retries for ``ExecutionTimeout`` and ``ConnectionFailure`` instead of just ``AutoReconnect``
+
 [2024.1.4] - 2024-10-08
 ***********************
 
