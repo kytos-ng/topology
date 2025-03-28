@@ -31,6 +31,8 @@ def enable_evc(evc_id):
 
 mef_eline = controller.napps[("kytos", "mef_eline")]
 of_lldp = controller.napps[('kytos', 'of_lldp')]
+topology = controller.napps[('kytos', 'topology')]
+
 evcs = {
     evc_id: evc.as_dict()
     for evc_id, evc in mef_eline.circuits.items()
@@ -73,8 +75,6 @@ for evc_id, evc in evcs.items():
                         for val in range(tag_item[0], tag_item[1]+1):
                             in_use_tags[intf_id].append((val, evc_id))
 
-switch_rm_flows = {}
-
 evc_disable_set = set()
 
 dry_run_key = "WILL" if not DRY_RUN else "WOULD"
@@ -111,11 +111,12 @@ for dpid in list(controller.switches.keys()):
     switch = controller.get_switch_by_dpid(dpid)
     for intf_id, intf in switch.interfaces.copy().items():
         with intf._tag_lock:
+            old_range = intf.tag_ranges['vlan']
             used_tags = range_helpers.range_difference(
-                intf.tag_ranges['vlan'], intf.available_tags['vlan']
+                old_range, intf.available_tags['vlan']
             )
             new_range = range_helpers.range_difference(
-                intf.tag_ranges['vlan'], RETIRED_VLANS
+                old_range, RETIRED_VLANS
             )
             missing = range_helpers.range_difference(
                 used_tags, new_range
@@ -123,19 +124,23 @@ for dpid in list(controller.switches.keys()):
             if missing:
                 if not DRY_RUN:
                     print(
-                        f"WARNING: Interface {dpid} {intf_id} still has the vlans {missing} in use."
+                        f"WARNING: Interface {dpid} {intf_id} still has the vlans {missing} in use. Can't retire vlans."
                     )
                 else:
                     print(
                         f"Interface {dpid} {intf_id} has the vlans {missing} in use."
                     )
                 continue
-            if not DRY_RUN:
+            change = range_helpers.range_difference(
+                old_range, new_range
+            )
+            if not DRY_RUN and change:
                 new_available_tags = range_helpers.range_difference(
                     new_range, used_tags
                 )
                 intf.available_tags['vlan'] = new_available_tags
                 intf.tag_ranges['vlan'] = new_range
+                topology.handle_on_interface_tags(intf)
 
 # Re-enable the evcs
 
