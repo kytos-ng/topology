@@ -6,7 +6,7 @@ import kytos.core.tag_ranges as range_helpers
 # Change to False so this script makes changes
 DRY_RUN = True
 # Modify with VLAN ranges being retired from use
-RETIRED_VLANS = [[1, 99]]
+RETIRED_VLANS = [[4095, 4095]]
 
 def disable_evc(evc_id):
     import httpx
