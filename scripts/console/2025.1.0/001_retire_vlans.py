@@ -118,7 +118,7 @@ else:
 for dpid in list(controller.switches.keys()):
     switch = controller.get_switch_by_dpid(dpid)
     for intf_id, intf in switch.interfaces.copy().items():
-        with intf._tag_lock:
+        with intf.tag_lock:
             old_range = intf.tag_ranges['vlan']
             used_tags = range_helpers.range_difference(
                 old_range, intf.available_tags['vlan']

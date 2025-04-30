@@ -42,6 +42,7 @@ def get_range(vlans, avoid) -> list[list[int]]:
     return result
 
 mef_eline = controller.napps[('kytos', 'mef_eline')]
+topology = controller.napps[('kytos', 'topology')]
 evcs = {evc_id: evc.as_dict() for evc_id, evc in mef_eline.circuits.items() if not evc.archived}
 
 in_use_tags = defaultdict(set)
@@ -105,5 +106,6 @@ for dpid in list(controller.switches.keys()):
             if PRINT_MISSING:
                 print(f"AVAILABLE MISSING -> {range_difference(available_tags, intf.available_tags['vlan'])}")
             if not DRY_RUN:
-                intf.make_tags_available(controller, available_tags, 'vlan')
+                intf.make_tags_available('vlan', available_tags)
+                topology.handle_on_interface_tags(intf)
             print("\n")

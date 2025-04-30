@@ -1736,8 +1736,8 @@ class TestMain:
         assert response.status_code == 200
 
         args = mock_interface.set_tag_ranges.call_args[0]
-        assert args[0] == payload['tag_ranges']
-        assert args[1] == payload['tag_type']
+        assert args[0] == payload['tag_type']
+        assert args[1] == payload['tag_ranges']
         assert self.napp.handle_on_interface_tags.call_count == 1
 
     async def test_set_tag_range_not_found(self):

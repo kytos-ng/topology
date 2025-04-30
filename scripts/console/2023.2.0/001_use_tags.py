@@ -69,6 +69,8 @@ for evc_id, evc in evcs.items():
 
 switch_rm_flows = {}
 flow_manager = controller.napps[('kytos', 'flow_manager')]
+topology = controller.napps[('kytos', 'topology')]
+
 for dpid in list(controller.switches.keys()):
     switch = controller.get_switch_by_dpid(dpid)
     of_lldp_cookie = get_cookie(dpid)
@@ -82,16 +84,18 @@ for dpid in list(controller.switches.keys()):
             switch_rm_flows[dpid] = of_lldp_cookie
     
     for intf_id, intf in switch.interfaces.copy().items():
-        if OF_LLDP_VLAN and switch.is_enabled() and of_lldp_flow_flag:
-            in_use_tags[intf_id].append((OF_LLDP_VLAN, "of_lldp"))
-        for tag, evc_id in in_use_tags[intf_id]:
-            if intf.is_tag_available(tag, tag_type="vlan"):
-                dry_run_key = "WILL" if not DRY_RUN else "WOULD"
-                print(
-                    f"s_vlan {tag} that was in use from EVC {evc_id} is still available on intf {intf_id}, {dry_run_key} use it..."
-                )
-                if not DRY_RUN:
-                    intf.use_tags(controller, tag)
+        with intf.tag_lock:
+            if OF_LLDP_VLAN and switch.is_enabled() and of_lldp_flow_flag:
+                in_use_tags[intf_id].append((OF_LLDP_VLAN, "of_lldp"))
+            for tag, evc_id in in_use_tags[intf_id]:
+                if intf.is_tag_available("vlan", tag):
+                    dry_run_key = "WILL" if not DRY_RUN else "WOULD"
+                    print(
+                        f"s_vlan {tag} that was in use from EVC {evc_id} is still available on intf {intf_id}, {dry_run_key} use it..."
+                    )
+                    if not DRY_RUN:
+                        intf.use_tags("vlan", tag)
+                        topology.handle_on_interface_tags(intf)
 
 if REMOVE_LLDP_FLOWS and switch_rm_flows and not DRY_RUN:
     print("Deleting LLDP flows...")
