@@ -1092,15 +1092,17 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             raise httpx.RequestError(res.text)
         return res.json().get(dpid, [])
 
-    def link_status_hook_link_up_timer(self, link: Link) -> Optional[EntityStatus]:
+    def link_status_hook_link_up_timer(
+        self,
+        link: Link
+    ) -> Optional[EntityStatus]:
         """Link status hook link up timer."""
         tnow = time.time()
-        if (
-            link.is_active()
-            and link.is_enabled()
-            and link.id in self.link_status_change_cache
-            and tnow - self.link_status_change_cache[link.id]['last_status_change'] < self.link_up_timer
-        ):
+        if link.id not in self.link_status_change_cache:
+            return None
+        link_status_info = self.link_status_change_cache[link.id]
+        tdelta = tnow - link_status_info['last_status_change']
+        if tdelta < self.link_up_timer:
             return EntityStatus.DOWN
         return None
 
@@ -1112,7 +1114,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if link.status != EntityStatus.UP:
             return
         with self._links_lock:
-            status_change_info = self.link_status_change_cache.setdefault(link.id, {})
+            status_change_info = self.link_status_change_cache.setdefault(
+                link.id,
+                {}
+            )
             notified_at = status_change_info.get("notified_up_at")
             if (
                 notified_at
@@ -1142,7 +1147,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 link.id not in self.link_status_change_cache or
                 not link.is_active()
             ):
-                status_change_info = self.link_status_change_cache.setdefault(link.id, {})
+                status_change_info = self.link_status_change_cache.setdefault(
+                    link.id,
+                    {}
+                )
                 status_change_info['last_status_change'] = time.time()
                 status_change_info['last_status_is_active'] = True
                 link.activate()
@@ -1181,7 +1189,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 link.id not in self.link_status_change_cache or
                 link.is_active()
             ):
-                status_change_info = self.link_status_change_cache.setdefault(link.id, {})
+                status_change_info = self.link_status_change_cache.setdefault(
+                    link.id,
+                    {}
+                )
                 status_change_info['last_status_change'] = time.time()
                 status_change_info['last_status_is_active'] = False
                 link.deactivate()
@@ -1221,7 +1232,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.notify_topology_update()
         if not link.is_active():
             return
-        status_change_info = self.link_status_change_cache.setdefault(link.id, {})
+        status_change_info = self.link_status_change_cache.setdefault(
+            link.id,
+            {}
+        )
         status_change_info['last_status_change'] = time.time()
         status_change_info['last_status_is_active'] = True
 
