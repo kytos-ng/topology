@@ -1246,9 +1246,15 @@ class TestMain:
          mock_link_from_interface) = args
 
         tnow = time.time()
+        mock_switch_a = create_autospec(Switch)
+        mock_switch_a.is_active.return_value = True
+        mock_switch_b = create_autospec(Switch)
+        mock_switch_b.is_active.return_value = True
         mock_interface_a = create_autospec(Interface)
+        mock_interface_a.switch = mock_switch_a
         mock_interface_a.is_active.return_value = False
         mock_interface_b = create_autospec(Interface)
+        mock_interface_b.switch = mock_switch_b
         mock_interface_b.is_active.return_value = True
         mock_link = create_autospec(Link)
         mock_link.get_metadata.return_value = tnow
@@ -1260,6 +1266,13 @@ class TestMain:
         event = KytosEvent("kytos.of_core.switch.interface.down")
         self.napp.handle_interface_link_up(mock_interface_a, event)
         mock_notify_topology_update.assert_called()
+        assert mock_link.id not in self.napp.link_status_change_cache
+        mock_link.activate.assert_not_called()
+
+        mock_interface_a.is_active.return_value = True
+        event = KytosEvent("kytos.of_core.switch.interface.down")
+        self.napp.handle_interface_link_up(mock_interface_a, event)
+
         assert mock_link.id in self.napp.link_status_change_cache
         link_status_info = self.napp.link_status_change_cache[mock_link.id]
         assert link_status_info["last_status_is_active"] is True
@@ -1391,7 +1404,11 @@ class TestMain:
         (mock_notify_topology_update,
          mock_link_from_interface) = args
 
+        mock_switch_a = create_autospec(Switch)
+        mock_switch_a.is_active.return_value = True
         mock_interface = create_autospec(Interface)
+        mock_interface.switch = mock_switch_a
+        mock_interface.is_active.return_value = True
         mock_link = MagicMock(status=EntityStatus.UP)
         mock_link.is_active.return_value = True
         mock_link_from_interface.return_value = mock_link
