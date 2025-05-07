@@ -1048,7 +1048,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             self.notify_topology_update()
             self.notify_link_status_change(link, reason)
 
-    def handle_link_up(self, interface):
+    def handle_link_up(self, interface: Interface):
         """Handle link up for an interface."""
         with self._links_lock:
             link = self._get_link_from_interface(interface)
@@ -1059,7 +1059,12 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 link.endpoint_b if link.endpoint_a == interface
                 else link.endpoint_a
             )
-            if other_interface.is_active() is False:
+            if (
+                not other_interface.is_active() or
+                not interface.is_active() or
+                not other_interface.switch.is_active() or
+                not interface.switch.is_active()
+            ):
                 self.notify_topology_update()
                 return
             if (
