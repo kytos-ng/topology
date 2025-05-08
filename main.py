@@ -1141,14 +1141,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 else link.endpoint_a
             )
             if (
-                not other_interface.is_active() or
-                not interface.is_active() or
-                not other_interface.switch.is_active() or
-                not interface.switch.is_active()
-            ):
-                self.notify_topology_update()
-                return
-            if (
                 link.id not in self.link_status_change_cache or
                 not link.is_active()
             ):
@@ -1157,9 +1149,16 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     {}
                 )
                 status_change_info['last_status_change'] = time.time()
-                status_change_info['last_status_is_active'] = True
                 link.activate()
             self.notify_topology_update()
+            if (
+                not other_interface.is_active() or
+                not interface.is_active() or
+                not other_interface.switch.is_active() or
+                not interface.switch.is_active()
+            ):
+                log.info(f"{link} dependencies were not ready.")
+                return
             event = KytosEvent(
                 name="kytos/topology.notify_link_up_if_status",
                 content={"reason": "link up", "link": link}
@@ -1190,16 +1189,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Notify a link is down."""
         with self._links_lock:
             link = self._get_link_from_interface(interface)
-            if link and (
-                link.id not in self.link_status_change_cache or
-                link.is_active()
-            ):
-                status_change_info = self.link_status_change_cache.setdefault(
-                    link.id,
-                    {}
-                )
-                status_change_info['last_status_change'] = time.time()
-                status_change_info['last_status_is_active'] = False
+            if link:
                 link.deactivate()
                 self.notify_link_status_change(link, reason="link down")
             self.notify_topology_update()
@@ -1242,7 +1232,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             {}
         )
         status_change_info['last_status_change'] = time.time()
-        status_change_info['last_status_is_active'] = True
 
         self.topo_controller.upsert_link(link.id, link.as_dict())
         self.notify_link_up_if_status(link, "link up")
