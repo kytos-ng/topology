@@ -5,7 +5,7 @@ Manage the network topology
 # pylint: disable=wrong-import-order
 import pathlib
 import time
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from datetime import timezone
 from threading import Lock
 from typing import List, Optional
@@ -46,7 +46,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def setup(self):
         """Initialize the NApp's links list."""
-        self.links: OrderedDict[str, Link] = OrderedDict()
+        self.links: dict[str, Link] = {}
         self.intf_available_tags = {}
         self.link_up_timer = getattr(settings, 'LINK_UP_TIMER',
                                      DEFAULT_LINK_UP_TIMER)
@@ -90,7 +90,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             raise HTTPException(400, "Invalid metadata value: {metadata}")
         return metadata
 
-    def _get_link_or_create(self, endpoint_a, endpoint_b):
+    def _get_link_or_create(
+        self,
+        endpoint_a: Interface,
+        endpoint_b: Interface
+    ):
         """Get an existing link or create a new one.
 
         Returns:
@@ -101,9 +105,50 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if new_link.id in self.links:
             return (self.links[new_link.id], False)
 
+        link_a = self._get_link_from_interface(endpoint_a)
+        if link_a:
+            self._disable_remove_link(link_a, endpoint_a)
+
+        link_b = self._get_link_from_interface(endpoint_b)
+        if link_b:
+            self._disable_remove_link(link_b, endpoint_b)
+
         self.links[new_link.id] = new_link
-        self.links.move_to_end(new_link.id, last=False)
         return (new_link, True)
+
+    def _disable_remove_link(self, link: Link, endpoint: Interface):
+        """Disable and remove link"""
+        if link.is_enabled():
+            link.disable()
+            self.notify_interface_link_status(link, 'disabled')
+
+        self.notify_link_status_change(link, reason='duplicated link disabled')
+        if link.endpoint_a.link and link == link.endpoint_a.link:
+            switch = link.endpoint_a.switch
+            link.endpoint_a.link = None
+            link.endpoint_a.nni = False
+            self.topo_controller.upsert_switch(
+                switch.id, switch.as_dict()
+            )
+
+        if link.endpoint_b.link and link == link.endpoint_b.link:
+            switch = link.endpoint_b.switch
+            link.endpoint_b.link = None
+            link.endpoint_b.nni = False
+            self.topo_controller.upsert_switch(
+                switch.id, switch.as_dict()
+            )
+
+        self.topo_controller.delete_link(link.id)
+        link = self.links.pop(link.id, None)
+        self.notify_topology_update()
+
+        name = 'kytos/topology.link.deleted'
+        event = KytosEvent(name=name, content={'link': link})
+        self.controller.buffers.app.put(event)
+
+        log.error(f"Found that the interface {endpoint.id} received "
+                  f"duplicated links. The {link} was disabled and deleted.")
 
     def _get_switches_dict(self):
         """Return a dictionary with the known switches."""

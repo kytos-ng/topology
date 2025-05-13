@@ -92,7 +92,9 @@ class TestMain:
         mock_interface_a = get_interface_mock('s1-eth1', 1, mock_switch_a)
         mock_interface_b = get_interface_mock('s2-eth1', 1, mock_switch_b)
         mock_interface_a.id = dpid_a
+        mock_interface_a.link = None
         mock_interface_b.id = dpid_b
+        mock_interface_b.link = None
 
         link, created = self.napp._get_link_or_create(mock_interface_a,
                                                       mock_interface_b)
@@ -473,9 +475,11 @@ class TestMain:
         mock_interface_a = get_interface_mock('s1-eth1', 1, mock_switch_a)
         mock_interface_a.id = dpid_a + ':1'
         mock_interface_a.available_tags = [1, 2, 3]
+        mock_interface_a.link = None
         mock_interface_b = get_interface_mock('s2-eth1', 1, mock_switch_b)
         mock_interface_b.id = dpid_b + ':1'
         mock_interface_b.available_tags = [1, 2, 3]
+        mock_interface_b.link = None
         mock_switch_a.interfaces = {1: mock_interface_a}
         mock_switch_b.interfaces = {1: mock_interface_b}
         self.napp.controller.switches[dpid_a] = mock_switch_a
@@ -2240,15 +2244,18 @@ class TestMain:
         delete = self.napp.topo_controller.delete_interface_from_details
         assert delete.call_count == 1
 
-    def test_new_link_order(self):
-        """Test if new links returns first."""
+    def test_duplicated_links(self):
+        """Test if duplicated links in an endpoint are deleted."""
         dpid_a = '00:00:00:00:00:00:00:01'
         dpid_b = '00:00:00:00:00:00:00:02'
         mock_switch_a = get_switch_mock(dpid_a)
         mock_switch_b = get_switch_mock(dpid_b)
         mock_intf_a = get_interface_mock('s1-eth1', 1, mock_switch_a)
+        mock_intf_a.link = None
         mock_intf_b = get_interface_mock('s2-eth1', 1, mock_switch_b)
+        mock_intf_b.link = None
         mock_intf_c = get_interface_mock('s2-eth2', 2, mock_switch_b)
+        mock_intf_c.link = None
 
         link_a, _ = self.napp._get_link_or_create(mock_intf_a, mock_intf_b)
         link = self.napp._get_link_from_interface(mock_intf_a)
@@ -2257,3 +2264,30 @@ class TestMain:
         link_b, _ = self.napp._get_link_or_create(mock_intf_a, mock_intf_c)
         link = self.napp._get_link_from_interface(mock_intf_a)
         assert link == link_b
+        assert len(self.napp.links) == 1
+
+    def test_disable_remove_link(self):
+        """Test _disable_remove_link"""
+        mock_switch_a = get_switch_mock('00:00:00:00:00:00:00:01')
+        mock_switch_b = get_switch_mock('00:00:00:00:00:00:00:02')
+        mock_intf_a = get_interface_mock('s1-eth1', 1, mock_switch_a)
+        mock_intf_a.link = None
+        mock_intf_b = get_interface_mock('s2-eth1', 1, mock_switch_b)
+        mock_intf_b.link = None
+
+        mock_link = get_link_mock(mock_intf_a, mock_intf_b)
+        self.napp.links[mock_link.id] = mock_link
+        mock_intf_a.link = mock_link
+        mock_link.is_enabled.return_value = True
+
+        self.napp._disable_remove_link(mock_link, mock_intf_a)
+        topo_controller = self.napp.topo_controller
+        assert mock_intf_a.nni is False
+        assert mock_intf_a.link is None
+        assert mock_link.disable.call_count == 1
+        assert topo_controller.upsert_switch.call_count == 1
+        topo_controller.upsert_switch.assert_called_with(
+            mock_switch_a.id, mock_switch_a.as_dict()
+        )
+        assert topo_controller.delete_link.call_count == 1
+        topo_controller.delete_link.assert_called_with(mock_link.id)
