@@ -5,7 +5,7 @@ Manage the network topology
 # pylint: disable=wrong-import-order
 import pathlib
 import time
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 from datetime import timezone
 from threading import Lock
 from typing import List, Optional
@@ -46,7 +46,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def setup(self):
         """Initialize the NApp's links list."""
-        self.links: dict[str, Link] = {}
+        self.links: OrderedDict[str, Link] = OrderedDict()
         self.intf_available_tags = {}
         self.link_up_timer = getattr(settings, 'LINK_UP_TIMER',
                                      DEFAULT_LINK_UP_TIMER)
@@ -102,6 +102,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             return (self.links[new_link.id], False)
 
         self.links[new_link.id] = new_link
+        self.links.move_to_end(new_link.id, last=False)
         return (new_link, True)
 
     def _get_switches_dict(self):

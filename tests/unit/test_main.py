@@ -2239,3 +2239,21 @@ class TestMain:
         assert self.napp.topo_controller.upsert_switch.call_count == 1
         delete = self.napp.topo_controller.delete_interface_from_details
         assert delete.call_count == 1
+
+    def test_new_link_order(self):
+        """Test if new links returns first."""
+        dpid_a = '00:00:00:00:00:00:00:01'
+        dpid_b = '00:00:00:00:00:00:00:02'
+        mock_switch_a = get_switch_mock(dpid_a)
+        mock_switch_b = get_switch_mock(dpid_b)
+        mock_intf_a = get_interface_mock('s1-eth1', 1, mock_switch_a)
+        mock_intf_b = get_interface_mock('s2-eth1', 1, mock_switch_b)
+        mock_intf_c = get_interface_mock('s2-eth2', 2, mock_switch_b)
+
+        link_a, _ = self.napp._get_link_or_create(mock_intf_a, mock_intf_b)
+        link = self.napp._get_link_from_interface(mock_intf_a)
+        assert link == link_a
+
+        link_b, _ = self.napp._get_link_or_create(mock_intf_a, mock_intf_c)
+        link = self.napp._get_link_from_interface(mock_intf_a)
+        assert link == link_b
