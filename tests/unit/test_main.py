@@ -1245,6 +1245,8 @@ class TestMain:
         (mock_notify_topology_update,
          mock_link_from_interface) = args
 
+        self.napp.controller.buffers.app.put = MagicMock()
+
         tnow = time.time()
         mock_switch_a = create_autospec(Switch)
         mock_switch_a.is_active.return_value = True
@@ -1266,8 +1268,9 @@ class TestMain:
         event = KytosEvent("kytos.of_core.switch.interface.down")
         self.napp.handle_interface_link_up(mock_interface_a, event)
         mock_notify_topology_update.assert_called()
-        assert mock_link.id not in self.napp.link_status_change
-        mock_link.activate.assert_not_called()
+        assert mock_link.id in self.napp.link_status_change
+        mock_link.activate.assert_called()
+        self.napp.controller.buffers.app.put.assert_not_called()
 
         mock_interface_a.is_active.return_value = True
         event = KytosEvent("kytos.of_core.switch.interface.down")
@@ -1276,7 +1279,7 @@ class TestMain:
         assert mock_link.id in self.napp.link_status_change
         link_status_info = self.napp.link_status_change[mock_link.id]
         mock_link.activate.assert_called()
-        assert self.napp.controller.buffers.app.put.call_count == 2
+        assert self.napp.controller.buffers.app.put.call_count == 1
         ev = "kytos/topology.notify_link_up_if_status"
         assert self.napp.controller.buffers.app.put.call_args[0][0].name == ev
 
@@ -1353,28 +1356,30 @@ class TestMain:
         self.napp.handle_link_down(mock_interface)
         mock_interface.deactivate.assert_not_called()
         mock_link.deactivate.assert_called()
-        assert mock_link.id in self.napp.link_status_change
-        link_status_info = self.napp.link_status_change[mock_link.id]
         assert mock_topology_update.call_count == 1
         mock_status_change.assert_called()
 
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
-    @patch('napps.kytos.topology.main.Main.notify_link_status_change')
     def test_handle_link_down_not_active(self, *args):
         """Test interface link down with link not active."""
-        (mock_status_change, mock_topology_update,
-         mock_link_from_interface) = args
+        (
+            mock_topology_update,
+            mock_link_from_interface,
+        ) = args
+
+        self.napp.controller.buffers.app.put = MagicMock()
 
         mock_interface = create_autospec(Interface)
         mock_link = create_autospec(Link)
         mock_link.is_active.return_value = False
         mock_link_from_interface.return_value = mock_link
         mock_link.get_metadata.return_value = False
+        self.napp.link_up = set()
         self.napp.link_status_change[mock_link.id] = {}
         self.napp.handle_link_down(mock_interface)
         mock_topology_update.assert_called()
-        mock_status_change.assert_not_called()
+        self.napp.controller.buffers.app.put.assert_not_called()
 
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
@@ -1424,7 +1429,9 @@ class TestMain:
         (mock_status_change, mock_topology_update,
          mock_link_from_interface, _) = args
 
+        mock_switch = create_autospec(Switch)
         mock_interface = create_autospec(Interface)
+        mock_interface.switch = mock_switch
         mock_link = MagicMock()
         mock_link.endpoint_a.is_active.return_value = False
         mock_link.is_active.return_value = False

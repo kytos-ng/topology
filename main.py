@@ -1140,7 +1140,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 status_change_info['last_status_change'] = time.time()
                 link.activate()
             self.notify_topology_update()
-            link_dependencies: list[GenericEntity] =[
+            link_dependencies: list[GenericEntity] = [
                 other_interface.switch,
                 interface.switch,
                 other_interface,
@@ -1148,7 +1148,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             ]
             for dependency in link_dependencies:
                 if not dependency.is_active():
-                    log.info(f"{link} dependency {dependency} was not active yet.")
+                    log.info(
+                        f"{link} dependency {dependency} was not active yet."
+                    )
                     return
             event = KytosEvent(
                 name="kytos/topology.notify_link_up_if_status",
