@@ -1245,14 +1245,22 @@ class TestMain:
         (mock_notify_topology_update,
          mock_link_from_interface) = args
 
+        self.napp.controller.buffers.app.put = MagicMock()
+
         tnow = time.time()
+        mock_switch_a = create_autospec(Switch)
+        mock_switch_a.is_active.return_value = True
+        mock_switch_b = create_autospec(Switch)
+        mock_switch_b.is_active.return_value = True
         mock_interface_a = create_autospec(Interface)
+        mock_interface_a.switch = mock_switch_a
         mock_interface_a.is_active.return_value = False
         mock_interface_b = create_autospec(Interface)
+        mock_interface_b.switch = mock_switch_b
         mock_interface_b.is_active.return_value = True
         mock_link = create_autospec(Link)
         mock_link.get_metadata.return_value = tnow
-        mock_link.is_active.side_effect = [False, True]
+        mock_link.is_active.return_value = False
         mock_link.endpoint_a = mock_interface_a
         mock_link.endpoint_b = mock_interface_b
         mock_link_from_interface.return_value = mock_link
@@ -1260,11 +1268,29 @@ class TestMain:
         event = KytosEvent("kytos.of_core.switch.interface.down")
         self.napp.handle_interface_link_up(mock_interface_a, event)
         mock_notify_topology_update.assert_called()
-        mock_link.extend_metadata.assert_called()
+        assert mock_link.id in self.napp.link_status_change
         mock_link.activate.assert_called()
-        assert self.napp.controller.buffers.app.put.call_count == 2
+        self.napp.controller.buffers.app.put.assert_not_called()
+
+        mock_interface_a.is_active.return_value = True
+        event = KytosEvent("kytos.of_core.switch.interface.down")
+        self.napp.handle_interface_link_up(mock_interface_a, event)
+
+        assert mock_link.id in self.napp.link_status_change
+        link_status_info = self.napp.link_status_change[mock_link.id]
+        mock_link.activate.assert_called()
+        assert self.napp.controller.buffers.app.put.call_count == 1
         ev = "kytos/topology.notify_link_up_if_status"
         assert self.napp.controller.buffers.app.put.call_args[0][0].name == ev
+
+        mock_link.is_active.return_value = True
+        orig_change_time = link_status_info["last_status_change"]
+
+        self.napp.handle_interface_link_up(mock_interface_a, event)
+
+        link_status_info = self.napp.link_status_change[mock_link.id]
+        new_change_time = link_status_info["last_status_change"]
+        assert orig_change_time == new_change_time
 
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
@@ -1330,26 +1356,30 @@ class TestMain:
         self.napp.handle_link_down(mock_interface)
         mock_interface.deactivate.assert_not_called()
         mock_link.deactivate.assert_called()
-        mock_link.extend_metadata.assert_called()
         assert mock_topology_update.call_count == 1
         mock_status_change.assert_called()
 
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
-    @patch('napps.kytos.topology.main.Main.notify_link_status_change')
     def test_handle_link_down_not_active(self, *args):
         """Test interface link down with link not active."""
-        (mock_status_change, mock_topology_update,
-         mock_link_from_interface) = args
+        (
+            mock_topology_update,
+            mock_link_from_interface,
+        ) = args
+
+        self.napp.controller.buffers.app.put = MagicMock()
 
         mock_interface = create_autospec(Interface)
         mock_link = create_autospec(Link)
         mock_link.is_active.return_value = False
         mock_link_from_interface.return_value = mock_link
         mock_link.get_metadata.return_value = False
+        self.napp.link_up = set()
+        self.napp.link_status_change[mock_link.id] = {}
         self.napp.handle_link_down(mock_interface)
         mock_topology_update.assert_called()
-        mock_status_change.assert_not_called()
+        self.napp.controller.buffers.app.put.assert_not_called()
 
     @patch('napps.kytos.topology.main.Main._get_link_from_interface')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
@@ -1375,7 +1405,11 @@ class TestMain:
         (mock_notify_topology_update,
          mock_link_from_interface) = args
 
+        mock_switch_a = create_autospec(Switch)
+        mock_switch_a.is_active.return_value = True
         mock_interface = create_autospec(Interface)
+        mock_interface.switch = mock_switch_a
+        mock_interface.is_active.return_value = True
         mock_link = MagicMock(status=EntityStatus.UP)
         mock_link.is_active.return_value = True
         mock_link_from_interface.return_value = mock_link
@@ -1395,7 +1429,9 @@ class TestMain:
         (mock_status_change, mock_topology_update,
          mock_link_from_interface, _) = args
 
+        mock_switch = create_autospec(Switch)
         mock_interface = create_autospec(Interface)
+        mock_interface.switch = mock_switch
         mock_link = MagicMock()
         mock_link.endpoint_a.is_active.return_value = False
         mock_link.is_active.return_value = False
@@ -1422,7 +1458,7 @@ class TestMain:
             "interface_b": mock_intf_b
         }
         self.napp.add_links(mock_event)
-        mock_link.extend_metadata.assert_called()
+        assert mock_link.id in self.napp.link_status_change
         mock_get_link_or_create.assert_called()
         mock_notify_link_up_if_status.assert_called()
         mock_intf_a.update_link.assert_called()
@@ -1551,13 +1587,18 @@ class TestMain:
         """Test status hook link up timer."""
         last_change = time.time() - self.napp.link_up_timer + 5
         link = MagicMock(metadata={"last_status_change": last_change})
+        self.napp.link_status_change[link.id] = {
+            "last_status_change": last_change,
+        }
         link.is_active.return_value = True
         link.is_enabled.return_value = True
         res = self.napp.link_status_hook_link_up_timer(link)
         assert res == EntityStatus.DOWN
 
         last_change = time.time() - self.napp.link_up_timer
-        link.metadata["last_status_change"] = last_change
+        self.napp.link_status_change[link.id] = {
+            "last_status_change": last_change,
+        }
         res = self.napp.link_status_hook_link_up_timer(link)
         assert res is None
 
@@ -1573,16 +1614,23 @@ class TestMain:
         """Test notify link up if status."""
 
         link = MagicMock(status=EntityStatus.UP)
-        link.get_metadata.return_value = now()
+        self.napp.link_status_change[link.id] = {
+            "notified_up_at": now(),
+        }
         assert not self.napp.notify_link_up_if_status(link, "link up")
         link.update_metadata.assert_not_called()
         mock_notify_topo.assert_not_called()
         mock_notify_link.assert_not_called()
 
         link = MagicMock(status=EntityStatus.UP)
-        link.get_metadata.return_value = now() - timedelta(seconds=60)
+        orig_time = now() - timedelta(seconds=60)
+        self.napp.link_status_change[link.id] = {
+            "notified_up_at": orig_time,
+        }
         assert not self.napp.notify_link_up_if_status(link, "link up")
-        link.update_metadata.assert_called()
+        link_status_info = self.napp.link_status_change[link.id]
+        new_time = link_status_info["notified_up_at"]
+        assert new_time != orig_time
         mock_notify_topo.assert_called()
         mock_notify_link.assert_called()
 
