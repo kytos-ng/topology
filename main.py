@@ -16,7 +16,7 @@ from tenacity import (retry_if_exception_type, stop_after_attempt,
                       wait_combine, wait_fixed, wait_random)
 
 from kytos.core import KytosEvent, KytosNApp, log, rest
-from kytos.core.common import EntityStatus
+from kytos.core.common import EntityStatus, GenericEntity
 from kytos.core.exceptions import (KytosInvalidTagRanges,
                                    KytosLinkCreationError, KytosTagError)
 from kytos.core.helpers import listen_to, load_spec, now, validate_openapi
@@ -60,6 +60,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.link_status_lock = Lock()
         self._switch_lock = defaultdict(Lock)
         self.topo_controller = self.get_topo_controller()
+
+        # Track when we last received a link up, that resulted in
+        # activating a deactivated link.
+        self.link_status_change = defaultdict[str, dict](dict)
         Link.register_status_func(f"{self.napp_id}_link_up_timer",
                                   self.link_status_hook_link_up_timer)
         self.topo_controller.bootstrap_indexes()
@@ -155,14 +159,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             link.enable()
         else:
             link.disable()
-
-        # These ones are just runtime active southbound protocol data
-        # It won't be stored in the future, only kept in the runtime.
-        # Also network operators can follow logs to track this state changes
-        for key in (
-            "last_status_is_active", "last_status_change", "notified_up_at"
-        ):
-            link_att["metadata"].pop(key, None)
 
         link.extend_metadata(link_att["metadata"])
         interface_a.update_link(link)
@@ -1091,19 +1087,21 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             raise httpx.RequestError(res.text)
         return res.json().get(dpid, [])
 
-    def link_status_hook_link_up_timer(self, link) -> Optional[EntityStatus]:
+    def link_status_hook_link_up_timer(
+        self,
+        link: Link
+    ) -> Optional[EntityStatus]:
         """Link status hook link up timer."""
         tnow = time.time()
-        if (
-            link.is_active()
-            and link.is_enabled()
-            and "last_status_change" in link.metadata
-            and tnow - link.metadata['last_status_change'] < self.link_up_timer
-        ):
+        if link.id not in self.link_status_change:
+            return None
+        link_status_info = self.link_status_change[link.id]
+        tdelta = tnow - link_status_info['last_status_change']
+        if tdelta < self.link_up_timer:
             return EntityStatus.DOWN
         return None
 
-    def notify_link_up_if_status(self, link, reason="link up") -> None:
+    def notify_link_up_if_status(self, link: Link, reason="link up") -> None:
         """Tries to notify link up and topology changes based on its status
 
         Currently, it needs to wait up to a timer."""
@@ -1111,19 +1109,19 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if link.status != EntityStatus.UP:
             return
         with self._links_lock:
-            notified_at = link.get_metadata("notified_up_at")
+            status_change_info = self.link_status_change[link.id]
+            notified_at = status_change_info.get("notified_up_at")
             if (
                 notified_at
                 and (now() - notified_at.replace(tzinfo=timezone.utc)).seconds
                 < self.link_up_timer
             ):
                 return
-            key, notified_at = "notified_up_at", now()
-            link.update_metadata(key, now())
+            status_change_info["notified_up_at"] = now()
             self.notify_topology_update()
             self.notify_link_status_change(link, reason)
 
-    def handle_link_up(self, interface):
+    def handle_link_up(self, interface: Interface):
         """Handle link up for an interface."""
         with self._links_lock:
             link = self._get_link_from_interface(interface)
@@ -1134,16 +1132,24 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 link.endpoint_b if link.endpoint_a == interface
                 else link.endpoint_a
             )
-            if other_interface.is_active() is False:
-                self.notify_topology_update()
-                return
-            metadata = {
-                'last_status_change': time.time(),
-                'last_status_is_active': True
-            }
-            link.extend_metadata(metadata)
-            link.activate()
+            if (
+                link.id not in self.link_status_change or
+                not link.is_active()
+            ):
+                status_change_info = self.link_status_change[link.id]
+                status_change_info['last_status_change'] = time.time()
+                link.activate()
             self.notify_topology_update()
+            link_dependencies: list[GenericEntity] =[
+                other_interface.switch,
+                interface.switch,
+                other_interface,
+                interface,
+            ]
+            for dependency in link_dependencies:
+                if not dependency.is_active():
+                    log.info(f"{link} dependency {dependency} was not active yet.")
+                    return
             event = KytosEvent(
                 name="kytos/topology.notify_link_up_if_status",
                 content={"reason": "link up", "link": link}
@@ -1174,16 +1180,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Notify a link is down."""
         with self._links_lock:
             link = self._get_link_from_interface(interface)
-            if not link or not link.get_metadata("last_status_is_active"):
-                self.notify_topology_update()
-                return
-            link.deactivate()
-            metadata = {
-                "last_status_change": time.time(),
-                "last_status_is_active": False,
-            }
-            link.extend_metadata(metadata)
-            self.notify_link_status_change(link, reason="link down")
+            if link:
+                link.deactivate()
+                self.notify_link_status_change(link, reason="link down")
             self.notify_topology_update()
 
     @listen_to('.*.interface.is.nni')
@@ -1219,12 +1218,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.notify_topology_update()
         if not link.is_active():
             return
+        status_change_info = self.link_status_change[link.id]
+        status_change_info['last_status_change'] = time.time()
 
-        metadata = {
-            'last_status_change': time.time(),
-            'last_status_is_active': True
-        }
-        link.extend_metadata(metadata)
         self.topo_controller.upsert_link(link.id, link.as_dict())
         self.notify_link_up_if_status(link, "link up")
 
@@ -1303,7 +1299,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             else:
                 self.notify_link_status_change(link, reason)
 
-    def notify_link_status_change(self, link, reason='not given'):
+    def notify_link_status_change(self, link: Link, reason='not given'):
         """Send an event to notify (up/down) from a status change on
          a link."""
         link_id = link.id

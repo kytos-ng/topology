@@ -7,6 +7,21 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2024.1.6] - 2025-05-14
+***********************
+
+Changed
+=======
+- Removed usage of link metadata ``last_status_is_active``, ``last_status_change``, and ``notified_up_at``. Network operators should use the ``000_retire_metadata.py`` to retire these metadata fields from links.
+
+Fixed
+=====
+- Fixed issue with successive link up events during switch connection, causing events to be sent out before the topology is in the expected state.
+
+General Information
+===================
+- Added the script ``000_retire_metadata.py`` to retire metadata fields from switches, interfaces, and links.
+
 [2024.1.5] - 2025-03-03
 ***********************
 
