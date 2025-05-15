@@ -1148,7 +1148,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             ]
             for dependency in link_dependencies:
                 if not dependency.is_active():
-                    log.info(f"{link} dependency {dependency} was not ready.")
+                    log.info(f"{link} dependency {dependency} was not active yet.")
                     return
             event = KytosEvent(
                 name="kytos/topology.notify_link_up_if_status",
