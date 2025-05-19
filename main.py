@@ -462,7 +462,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             try:
                 interface_number = int(interface_disable_id.split(":")[-1])
                 interfaces = [switch.interfaces[interface_number]]
-                self.topo_controller.disable_interface(interface.id)
+                self.topo_controller.disable_interface(interfaces[0].id)
             except KeyError:
                 msg = f"Switch {dpid} interface {interface_number} not found"
                 raise HTTPException(404, detail=msg)
