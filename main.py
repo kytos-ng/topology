@@ -427,7 +427,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 if interface.link:
                     with interface.link.link_lock:
                         self._notify_interface_link_status(
-                            {interface}, "link enabled"
+                            [interface], "link enabled"
                         )
             except KeyError:
                 msg = f"Switch {dpid} interface {interface_number} not found"
@@ -438,7 +438,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 if interface.link:
                     with interface.link.link_lock:
                         self._notify_interface_link_status(
-                            {interface}, "link enabled"
+                            [interface], "link enabled"
                         )
             self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         self.notify_topology_update()
@@ -829,12 +829,15 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             self.handle_link_liveness_disabled(interfaces)
         elif liveness_status in ("up", "down"):
             try:
+                intf_a = event.content["interface_a"]
+                intf_b = event.content["interface_b"]
                 link = self.controller.get_links_from_interfaces([
-                    event.content["interface_a"],
-                    event.content["interface_b"]
+                    intf_a, intf_b
                 ], all)[0]
             except IndexError:
-                log.error(f"Link from interfaces {interfaces} not found.")
+                log.error("Link from interfaces "
+                          f"{intf_a}, {intf_b}"
+                          "not found.")
                 return
             self.handle_link_liveness_status(link, liveness_status)
 
