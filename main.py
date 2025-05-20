@@ -136,25 +136,15 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         link, _ = self.controller.get_link_or_create(interface_a, interface_b)
 
         with link.link_lock:
-            endpoint_a.update_link(link)
-            endpoint_b.update_link(link)
-            link.endpoint_a = endpoint_a
-            link.endpoint_b = endpoint_b
-            endpoint_a.nni = True
-            endpoint_b.nni = True
+            interface_a.update_link(link)
+            interface_b.update_link(link)
+            interface_a.nni = True
+            interface_b.nni = True
 
             if link_att['enabled']:
                 link.enable()
             else:
                 link.disable()
-
-            # These ones are just runtime active southbound protocol data
-            # It won't be stored in the future, only kept in the runtime.
-            # Also network operators can follow logs to track this state changes
-            for key in (
-                "last_status_is_active", "last_status_change", "notified_up_at"
-            ):
-                link_att["metadata"].pop(key, None)
 
             link.extend_metadata(link_att["metadata"])
 
