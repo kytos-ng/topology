@@ -814,22 +814,20 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def on_link_liveness(self, event) -> None:
         """Handle link liveness up|down|disabled event."""
         liveness_status = event.name.split(".")[-1]
+        #print(f"LIVENESS -> {event.content.get("interface_a")} - {event.content.get("interface_b")}")
         if liveness_status == "disabled":
             interfaces = event.content["interfaces"]
             self.handle_link_liveness_disabled(interfaces)
         elif liveness_status in ("up", "down"):
-            try:
-                intf_a = event.content["interface_a"]
-                intf_b = event.content["interface_b"]
-                link = self.controller.get_links_from_interfaces([
-                    intf_a, intf_b
-                ], all)[0]
-            except IndexError:
+            intf_a:Interface = event.content["interface_a"]
+            intf_b:Interface = event.content["interface_b"]
+            if intf_a.link != intf_b.link:
                 log.error("Link from interfaces "
                           f"{intf_a}, {intf_b}"
                           "not found.")
                 return
-            self.handle_link_liveness_status(link, liveness_status)
+            self.handle_link_liveness_status(intf_a.link, liveness_status)
+            
 
     def handle_link_liveness_status(self, link: Link, liveness_status: str) -> None:
         """Handle link liveness."""
@@ -848,7 +846,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         log.info(f"Link liveness disabled interfaces: {interfaces}")
 
         key = "liveness_status"
-        links = self.controller.get_links_from_interfaces(interfaces, any)
+        links = self.controller.get_links_from_interfaces(interfaces)
 
         with ExitStack() as stack:
             for link in links:
