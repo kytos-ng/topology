@@ -105,6 +105,22 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if new_link.id in self.links:
             return (self.links[new_link.id], False)
 
+        if endpoint_a.link:
+            old_link = endpoint_a.link
+            left_interface = (old_link.endpoint_a
+                              if old_link.endpoint_a != endpoint_a
+                              else old_link.endpoint_b)
+            log.warning(f"Leftover mismatched link {endpoint_a.link} "
+                        f"in interface {left_interface}")
+
+        if endpoint_b.link:
+            old_link = endpoint_b.link
+            left_interface = (old_link.endpoint_b
+                              if old_link.endpoint_b != endpoint_b
+                              else old_link.endpoint_a)
+            log.warning(f"Leftover mismatched link {endpoint_b.link} "
+                        f"in interface {left_interface}")
+
         self.links[new_link.id] = new_link
         return (new_link, True)
 

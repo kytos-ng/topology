@@ -106,6 +106,37 @@ class TestMain:
                                                       mock_interface_b)
         assert not created
 
+    @patch('napps.kytos.topology.main.log')
+    def test_get_link_or_create_mismatched(self, mock_log):
+        """Test _get_link_or_create with mismatched link."""
+        dpid_a = "00:00:00:00:00:00:00:01"
+        dpid_b = "00:00:00:00:00:00:00:02"
+        mock_switch_a = get_switch_mock(dpid_a, 0x04)
+        mock_switch_b = get_switch_mock(dpid_b, 0x04)
+        mock_interface_a = get_interface_mock('s1-eth1', 1, mock_switch_a)
+        mock_interface_b = get_interface_mock('s2-eth1', 1, mock_switch_b)
+        mock_interface_c = get_interface_mock('s2-eth2', 2, mock_switch_b)
+        mock_interface_a.id = dpid_a + ':1'
+        mock_interface_a.link = None
+        mock_interface_b.id = dpid_b + ':1'
+        mock_interface_b.link = None
+        mock_interface_c.id = dpid_b + ':2'
+        mock_interface_c.link = None
+
+        link, created = self.napp._get_link_or_create(mock_interface_a,
+                                                      mock_interface_b)
+        assert created
+        assert link.endpoint_a.id == mock_interface_a.id
+        assert link.endpoint_b.id == mock_interface_b.id
+
+        mock_interface_a.link = link
+        mock_interface_b.link = link
+
+        link, created = self.napp._get_link_or_create(mock_interface_a,
+                                                      mock_interface_c)
+        assert created
+        assert mock_log.warning.call_count == 1
+
     def test_get_link_from_interface(self):
         """Test _get_link_from_interface."""
         mock_switch_a = get_switch_mock("00:00:00:00:00:00:00:01", 0x04)
