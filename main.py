@@ -1472,3 +1472,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             else:
                 self.notify_link_status_change(link, interrupt_type)
         self.notify_topology_update()
+
+    def get_latest_topology(self):
+        """Get the latest topology."""
+        with self._links_lock:
+            return self._get_topology()
