@@ -10,6 +10,7 @@ All notable changes to the ``topology`` project will be documented in this file.
 Changed
 =======
 - Removed usage of link metadata ``last_status_is_active``, ``last_status_change``, and ``notified_up_at``. Network operators should use the ``000_retire_metadata.py`` to retire these metadata fields from links.
+- Moved the dictionary for ``Links`` to controller. Now all the links can be accessed with ``self.controller.links`` from all the NApps.
 
 Fixed
 =====
