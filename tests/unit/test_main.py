@@ -183,7 +183,7 @@ class TestMain:
         link1.add_metadata('old_data', 'important_data')
         assert link1.metadata.get('old_data')
 
-        # Clean link1 mismatch and makee link2 mismatched
+        # Clean link1 mismatch and make link2 mismatched
         actual_link, _ = self.napp._get_link_or_create(mock_interface_a,
                                                        mock_interface_b)
         mock_interface_a.link = actual_link
