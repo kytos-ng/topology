@@ -66,6 +66,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.link_status_change = defaultdict[str, dict](dict)
         Link.register_status_func(f"{self.napp_id}_link_up_timer",
                                   self.link_status_hook_link_up_timer)
+        Link.register_status_reason_func(f"{self.napp_id}_mismatched_link",
+                                         self.detect_mismatched_link)
         self.topo_controller.bootstrap_indexes()
         self.load_topology()
 
@@ -102,27 +104,33 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """
         new_link = Link(endpoint_a, endpoint_b)
 
-        if new_link.id in self.links:
+        # If link is an old link but mismatched, then treat it as a new link
+        if (new_link.id in self.links
+                and not self.detect_mismatched_link(new_link)):
             return (self.links[new_link.id], False)
 
-        if endpoint_a.link:
+        # Check if any interface already has a link
+        # This old_link is a leftover link that needs to be removed
+        # The other endpoint of the link is the leftover interface
+        if endpoint_a.link and endpoint_a.link != new_link:
             old_link = endpoint_a.link
-            left_interface = (old_link.endpoint_a
-                              if old_link.endpoint_a != endpoint_a
-                              else old_link.endpoint_b)
+            leftover_interface = (old_link.endpoint_a
+                                  if old_link.endpoint_a != endpoint_a
+                                  else old_link.endpoint_b)
             log.warning(f"Leftover mismatched link {endpoint_a.link} "
-                        f"in interface {left_interface}")
+                        f"in interface {leftover_interface}")
 
-        if endpoint_b.link:
+        if endpoint_b.link and endpoint_b.link != new_link:
             old_link = endpoint_b.link
-            left_interface = (old_link.endpoint_b
-                              if old_link.endpoint_b != endpoint_b
-                              else old_link.endpoint_a)
+            leftover_interface = (old_link.endpoint_b
+                                  if old_link.endpoint_b != endpoint_b
+                                  else old_link.endpoint_a)
             log.warning(f"Leftover mismatched link {endpoint_b.link} "
-                        f"in interface {left_interface}")
+                        f"in interface {leftover_interface}")
 
-        self.links[new_link.id] = new_link
-        return (new_link, True)
+        if new_link.id not in self.links:
+            self.links[new_link.id] = new_link
+        return (self.links[new_link.id], True)
 
     def _get_switches_dict(self):
         """Return a dictionary with the known switches."""
@@ -1122,6 +1130,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if tdelta < self.link_up_timer:
             return EntityStatus.DOWN
         return None
+
+    def detect_mismatched_link(self, link: Link) -> frozenset[str]:
+        """Check if a link is mismatched."""
+        if (link.endpoint_a.link and link.endpoint_b
+                and link.endpoint_a.link == link.endpoint_b.link):
+            return frozenset()
+        return frozenset(["mismatched_link"])
 
     def notify_link_up_if_status(self, link: Link, reason="link up") -> None:
         """Tries to notify link up and topology changes based on its status
