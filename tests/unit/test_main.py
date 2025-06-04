@@ -479,17 +479,6 @@ class TestMain:
         mock_get_link_or_create = self.napp.controller.get_link_or_create
         mock_get_link_or_create.return_value = (mock_link, True)
 
-        # enable link
-        link_attrs['enabled'] = True
-        self.napp.controller.links = {link_id: mock_link}
-        self.napp._load_link(link_attrs)
-        assert mock_link.enable.call_count == 1
-        # disable link
-        link_attrs['enabled'] = False
-        self.napp.controller.links = {link_id: mock_link}
-        self.napp._load_link(link_attrs)
-        assert mock_link.disable.call_count == 1
-
     def test_fail_load_link(self):
         """Test fail load_link."""
         self.napp.controller.get_link_or_create = MagicMock()
@@ -1422,10 +1411,6 @@ class TestMain:
         assert mock_link.id in self.napp.link_status_change
         mock_get_link_or_create.assert_called()
         mock_notify_link_up_if_status.assert_called()
-        mock_intf_a.update_link.assert_called()
-        mock_intf_b.update_link.assert_called()
-        mock_link.endpoint_a = mock_intf_a
-        mock_link.endpoint_b = mock_intf_b
 
     def test_notify_switch_enabled(self):
         """Test notify switch enabled."""

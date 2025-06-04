@@ -133,18 +133,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         link, _ = self.controller.get_link_or_create(interface_a, interface_b)
 
-        with link.link_lock:
-            interface_a.update_link(link)
-            interface_b.update_link(link)
-            interface_a.nni = True
-            interface_b.nni = True
-
-            if link_att['enabled']:
-                link.enable()
-            else:
-                link.disable()
-
-            link.extend_metadata(link_att["metadata"])
+        link.extend_metadata(link_att["metadata"])
 
     def _load_switch(self, switch_id, switch_att):
         log.info(f'Loading switch dpid: {switch_id}')
@@ -1193,21 +1182,12 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         if not created:
             return
+        self.notify_topology_update()
 
         with link.link_lock:
-            interface_a.update_link(link)
-            interface_b.update_link(link)
-            link.endpoint_a = interface_a
-            link.endpoint_b = interface_b
-            interface_a.nni = True
-            interface_b.nni = True
-
-            self.notify_topology_update()
-            if not link.is_active():
-                return
-
-            status_change_info = self.link_status_change[link.id]
-            status_change_info['last_status_change'] = time.time()
+            if link.is_active() and link.id not in self.link_status_change:
+                status_change_info = self.link_status_change[link.id]
+                status_change_info['last_status_change'] = time.time()
             self.topo_controller.upsert_link(link.id, link.as_dict())
         self.notify_link_up_if_status(link, "link up")
 
