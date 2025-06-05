@@ -66,8 +66,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self.link_status_change = defaultdict[str, dict](dict)
         Link.register_status_func(f"{self.napp_id}_link_up_timer",
                                   self.link_status_hook_link_up_timer)
-        Link.register_status_reason_func(f"{self.napp_id}_mismatched_link",
+        Link.register_status_reason_func(f"{self.napp_id}_mismatched_reason",
                                          self.detect_mismatched_link)
+        Link.register_status_func(f"{self.napp_id}_mismatched_status",
+                                  self.link_status_mismatched)
         self.topo_controller.bootstrap_indexes()
         self.load_topology()
 
@@ -1131,12 +1133,19 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             return EntityStatus.DOWN
         return None
 
-    def detect_mismatched_link(self, link: Link) -> frozenset[str]:
+    @staticmethod
+    def detect_mismatched_link(link: Link) -> frozenset[str]:
         """Check if a link is mismatched."""
         if (link.endpoint_a.link and link.endpoint_b
                 and link.endpoint_a.link == link.endpoint_b.link):
             return frozenset()
         return frozenset(["mismatched_link"])
+
+    def link_status_mismatched(self, link: Link) -> Optional[EntityStatus]:
+        """Check if a link is mismatched and return a status."""
+        if self.detect_mismatched_link(link):
+            return EntityStatus.DOWN
+        return None
 
     def notify_link_up_if_status(self, link: Link, reason="link up") -> None:
         """Tries to notify link up and topology changes based on its status

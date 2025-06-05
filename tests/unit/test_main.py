@@ -2304,3 +2304,32 @@ class TestMain:
         assert self.napp.topo_controller.upsert_switch.call_count == 1
         delete = self.napp.topo_controller.delete_interface_from_details
         assert delete.call_count == 1
+
+    def test_detect_mismatched_link(self):
+        """Test detect_mismatched_link"""
+        mock_link_1 = MagicMock(id='link_1')
+        mock_link_1.endpoint_a = MagicMock(link=mock_link_1)
+        mock_link_1.endpoint_b = MagicMock(link=None)
+        assert self.napp.detect_mismatched_link(mock_link_1)
+
+        mock_link_1.endpoint_a.link = None
+        mock_link_1.endpoint_b.link = mock_link_1
+        assert self.napp.detect_mismatched_link(mock_link_1)
+
+        mock_link_2 = MagicMock(id='link_2')
+        mock_link_1.endpoint_a.link = mock_link_2
+        assert self.napp.detect_mismatched_link(mock_link_1)
+
+        mock_link_1.endpoint_a.link = mock_link_1
+        assert not self.napp.detect_mismatched_link(mock_link_1)
+
+    @patch('napps.kytos.topology.main.Main.detect_mismatched_link')
+    def test_link_status_mismatched(self, mock_detect_mismatched_link):
+        """Test link_status_mismatched"""
+        mock_link_1 = MagicMock()
+        mock_detect_mismatched_link.return_value = True
+        assert (self.napp.link_status_mismatched(mock_link_1)
+                == EntityStatus.DOWN)
+
+        mock_detect_mismatched_link.return_value = False
+        assert self.napp.link_status_mismatched(mock_link_1) is None
