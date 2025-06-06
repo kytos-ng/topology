@@ -236,15 +236,17 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 failed_links[link_id] = err
                 log.error(f'Error loading link {link_id}: {err}')
 
+        next_topology = self._get_topology()
         name = 'kytos/topology.topology_loaded'
         event = KytosEvent(
             name=name,
             content={
-                'topology': self._get_topology(),
+                'topology': next_topology,
                 'failed_switches': failed_switches,
                 'failed_links': failed_links
             })
         self.controller.buffers.app.put(event, timeout=1)
+        self.last_pushed_topology = next_topology
 
     @rest('v3/')
     def get_topology(self, _request: Request) -> JSONResponse:
@@ -1284,9 +1286,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def notify_topology_update(self):
         """Send an event to notify about updates on the topology."""
         name = 'kytos/topology.updated'
+        next_topology = self._get_topology()
         event = KytosEvent(name=name, content={'topology':
-                                               self._get_topology()})
+                                               next_topology})
         self.controller.buffers.app.put(event)
+        self.last_pushed_topology = next_topology
 
     def notify_interface_link_status(self, interface, reason):
         """Send an event to notify the status of a link from
@@ -1472,3 +1476,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             else:
                 self.notify_link_status_change(link, interrupt_type)
         self.notify_topology_update()
+
+    def get_latest_topology(self):
+        """Get the latest topology."""
+        with self._links_lock:
+            return self.last_pushed_topology
