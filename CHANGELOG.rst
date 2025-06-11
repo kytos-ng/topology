@@ -12,6 +12,9 @@ Added
 - When a link is added and one of the interfaces already has a link a warning would be log to indicate a mismatched link.
 - When two links shared an interface, the last added link will not be unmatched.
 
+[2025.1.1] - 2025-05-06
+***********************
+
 Changed
 =======
 - Removed usage of link metadata ``last_status_is_active``, ``last_status_change``, and ``notified_up_at``. Network operators should use the ``000_retire_metadata.py`` to retire these metadata fields from links.
