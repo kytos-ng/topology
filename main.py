@@ -157,13 +157,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Return an object representing the topology."""
         return Topology(self.controller.switches.copy(), self.links.copy())
 
-    def _get_link_from_interface(self, interface: Interface):
-        """Return the link of the interface, or None if it does not exist."""
-        for link in list(self.links.values()):
-            if interface in (link.endpoint_a, link.endpoint_b):
-                return link
-        return None
-
     def _load_link(self, link_att):
         endpoint_a = link_att['endpoint_a']['id']
         endpoint_b = link_att['endpoint_b']['id']
@@ -1036,9 +1029,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if interface.is_enabled() or interface.is_active():
             return "It is enabled or active."
 
-        link = self._get_link_from_interface(interface)
-        if link:
-            return f"It has a link, {link.id}."
+        with self._links_lock:
+            link = interface.link
+            if link:
+                return f"It has a link, {link.id}."
 
         flow_id = self.get_flow_id_by_intf(interface)
         if flow_id:
@@ -1332,7 +1326,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Send an event to notify the status of a link from
         an interface."""
         with self._links_lock:
-            link = self._get_link_from_interface(interface)
+            link = interface.link
             if link:
                 if reason == "link enabled":
                     name = 'kytos/topology.notify_link_up_if_status'

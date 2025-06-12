@@ -113,21 +113,6 @@ class TestMain:
                                                       mock_interface_b)
         assert not created
 
-    def test_get_link_from_interface(self):
-        """Test _get_link_from_interface."""
-        mock_switch_a = get_switch_mock("00:00:00:00:00:00:00:01", 0x04)
-        mock_switch_b = get_switch_mock("00:00:00:00:00:00:00:02", 0x04)
-        mock_interface_a = get_interface_mock('s1-eth1', 1, mock_switch_a)
-        mock_interface_b = get_interface_mock('s2-eth1', 1, mock_switch_b)
-        mock_interface_c = get_interface_mock('s2-eth1', 2, mock_switch_b)
-        mock_link = get_link_mock(mock_interface_a, mock_interface_b)
-        self.napp.links = {'0e2b5d7bc858b9f38db11b69': mock_link}
-        response = self.napp._get_link_from_interface(mock_interface_a)
-        assert response == mock_link
-
-        response = self.napp._get_link_from_interface(mock_interface_c)
-        assert not response
-
     async def test_get_topology(self):
         """Test get_topology."""
         dpid_a = "00:00:00:00:00:00:00:01"
@@ -1653,28 +1638,22 @@ class TestMain:
         assert self.napp.controller.buffers.app.put.call_count == 1
 
     @patch('napps.kytos.topology.main.Main.notify_link_status_change')
-    @patch('napps.kytos.topology.main.Main._get_link_from_interface')
-    def test_notify_interface_link_status(self, *args):
+    def test_notify_interface_link_status(self, args):
         """Test interface links notification when enable"""
-        (mock_get_link_from_interface,
-         mock_notify_link_status_change) = args
+        mock_notify_link_status_change = args
         buffers_app_mock = MagicMock()
         self.napp.controller.buffers.app = buffers_app_mock
-        mock_link = MagicMock()
-        mock_get_link_from_interface.return_value = mock_link
-        self.napp.notify_interface_link_status(MagicMock(), "link enabled")
-        assert mock_get_link_from_interface.call_count == 1
+        mock_intf = MagicMock(link=MagicMock())
+        self.napp.notify_interface_link_status(mock_intf, "link enabled")
         assert self.napp.controller.buffers.app.put.call_count == 1
 
-        self.napp.notify_interface_link_status(MagicMock(), "link disabled")
-        assert mock_get_link_from_interface.call_count == 2
+        self.napp.notify_interface_link_status(mock_intf, "link disabled")
         assert mock_notify_link_status_change.call_count == 1
         assert self.napp.controller.buffers.app.put.call_count == 1
 
         # Without notification
-        mock_get_link_from_interface.return_value = None
-        self.napp.notify_interface_link_status(MagicMock(), "link enabled")
-        assert mock_get_link_from_interface.call_count == 3
+        mock_intf.link = None
+        self.napp.notify_interface_link_status(mock_intf, "link enabled")
         assert self.napp.controller.buffers.app.put.call_count == 1
 
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
@@ -2156,11 +2135,11 @@ class TestMain:
         assert actual_usage == "It is enabled or active."
 
         mock_intf.is_active.return_value = False
-        self.napp._get_link_from_interface = MagicMock(return_value=Mock())
+        mock_intf.link = Mock()
         actual_usage = self.napp.get_intf_usage(mock_intf)
         assert "It has a link," in actual_usage
 
-        self.napp._get_link_from_interface.return_value = None
+        mock_intf.link = None
         self.napp.get_flow_id_by_intf = MagicMock(return_value="mock_flow")
         actual_usage = self.napp.get_intf_usage(mock_intf)
         assert "There is a flow installed" in actual_usage
