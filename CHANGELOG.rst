@@ -7,6 +7,14 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2023.2.6] - 2025-06-12
+***********************
+
+Added
+=====
+- When a link is added and one of the interfaces already has a link a warning would be log to indicate a mismatched link.
+- When two links shared an interface, the last added link will not be unmatched.
+
 [2023.2.5] - 2025-05-14
 ***********************
 
