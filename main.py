@@ -6,9 +6,10 @@ Manage the network topology
 import pathlib
 import time
 from collections import defaultdict
+from contextlib import ExitStack
 from datetime import timezone
 from threading import Lock
-from typing import List, Optional
+from typing import Iterable, List, Optional
 
 import httpx
 import tenacity
@@ -46,12 +47,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def setup(self):
         """Initialize the NApp's links list."""
-        self.links: dict[str, Link] = {}
-        self.intf_available_tags = {}
         self.link_up_timer = getattr(settings, 'LINK_UP_TIMER',
                                      DEFAULT_LINK_UP_TIMER)
 
-        self._links_lock = Lock()
         # to keep track of potential unorded scheduled interface events
         self._intfs_lock = defaultdict(Lock)
         self._intfs_updated_at = {}
@@ -94,46 +92,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             raise HTTPException(400, "Invalid metadata value: {metadata}")
         return metadata
 
-    def _get_link_or_create(
-        self,
-        endpoint_a: Interface,
-        endpoint_b: Interface
-    ):
-        """Get an existing link or create a new one.
-
-        Returns:
-            Tuple(Link, bool): Link and a boolean whether it has been created.
-        """
-        new_link = Link(endpoint_a, endpoint_b)
-
-        # If link is an old link but mismatched, then treat it as a new link
-        if (new_link.id in self.links
-                and not self.detect_mismatched_link(new_link)):
-            return (self.links[new_link.id], False)
-
-        # Check if any interface already has a link
-        # This old_link is a leftover link that needs to be removed
-        # The other endpoint of the link is the leftover interface
-        if endpoint_a.link and endpoint_a.link != new_link:
-            old_link = endpoint_a.link
-            leftover_interface = (old_link.endpoint_a
-                                  if old_link.endpoint_a != endpoint_a
-                                  else old_link.endpoint_b)
-            log.warning(f"Leftover mismatched link {endpoint_a.link} "
-                        f"in interface {leftover_interface}")
-
-        if endpoint_b.link and endpoint_b.link != new_link:
-            old_link = endpoint_b.link
-            leftover_interface = (old_link.endpoint_b
-                                  if old_link.endpoint_b != endpoint_b
-                                  else old_link.endpoint_a)
-            log.warning(f"Leftover mismatched link {endpoint_b.link} "
-                        f"in interface {leftover_interface}")
-
-        if new_link.id not in self.links:
-            self.links[new_link.id] = new_link
-        return (self.links[new_link.id], True)
-
     def _get_switches_dict(self):
         """Return a dictionary with the known switches."""
         switches = {'switches': {}}
@@ -150,7 +108,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def _get_links_dict(self):
         """Return a dictionary with the known links."""
         return {'links': {link.id: link.as_dict() for link in
-                          self.links.copy().values()}}
+                          self.controller.links.copy().values()}}
 
     def _get_topology_dict(self):
         """Return a dictionary with the known topology."""
@@ -159,14 +117,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def _get_topology(self):
         """Return an object representing the topology."""
-        return Topology(self.controller.switches.copy(), self.links.copy())
-
-    def _get_link_from_interface(self, interface: Interface):
-        """Return the link of the interface, or None if it does not exist."""
-        for link in list(self.links.values()):
-            if interface in (link.endpoint_a, link.endpoint_b):
-                return link
-        return None
+        return Topology(self.controller.switches.copy(),
+                        self.controller.links.copy())
 
     def _load_link(self, link_att):
         endpoint_a = link_att['endpoint_a']['id']
@@ -182,20 +134,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if not interface_b:
             raise RestoreError(f"{error}, endpoint_b {endpoint_b} not found")
 
-        with self._links_lock:
-            link, _ = self._get_link_or_create(interface_a, interface_b)
-
-            interface_a.update_link(link)
-            interface_b.update_link(link)
-            interface_a.nni = True
-            interface_b.nni = True
-
-            if link_att['enabled']:
-                link.enable()
-            else:
-                link.disable()
-
-        link.extend_metadata(link_att["metadata"])
+        _ = self.controller.get_link_or_create(interface_a,
+                                               interface_b,
+                                               link_att,)
 
     def _load_switch(self, switch_id, switch_att):
         log.info(f'Loading switch dpid: {switch_id}')
@@ -239,8 +180,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         intf_ids = [v["id"] for v in switch_att.get("interfaces", {}).values()]
         intf_details = self.topo_controller.get_interfaces_details(intf_ids)
-        with self._links_lock:
-            self.load_interfaces_tags_values(switch, intf_details)
+        self.load_interfaces_tags_values(switch, intf_details)
 
     # pylint: disable=attribute-defined-outside-init
     def load_topology(self):
@@ -316,12 +256,16 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         try:
             switch = self.controller.switches[dpid]
             link_ids = set()
-            for _, interface in switch.interfaces.copy().items():
-                if (interface.link and interface.link.is_enabled()):
-                    link_ids.add(interface.link.id)
-                    interface.link.disable()
-                    self.notify_link_enabled_state(interface.link, "disabled")
-            self.topo_controller.bulk_disable_links(link_ids)
+            with ExitStack() as stack:
+                for _, interface in switch.interfaces.copy().items():
+                    if (interface.link and interface.link.is_enabled()):
+                        stack.enter_context(interface.link.link_lock)
+                        link_ids.add(interface.link.id)
+                        interface.link.disable()
+                        self.notify_link_enabled_state(
+                            interface.link, "disabled"
+                        )
+                self.topo_controller.bulk_disable_links(link_ids)
             self.topo_controller.disable_switch(dpid)
             switch.disable()
         except KeyError:
@@ -355,8 +299,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                         detail = f"Interface {intf_id} vlans are being used."\
                                  " Delete any service using vlans."
                         raise HTTPException(409, detail=detail)
-                with self._links_lock:
-                    for link_id, link in self.links.items():
+                with self.controller.links_lock:
+                    for link_id, link in self.controller.links.copy().items():
                         if (dpid in
                                 (link.endpoint_a.switch.dpid,
                                  link.endpoint_b.switch.dpid)):
@@ -462,14 +406,22 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 interface = switch.interfaces[interface_number]
                 self.topo_controller.enable_interface(interface.id)
                 interface.enable()
-                self.notify_interface_link_status(interface, "link enabled")
+                if interface.link:
+                    with interface.link.link_lock:
+                        self._notify_interface_link_status(
+                            [interface], "link enabled"
+                        )
             except KeyError:
                 msg = f"Switch {dpid} interface {interface_number} not found"
                 raise HTTPException(404, detail=msg)
         else:
             for interface in switch.interfaces.copy().values():
                 interface.enable()
-                self.notify_interface_link_status(interface, "link enabled")
+                if interface.link:
+                    with interface.link.link_lock:
+                        self._notify_interface_link_status(
+                            [interface], "link enabled"
+                        )
             self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         self.notify_topology_update()
         return JSONResponse("Operation successful")
@@ -487,32 +439,33 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         except KeyError:
             raise HTTPException(404, detail="Switch not found")
 
+        interfaces: list[Interface] = []
         if interface_disable_id:
-            interface_number = int(interface_disable_id.split(":")[-1])
-
             try:
-                interface = switch.interfaces[interface_number]
-                self.topo_controller.disable_interface(interface.id)
-                if interface.link and interface.link.is_enabled():
-                    self.topo_controller.disable_link(interface.link.id)
-                    interface.link.disable()
-                    self.notify_link_enabled_state(interface.link, "disabled")
-                interface.disable()
-                self.notify_interface_link_status(interface, "link disabled")
+                interface_number = int(interface_disable_id.split(":")[-1])
+                interfaces = [switch.interfaces[interface_number]]
+                self.topo_controller.disable_interface(interfaces[0].id)
             except KeyError:
                 msg = f"Switch {dpid} interface {interface_number} not found"
                 raise HTTPException(404, detail=msg)
         else:
-            link_ids = set()
-            for interface in switch.interfaces.copy().values():
+            interfaces = switch.interfaces.copy().values()
+
+        link_ids: set[Link] = set()
+        with ExitStack() as stack:
+            for interface in interfaces:
                 if interface.link and interface.link.is_enabled():
+                    stack.enter_context(interface.link.link_lock)
                     link_ids.add(interface.link.id)
                     interface.link.disable()
                     self.notify_link_enabled_state(interface.link, "disabled")
                 interface.disable()
-                self.notify_interface_link_status(interface, "link disabled")
+            self._notify_interface_link_status(interfaces, "link disabled")
             self.topo_controller.bulk_disable_links(link_ids)
+
+        if not interface_disable_id:
             self.topo_controller.upsert_switch(switch.id, switch.as_dict())
+
         self.notify_topology_update()
         return JSONResponse("Operation successful")
 
@@ -694,25 +647,22 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def enable_link(self, request: Request) -> JSONResponse:
         """Administratively enable a link in the topology."""
         link_id = request.path_params["link_id"]
-        try:
-            with self._links_lock:
-                link = self.links[link_id]
-                if not link.endpoint_a.is_enabled():
-                    detail = f"{link.endpoint_a.id} needs enabling."
-                    raise HTTPException(409, detail=detail)
-                if not link.endpoint_b.is_enabled():
-                    detail = f"{link.endpoint_b.id} needs enabling."
-                    raise HTTPException(409, detail=detail)
-                if not link.is_enabled():
-                    self.topo_controller.enable_link(link.id)
-                    link.enable()
-                    self.notify_link_enabled_state(link, "enabled")
-        except KeyError:
+        link = self.controller.get_link(link_id)
+        if not link:
             raise HTTPException(404, detail="Link not found")
-        self.notify_link_status_change(
-            self.links[link_id],
-            reason='link enabled'
-        )
+
+        with link.link_lock:
+            if not link.endpoint_a.is_enabled():
+                detail = f"{link.endpoint_a.id} needs enabling."
+                raise HTTPException(409, detail=detail)
+            if not link.endpoint_b.is_enabled():
+                detail = f"{link.endpoint_b.id} needs enabling."
+                raise HTTPException(409, detail=detail)
+            if not link.is_enabled():
+                self.topo_controller.enable_link(link.id)
+                link.enable()
+                self.notify_link_enabled_state(link, "enabled")
+            self.notify_link_status_change(link, reason='link enabled')
         self.notify_topology_update()
         return JSONResponse("Operation successful", status_code=201)
 
@@ -720,19 +670,16 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def disable_link(self, request: Request) -> JSONResponse:
         """Administratively disable a link in the topology."""
         link_id = request.path_params["link_id"]
-        try:
-            with self._links_lock:
-                link = self.links[link_id]
-                if link.is_enabled():
-                    self.topo_controller.disable_link(link.id)
-                    link.disable()
-                    self.notify_link_enabled_state(link, "disabled")
-        except KeyError:
+        link = self.controller.get_link(link_id)
+        if not link:
             raise HTTPException(404, detail="Link not found")
-        self.notify_link_status_change(
-            self.links[link_id],
-            reason='link disabled'
-        )
+
+        with link.link_lock:
+            if link.is_enabled():
+                self.topo_controller.disable_link(link.id)
+                link.disable()
+                self.notify_link_enabled_state(link, "disabled")
+            self.notify_link_status_change(link, reason='link disabled')
         self.notify_topology_update()
         return JSONResponse("Operation successful", status_code=201)
 
@@ -748,9 +695,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def get_link_metadata(self, request: Request) -> JSONResponse:
         """Get metadata from a link."""
         link_id = request.path_params["link_id"]
+        link = self.controller.get_link(link_id)
         try:
-            return JSONResponse({"metadata": self.links[link_id].metadata})
-        except KeyError:
+            return JSONResponse({"metadata": link.metadata})
+        except AttributeError:
             raise HTTPException(404, detail="Link not found")
 
     @rest('v3/links/{link_id}/metadata', methods=['POST'])
@@ -758,14 +706,14 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Add metadata to a link."""
         link_id = request.path_params["link_id"]
         metadata = self._get_metadata(request)
-        try:
-            link = self.links[link_id]
-        except KeyError:
+        link = self.controller.get_link(link_id)
+        if not link:
             raise HTTPException(404, detail="Link not found")
 
-        self.topo_controller.add_link_metadata(link_id, metadata)
-        link.extend_metadata(metadata)
-        self.notify_metadata_changes(link, 'added')
+        with link.link_lock:
+            self.topo_controller.add_link_metadata(link_id, metadata)
+            link.extend_metadata(metadata)
+            self.notify_metadata_changes(link, 'added')
         self.notify_topology_update()
         return JSONResponse("Operation successful", status_code=201)
 
@@ -774,19 +722,18 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Delete metadata from a link."""
         link_id = request.path_params["link_id"]
         key = request.path_params["key"]
-        try:
-            link = self.links[link_id]
-        except KeyError:
+        link = self.controller.get_link(link_id)
+        if not link:
             raise HTTPException(404, detail="Link not found")
 
-        try:
-            _ = link.metadata[key]
-        except KeyError:
-            raise HTTPException(404, detail="Metadata not found")
-
-        self.topo_controller.delete_link_metadata_key(link.id, key)
-        link.remove_metadata(key)
-        self.notify_metadata_changes(link, 'removed')
+        with link.link_lock:
+            try:
+                _ = link.metadata[key]
+            except KeyError:
+                raise HTTPException(404, detail="Metadata not found")
+            self.topo_controller.delete_link_metadata_key(link.id, key)
+            link.remove_metadata(key)
+            self.notify_metadata_changes(link, 'removed')
         self.notify_topology_update()
         return JSONResponse("Operation successful")
 
@@ -796,11 +743,14 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
          It won't work for link with other statuses.
         """
         link_id = request.path_params["link_id"]
-        try:
-            with self._links_lock:
-                link = self.links[link_id]
+        link = self.controller.get_link(link_id)
+        if not link:
+            raise HTTPException(404, detail="Link not found.")
+        with self.controller.links_lock:
+            with link.link_lock:
                 if link.status != EntityStatus.DISABLED:
                     raise HTTPException(409, detail="Link is not disabled.")
+
                 if link.endpoint_a.link and link == link.endpoint_a.link:
                     switch = link.endpoint_a.switch
                     link.endpoint_a.link = None
@@ -816,9 +766,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                         switch.id, switch.as_dict()
                     )
                 self.topo_controller.delete_link(link_id)
-                link = self.links.pop(link_id)
-        except KeyError:
-            raise HTTPException(404, detail="Link not found.")
+                link = self.controller.links.pop(link_id)
         self.notify_topology_update()
         name = 'kytos/topology.link.deleted'
         event = KytosEvent(name=name, content={'link': link})
@@ -857,56 +805,53 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     )
     def on_link_liveness(self, event) -> None:
         """Handle link liveness up|down|disabled event."""
-        with self._links_lock:
-            liveness_status = event.name.split(".")[-1]
-            if liveness_status == "disabled":
-                interfaces = event.content["interfaces"]
-                self.handle_link_liveness_disabled(interfaces)
-            elif liveness_status in ("up", "down"):
-                link = Link(event.content["interface_a"],
-                            event.content["interface_b"])
-                try:
-                    link = self.links[link.id]
-                except KeyError:
-                    log.error(f"Link id {link.id} not found, {link}")
-                    return
-                self.handle_link_liveness_status(self.links[link.id],
-                                                 liveness_status)
+        liveness_status = event.name.split(".")[-1]
+        if liveness_status == "disabled":
+            interfaces = event.content["interfaces"]
+            self.handle_link_liveness_disabled(interfaces)
+        elif liveness_status in ("up", "down"):
+            intf_a: Interface = event.content["interface_a"]
+            intf_b: Interface = event.content["interface_b"]
+            if (intf_a.link is None or
+                    intf_b.link is None or
+                    intf_a.link != intf_b.link):
+                log.error("Link from interfaces "
+                          f"{intf_a}, {intf_b}"
+                          "not found.")
+                return
+            self.handle_link_liveness_status(intf_a.link, liveness_status)
 
-    def handle_link_liveness_status(self, link, liveness_status) -> None:
+    def handle_link_liveness_status(
+        self,
+        link: Link,
+        liveness_status: str
+    ) -> None:
         """Handle link liveness."""
-        metadata = {"liveness_status": liveness_status}
-        log.info(f"Link liveness {liveness_status}: {link}")
-        link.extend_metadata(metadata)
-        self.notify_topology_update()
-        if link.status == EntityStatus.UP and liveness_status == "up":
-            self.notify_link_status_change(link, reason="liveness_up")
-        if link.status == EntityStatus.DOWN and liveness_status == "down":
-            self.notify_link_status_change(link, reason="liveness_down")
-
-    def get_links_from_interfaces(self, interfaces) -> dict:
-        """Get links from interfaces."""
-        links_found = {}
-        for interface in interfaces:
-            for link in list(self.links.values()):
-                if any((
-                    interface.id == link.endpoint_a.id,
-                    interface.id == link.endpoint_b.id,
-                )):
-                    links_found[link.id] = link
-        return links_found
+        with link.link_lock:
+            metadata = {"liveness_status": liveness_status}
+            log.info(f"Link liveness {liveness_status}: {link}")
+            link.extend_metadata(metadata)
+            self.notify_topology_update()
+            if link.status == EntityStatus.UP and liveness_status == "up":
+                self.notify_link_status_change(link, reason="liveness_up")
+            if link.status == EntityStatus.DOWN and liveness_status == "down":
+                self.notify_link_status_change(link, reason="liveness_down")
 
     def handle_link_liveness_disabled(self, interfaces) -> None:
         """Handle link liveness disabled."""
         log.info(f"Link liveness disabled interfaces: {interfaces}")
 
         key = "liveness_status"
-        links = self.get_links_from_interfaces(interfaces)
-        for link in links.values():
-            link.remove_metadata(key)
-        self.notify_topology_update()
-        for link in links.values():
-            self.notify_link_status_change(link, reason="liveness_disabled")
+        links = self.controller.get_links_from_interfaces(interfaces)
+        with ExitStack() as stack:
+            for link in links.values():
+                stack.enter_context(link.link_lock)
+                link.remove_metadata(key)
+            self.notify_topology_update()
+            for link in links.values():
+                self.notify_link_status_change(
+                    link, reason="liveness_disabled"
+                )
 
     @listen_to("kytos/core.interface_tags")
     def on_interface_tags(self, event):
@@ -1042,10 +987,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if interface.is_enabled() or interface.is_active():
             return "It is enabled or active."
 
-        with self._links_lock:
-            link = interface.link
-            if link:
-                return f"It has a link, {link.id}."
+        link = interface.link
+        if link:
+            return f"It has a link, {link.id}."
 
         flow_id = self.get_flow_id_by_intf(interface)
         if flow_id:
@@ -1156,7 +1100,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         time.sleep(self.link_up_timer)
         if link.status != EntityStatus.UP:
             return
-        with self._links_lock:
+        with link.link_lock:
             status_change_info = self.link_status_change[link.id]
             notified_at = status_change_info.get("notified_up_at")
             if (
@@ -1171,11 +1115,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def handle_link_up(self, interface: Interface):
         """Handle link up for an interface."""
-        with self._links_lock:
-            link = interface.link
-            if not link:
-                self.notify_topology_update()
-                return
+        link = interface.link
+        if not link:
+            self.notify_topology_update()
+            return
+        with link.link_lock:
             other_interface = (
                 link.endpoint_b if link.endpoint_a == interface
                 else link.endpoint_a
@@ -1207,7 +1151,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             self.controller.buffers.app.put(event)
 
     @listen_to('.*.switch.interface.link_down')
-    def on_interface_link_down(self, event):
+    def on_interface_link_down(self, event: KytosEvent):
         """Update the topology based on a Port Modify event.
 
         The event notifies that an interface's link was changed to 'down'.
@@ -1215,7 +1159,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface = event.content['interface']
         self.handle_interface_link_down(interface, event)
 
-    def handle_interface_link_down(self, interface, event):
+    def handle_interface_link_down(
+        self,
+        interface: Interface,
+        event: KytosEvent
+    ):
         """Update the topology based on an interface."""
         with self._intfs_lock[interface.id]:
             if (
@@ -1228,12 +1176,12 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def handle_link_down(self, interface):
         """Notify a link is down."""
-        with self._links_lock:
-            link = interface.link
-            if link:
+        link = interface.link
+        if link:
+            with link.link_lock:
                 link.deactivate()
                 self.notify_link_status_change(link, reason="link down")
-            self.notify_topology_update()
+        self.notify_topology_update()
 
     @listen_to('.*.interface.is.nni')
     def on_add_links(self, event):
@@ -1242,21 +1190,12 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def add_links(self, event):
         """Update the topology with links related to the NNI interfaces."""
-        interface_a = event.content['interface_a']
-        interface_b = event.content['interface_b']
+        interface_a: Interface = event.content['interface_a']
+        interface_b: Interface = event.content['interface_b']
 
         try:
-            with self._links_lock:
-                link, created = self._get_link_or_create(interface_a,
-                                                         interface_b)
-                interface_a.update_link(link)
-                interface_b.update_link(link)
-
-                link.endpoint_a = interface_a
-                link.endpoint_b = interface_b
-
-                interface_a.nni = True
-                interface_b.nni = True
+            link, created = self.controller.get_link_or_create(interface_a,
+                                                               interface_b)
 
         except KytosLinkCreationError as err:
             log.error(f'Error creating link: {err}.')
@@ -1264,14 +1203,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         if not created:
             return
-
         self.notify_topology_update()
-        if not link.is_active():
-            return
-        status_change_info = self.link_status_change[link.id]
-        status_change_info['last_status_change'] = time.time()
 
-        self.topo_controller.upsert_link(link.id, link.as_dict())
+        with link.link_lock:
+            if link.is_active() and link.id not in self.link_status_change:
+                status_change_info = self.link_status_change[link.id]
+                status_change_info['last_status_change'] = time.time()
+            self.topo_controller.upsert_link(link.id, link.as_dict())
         self.notify_link_up_if_status(link, "link up")
 
     @listen_to('.*.of_lldp.network_status.updated')
@@ -1312,8 +1250,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def notify_switch_links_status(self, switch, reason):
         """Send an event to notify the status of a link in a switch"""
-        with self._links_lock:
-            for link in self.links.values():
+        for link in self.controller.links.copy().values():
+            with link.link_lock:
                 if switch in (link.endpoint_a.switch, link.endpoint_b.switch):
                     if reason == "link enabled":
                         name = 'kytos/topology.notify_link_up_if_status'
@@ -1333,24 +1271,27 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Send an event to notify about updates on the topology."""
         name = 'kytos/topology.updated'
         next_topology = self._get_topology()
-        event = KytosEvent(name=name, content={'topology':
-                                               next_topology})
+        event = KytosEvent(
+            name=name, content={'topology': self._get_topology()}
+        )
         self.controller.buffers.app.put(event)
         self.last_pushed_topology = next_topology
 
-    def notify_interface_link_status(self, interface, reason):
-        """Send an event to notify the status of a link from
-        an interface."""
-        with self._links_lock:
-            link = interface.link
-            if link:
+    def _notify_interface_link_status(
+        self,
+        interfaces: Iterable[Interface],
+        reason
+    ):
+        """Send an event to notify the status of a link from interfaces."""
+        for interface in interfaces:
+            if interface.link:
                 if reason == "link enabled":
                     name = 'kytos/topology.notify_link_up_if_status'
-                    content = {'reason': reason, "link": link}
+                    content = {'reason': reason, "link": interface.link}
                     event = KytosEvent(name=name, content=content)
                     self.controller.buffers.app.put(event)
                 else:
-                    self.notify_link_status_change(link, reason)
+                    self.notify_link_status_change(interface.link, reason)
 
     def notify_link_status_change(self, link: Link, reason='not given'):
         """Send an event to notify (up/down) from a status change on
@@ -1457,12 +1398,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     )
     def on_interruption(self, event: KytosEvent):
         """Deals with service interruptions."""
-        with self._links_lock:
-            _, _, interrupt_type = event.name.rpartition(".")
-            if interrupt_type == "start":
-                self.handle_interruption_start(event)
-            elif interrupt_type == "end":
-                self.handle_interruption_end(event)
+        _, _, interrupt_type = event.name.rpartition(".")
+        if interrupt_type == "start":
+            self.handle_interruption_start(event)
+        elif interrupt_type == "end":
+            self.handle_interruption_end(event)
 
     def handle_interruption_start(self, event: KytosEvent):
         """Deals with the start of service interruption."""
@@ -1483,7 +1423,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         # for interface_id in interfaces:
         #     pass
         for link_id in links:
-            link = self.links.get(link_id)
+            link = self.controller.get_link(link_id)
             if link is None:
                 log.error(
                     "Invalid link id '%s' for interruption of type '%s;",
@@ -1491,7 +1431,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     interrupt_type
                 )
             else:
-                self.notify_link_status_change(link, interrupt_type)
+                with link.link_lock:
+                    self.notify_link_status_change(link, interrupt_type)
         self.notify_topology_update()
 
     def handle_interruption_end(self, event: KytosEvent):
@@ -1513,7 +1454,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         # for interface_id in interfaces:
         #     pass
         for link_id in links:
-            link = self.links.get(link_id)
+            link = self.controller.get_link(link_id)
             if link is None:
                 log.error(
                     "Invalid link id '%s' for interruption of type '%s;",
@@ -1521,10 +1462,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     interrupt_type
                 )
             else:
-                self.notify_link_status_change(link, interrupt_type)
+                with link.link_lock:
+                    self.notify_link_status_change(link, interrupt_type)
         self.notify_topology_update()
 
     def get_latest_topology(self):
         """Get the latest topology."""
-        with self._links_lock:
+        with self.controller.links_lock:
             return self.last_pushed_topology
