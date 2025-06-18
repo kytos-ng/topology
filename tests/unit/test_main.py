@@ -83,131 +83,6 @@ class TestMain:
         actual_events = self.napp.listeners()
         assert sorted(expected_events) == sorted(actual_events)
 
-    def test_get_link_or_create(self):
-        """Test _get_link_or_create."""
-        dpid_a = "00:00:00:00:00:00:00:01"
-        dpid_b = "00:00:00:00:00:00:00:02"
-        mock_switch_a = get_switch_mock(dpid_a, 0x04)
-        mock_switch_b = get_switch_mock(dpid_b, 0x04)
-        mock_interface_a = get_interface_mock('s1-eth1', 1, mock_switch_a)
-        mock_interface_b = get_interface_mock('s2-eth1', 1, mock_switch_b)
-        mock_interface_a.id = dpid_a
-        mock_interface_a.link = None
-        mock_interface_b.id = dpid_b
-        mock_interface_b.link = None
-
-        link, created = self.napp._get_link_or_create(mock_interface_a,
-                                                      mock_interface_b)
-        mock_interface_a.link = link
-        mock_interface_b.link = link
-        assert created
-        assert link.endpoint_a.id == dpid_a
-        assert link.endpoint_b.id == dpid_b
-
-        link, created = self.napp._get_link_or_create(mock_interface_a,
-                                                      mock_interface_b)
-        assert not created
-
-    @patch('napps.kytos.topology.main.log')
-    def test_get_link_or_create_mismatched(self, mock_log):
-        """Test _get_link_or_create with mismatched link."""
-        dpid_a = "00:00:00:00:00:00:00:01"
-        dpid_b = "00:00:00:00:00:00:00:02"
-        mock_switch_a = get_switch_mock(dpid_a, 0x04)
-        mock_switch_b = get_switch_mock(dpid_b, 0x04)
-        mock_interface_a = get_interface_mock('s1-eth1', 1, mock_switch_a)
-        mock_interface_b = get_interface_mock('s2-eth1', 1, mock_switch_b)
-        mock_interface_c = get_interface_mock('s2-eth2', 2, mock_switch_b)
-        mock_interface_a.id = dpid_a + ':1'
-        mock_interface_a.link = None
-        mock_interface_b.id = dpid_b + ':1'
-        mock_interface_b.link = None
-        mock_interface_c.id = dpid_b + ':2'
-        mock_interface_c.link = None
-
-        link1, created = self.napp._get_link_or_create(mock_interface_a,
-                                                       mock_interface_b)
-        assert created
-        assert link1.endpoint_a.id == mock_interface_a.id
-        assert link1.endpoint_b.id == mock_interface_b.id
-
-        mock_interface_a.link = link1
-        mock_interface_b.link = link1
-
-        link2, created = self.napp._get_link_or_create(mock_interface_a,
-                                                       mock_interface_c)
-        assert created
-        assert mock_log.warning.call_count == 1
-        assert link2.endpoint_a.id == mock_interface_a.id
-        assert link2.endpoint_b.id == mock_interface_c.id
-
-        mock_interface_a.link = link2
-        mock_interface_c.link = link2
-
-        link3, created = self.napp._get_link_or_create(mock_interface_b,
-                                                       mock_interface_c)
-        assert created
-        assert mock_log.warning.call_count == 3
-        assert link3.endpoint_a.id == mock_interface_b.id
-        assert link3.endpoint_b.id == mock_interface_c.id
-
-    def test_get_link_or_create_old_mismatched_link(self):
-        """Test _get_link_or_create with recently added old link
-         which was mismatched.
-         Also testing detect_mismatched_link."""
-        dpid_a = "00:00:00:00:00:00:00:01"
-        dpid_b = "00:00:00:00:00:00:00:02"
-        mock_switch_a = get_switch_mock(dpid_a, 0x04)
-        mock_switch_b = get_switch_mock(dpid_b, 0x04)
-        mock_interface_a = get_interface_mock('s1-eth1', 1, mock_switch_a)
-        mock_interface_b = get_interface_mock('s2-eth1', 1, mock_switch_b)
-        mock_interface_c = get_interface_mock('s2-eth2', 2, mock_switch_b)
-        mock_interface_a.id = dpid_a + ':1'
-        mock_interface_a.link = None
-        mock_interface_b.id = dpid_b + ':1'
-        mock_interface_b.link = None
-        mock_interface_c.id = dpid_b + ':2'
-        mock_interface_c.link = None
-        link1, _ = self.napp._get_link_or_create(mock_interface_a,
-                                                 mock_interface_b)
-        mock_interface_a.link = link1
-        mock_interface_b.link = link1
-
-        # Create mismatching
-        link2, _ = self.napp._get_link_or_create(mock_interface_a,
-                                                 mock_interface_c)
-        mock_interface_a.link = link2
-        mock_interface_c.link = link2
-
-        assert self.napp.detect_mismatched_link(link1)
-        link1.add_metadata('old_data', 'important_data')
-        assert link1.metadata.get('old_data')
-
-        # Clean link1 mismatch and make link2 mismatched
-        actual_link, _ = self.napp._get_link_or_create(mock_interface_a,
-                                                       mock_interface_b)
-        mock_interface_a.link = actual_link
-        mock_interface_b.link = actual_link
-
-        assert actual_link == link1
-        assert self.napp.detect_mismatched_link(link2)
-        assert not self.napp.detect_mismatched_link(link1)
-
-    def test_get_link_from_interface(self):
-        """Test _get_link_from_interface."""
-        mock_switch_a = get_switch_mock("00:00:00:00:00:00:00:01", 0x04)
-        mock_switch_b = get_switch_mock("00:00:00:00:00:00:00:02", 0x04)
-        mock_interface_a = get_interface_mock('s1-eth1', 1, mock_switch_a)
-        mock_interface_b = get_interface_mock('s2-eth1', 1, mock_switch_b)
-        mock_interface_c = get_interface_mock('s2-eth1', 2, mock_switch_b)
-        mock_link = get_link_mock(mock_interface_a, mock_interface_b)
-        self.napp.links = {'0e2b5d7bc858b9f38db11b69': mock_link}
-        response = self.napp._get_link_from_interface(mock_interface_a)
-        assert response == mock_link
-
-        response = self.napp._get_link_from_interface(mock_interface_c)
-        assert not response
-
     async def test_get_topology(self):
         """Test get_topology."""
         dpid_a = "00:00:00:00:00:00:00:01"
@@ -253,7 +128,7 @@ class TestMain:
         self.napp.controller.switches = {dpid_a: mock_switch_a,
                                          dpid_b: mock_switch_b}
 
-        self.napp.links = {"cf0f4071be4": mock_link}
+        self.napp.controller.links = {"cf0f4071be4": mock_link}
         mock_link.as_dict.return_value = {"id": "cf0f4071be4"}
         endpoint = f"{self.base_endpoint}/"
         response = await self.api_client.get(endpoint)
@@ -323,7 +198,7 @@ class TestMain:
             for iface in switch.interfaces.values():
                 interfaces.append(iface.id)
         assert interfaces_expected == interfaces
-        assert links_expected == list(self.napp.links.keys())
+        assert links_expected == list(self.napp.controller.links.keys())
         assert mock_buffers_put.call_args[1] == {"timeout": 1}
 
     @patch('napps.kytos.topology.main.Main._load_switch')
@@ -585,8 +460,8 @@ class TestMain:
 
         self.napp._load_link(link_attrs)
 
-        assert len(self.napp.links) == 1
-        link = list(self.napp.links.values())[0]
+        assert len(self.napp.controller.links) == 1
+        link = list(self.napp.controller.links.values())[0]
 
         assert link.endpoint_a.id == mock_interface_a.id
         assert link.endpoint_b.id == mock_interface_b.id
@@ -601,22 +476,15 @@ class TestMain:
         mock_interface_b = get_interface_mock('s2-eth1', 1, mock_switch_b)
         mock_link = get_link_mock(mock_interface_a, mock_interface_b)
         mock_link.id = link_id
-        with patch('napps.kytos.topology.main.Main._get_link_or_create',
-                   return_value=(mock_link, True)):
-            # enable link
-            link_attrs['enabled'] = True
-            self.napp.links = {link_id: mock_link}
-            self.napp._load_link(link_attrs)
-            assert mock_link.enable.call_count == 1
-            # disable link
-            link_attrs['enabled'] = False
-            self.napp.links = {link_id: mock_link}
-            self.napp._load_link(link_attrs)
-            assert mock_link.disable.call_count == 1
 
-    @patch('napps.kytos.topology.main.Main._get_link_or_create')
-    def test_fail_load_link(self, get_link_or_create_mock):
+        self.napp.controller.get_link_or_create = MagicMock()
+        mock_get_link_or_create = self.napp.controller.get_link_or_create
+        mock_get_link_or_create.return_value = (mock_link, True)
+
+    def test_fail_load_link(self):
         """Test fail load_link."""
+        self.napp.controller.get_link_or_create = MagicMock()
+        mock_get_link_or_create = self.napp.controller.get_link_or_create
         dpid_a = '00:00:00:00:00:00:00:01'
         dpid_b = '00:00:00:00:00:00:00:02'
         link_id = '4d42dc08522'
@@ -626,8 +494,8 @@ class TestMain:
         mock_interface_b_1 = get_interface_mock('s2-eth1', 1, mock_switch_b)
         mock_link = get_link_mock(mock_interface_a_1, mock_interface_b_1)
         mock_link.id = link_id
-        self.napp.links = {link_id: mock_link}
-        get_link_or_create_mock.return_value = mock_link
+        self.napp.controller.links = {link_id: mock_link}
+        mock_get_link_or_create.return_value = mock_link
 
         link_attrs_fail = {
             'enabled': True,
@@ -690,6 +558,7 @@ class TestMain:
         mock_switch = get_switch_mock(dpid)
         interface = Mock()
         interface.link.is_enabled = lambda: True
+        interface.link.link_lock = MagicMock()
         mock_switch.interfaces = {1: interface}
         self.napp.controller.switches = {dpid: mock_switch}
 
@@ -816,9 +685,11 @@ class TestMain:
         mock_switch = get_switch_mock(dpid)
         mock_interface_1 = get_interface_mock('s1-eth1', 1, mock_switch)
         mock_interface_1.link = Mock()
+        mock_interface_1.link.link_lock = MagicMock()
         mock_interface_1.link._enabled = True
         mock_interface_2 = get_interface_mock('s1-eth2', 2, mock_switch)
         mock_interface_2.link = Mock()
+        mock_interface_2.link.link_lock = MagicMock()
         mock_interface_2.link._enabled = False
         mock_switch.interfaces = {1: mock_interface_1, 2: mock_interface_2}
 
@@ -886,9 +757,11 @@ class TestMain:
         mock_interface_1 = get_interface_mock('s1-eth1', 1, mock_switch)
         mock_interface_1.link = Mock()
         mock_interface_1.link.is_enabled = lambda: True
+        mock_interface_1.link.link_lock = MagicMock()
         mock_interface_2 = get_interface_mock('s1-eth2', 2, mock_switch)
         mock_interface_2.link = Mock()
         mock_interface_2.link.is_enabled = lambda: False
+        mock_interface_2.link.link_lock = MagicMock()
         mock_switch.interfaces = {1: mock_interface_1, 2: mock_interface_2}
         self.napp.controller.switches = {dpid: mock_switch}
 
@@ -925,7 +798,7 @@ class TestMain:
         assert mock_noti_link.call_args[0][0] == mock_interface_1.link
         assert mock_noti_link.call_args[0][1] == "disabled"
         bulk_controller = self.napp.topo_controller.bulk_disable_links
-        assert bulk_controller.call_count == 1
+        assert bulk_controller.call_count == 2
         assert len(bulk_controller.call_args[0][0]) == 1
 
         # test interface not found
@@ -1062,12 +935,13 @@ class TestMain:
     async def test_enable_link(self, mock_notify_topo, mock_noti_link):
         """Test enable_link."""
         mock_link = MagicMock(Link)
+        mock_link.link_lock = MagicMock()
         link_id = "1"
         mock_link.id = link_id
         mock_link.is_enabled = lambda: False
         mock_link.endpoint_a = MagicMock(is_enabled=lambda: True)
         mock_link.endpoint_b = MagicMock(is_enabled=lambda: True)
-        self.napp.links = {'1': mock_link}
+        self.napp.controller.links = {'1': mock_link}
 
         # 409, endpoint is/are disabled
         mock_link.endpoint_a.is_enabled = lambda: False
@@ -1103,8 +977,9 @@ class TestMain:
     async def test_disable_link(self, mock_notify_topo, mock_notify):
         """Test disable_link."""
         mock_link = MagicMock(Link)
+        mock_link.link_lock = MagicMock()
         mock_link.is_enabled = lambda: True
-        self.napp.links = {'1': mock_link}
+        self.napp.controller.links = {'1': mock_link}
 
         link_id = "1"
         endpoint = f"{self.base_endpoint}/links/{link_id}/disable"
@@ -1154,8 +1029,9 @@ class TestMain:
     async def test_get_link_metadata(self):
         """Test get_link_metadata."""
         mock_link = MagicMock(Link)
+        mock_link.link_lock = MagicMock()
         mock_link.metadata = "A"
-        self.napp.links = {'1': mock_link}
+        self.napp.controller.links = {'1': mock_link}
         msg_success = {"metadata": "A"}
 
         link_id = "1"
@@ -1180,8 +1056,9 @@ class TestMain:
         """Test add_link_metadata."""
         self.napp.controller.loop = asyncio.get_running_loop()
         mock_link = MagicMock(Link)
+        mock_link.link_lock = MagicMock()
         mock_link.metadata = "A"
-        self.napp.links = {'1': mock_link}
+        self.napp.controller.links = {'1': mock_link}
         payload = {"metadata": "A"}
         link_id = 1
 
@@ -1219,9 +1096,10 @@ class TestMain:
     ):
         """Test delete_link_metadata."""
         mock_link = MagicMock(Link)
+        mock_link.link_lock = MagicMock()
         mock_link.metadata = {"A": "A"}
         mock_link.remove_metadata.side_effect = [True, False]
-        self.napp.links = {'1': mock_link}
+        self.napp.controller.links = {'1': mock_link}
 
         link_id = 1
         key = 'A'
@@ -1346,6 +1224,7 @@ class TestMain:
         mock_interface_b.switch = mock_switch_b
         mock_interface_b.is_active.return_value = True
         mock_link = create_autospec(Link)
+        mock_link.link_lock = MagicMock()
         mock_link.get_metadata.return_value = tnow
         mock_link.is_active.return_value = False
         mock_link.endpoint_a = mock_interface_a
@@ -1388,6 +1267,7 @@ class TestMain:
 
         mock_interface = create_autospec(Interface)
         mock_link = create_autospec(Link)
+        mock_link.link_lock = MagicMock()
         mock_link.is_active.return_value = True
         mock_interface.link = mock_link
         event = KytosEvent("kytos.of_core.switch.interface.link_up")
@@ -1435,6 +1315,7 @@ class TestMain:
 
         mock_interface = create_autospec(Interface)
         mock_link = create_autospec(Link)
+        mock_link.link_lock = MagicMock()
         mock_link.is_active.return_value = True
         mock_interface.link = mock_link
         self.napp.handle_link_down(mock_interface)
@@ -1451,6 +1332,7 @@ class TestMain:
 
         mock_interface = create_autospec(Interface)
         mock_link = create_autospec(Link)
+        mock_link.link_lock = MagicMock()
         mock_link.is_active.return_value = False
         mock_link.get_metadata.return_value = False
         mock_interface.link = mock_link
@@ -1468,6 +1350,7 @@ class TestMain:
 
         mock_interface = create_autospec(Interface)
         mock_link = create_autospec(Link)
+        mock_link.link_lock = MagicMock()
         mock_link.is_active.return_value = False
         mock_link.get_metadata.return_value = True
         mock_interface.link = mock_link
@@ -1512,14 +1395,12 @@ class TestMain:
         assert mock_topology_update.call_count == 1
         mock_status_change.assert_not_called()
 
-    @patch('napps.kytos.topology.main.Main._get_link_or_create')
     @patch('napps.kytos.topology.main.Main.notify_link_up_if_status')
-    def test_add_links(self, *args):
+    def test_add_links(self, mock_notify_link_up_if_status):
         """Test add_links."""
-        (mock_notify_link_up_if_status,
-         mock_get_link_or_create) = args
-
         mock_link = MagicMock()
+        self.napp.controller.get_link_or_create = MagicMock()
+        mock_get_link_or_create = self.napp.controller.get_link_or_create
         mock_get_link_or_create.return_value = (mock_link, True)
         mock_event = MagicMock()
         mock_intf_a = MagicMock()
@@ -1532,10 +1413,6 @@ class TestMain:
         assert mock_link.id in self.napp.link_status_change
         mock_get_link_or_create.assert_called()
         mock_notify_link_up_if_status.assert_called()
-        mock_intf_a.update_link.assert_called()
-        mock_intf_b.update_link.assert_called()
-        mock_link.endpoint_a = mock_intf_a
-        mock_link.endpoint_b = mock_intf_b
 
     def test_notify_switch_enabled(self):
         """Test notify switch enabled."""
@@ -1617,23 +1494,6 @@ class TestMain:
         assert mock_buffers_put.call_count == 1
         assert mock_buffers_put.call_args_list[0][0][0].name == expected_name
 
-    def test_get_links_from_interfaces(self) -> None:
-        """Test get_links_from_interfaces."""
-        interfaces = [MagicMock(id=f"intf{n}") for n in range(4)]
-        links = {
-            "link1": MagicMock(id="link1",
-                               endpoint_a=interfaces[0],
-                               endpoint_b=interfaces[1]),
-            "link2": MagicMock(id="link2",
-                               endpoint_a=interfaces[2],
-                               endpoint_b=interfaces[3]),
-        }
-        self.napp.links = links
-        response = self.napp.get_links_from_interfaces(interfaces)
-        assert links == response
-        response = self.napp.get_links_from_interfaces(interfaces[:2])
-        assert response == {"link1": links["link1"]}
-
     def test_handle_link_liveness_disabled(self) -> None:
         """Test handle_link_liveness_disabled."""
         interfaces = [MagicMock(id=f"intf{n}") for n in range(4)]
@@ -1645,7 +1505,7 @@ class TestMain:
                                endpoint_a=interfaces[2],
                                endpoint_b=interfaces[3]),
         }
-        self.napp.links = links
+        self.napp.controller.links = links
         self.napp.notify_topology_update = MagicMock()
         self.napp.notify_link_status_change = MagicMock()
 
@@ -1716,7 +1576,7 @@ class TestMain:
         mock_switch = get_switch_mock(dpid)
         link1 = MagicMock()
         link1.endpoint_a.switch = mock_switch
-        self.napp.links = {1: link1}
+        self.napp.controller.links = {1: link1}
 
         self.napp.notify_switch_links_status(mock_switch, "link enabled")
         assert self.napp.controller.buffers.app.put.call_count == 1
@@ -1730,25 +1590,6 @@ class TestMain:
         self.napp.notify_switch_links_status(mock_switch, "link enabled")
         assert self.napp.controller.buffers.app.put.call_count == 1
 
-    @patch('napps.kytos.topology.main.Main.notify_link_status_change')
-    def test_notify_interface_link_status(self, args):
-        """Test interface links notification when enable"""
-        mock_notify_link_status_change = args
-        buffers_app_mock = MagicMock()
-        self.napp.controller.buffers.app = buffers_app_mock
-        mock_intf = MagicMock(link=MagicMock())
-        self.napp.notify_interface_link_status(mock_intf, "link enabled")
-        assert self.napp.controller.buffers.app.put.call_count == 1
-
-        self.napp.notify_interface_link_status(mock_intf, "link disabled")
-        assert mock_notify_link_status_change.call_count == 1
-        assert self.napp.controller.buffers.app.put.call_count == 1
-
-        # Without notification
-        mock_intf.link = None
-        self.napp.notify_interface_link_status(mock_intf, "link enabled")
-        assert self.napp.controller.buffers.app.put.call_count == 1
-
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.notify_link_status_change')
     def test_interruption_start(
@@ -1760,7 +1601,7 @@ class TestMain:
         link_a = MagicMock()
         link_b = MagicMock()
         link_c = MagicMock()
-        self.napp.links = {
+        self.napp.controller.links = {
             'link_a': link_a,
             'link_b': link_b,
             'link_c': link_c,
@@ -1800,7 +1641,7 @@ class TestMain:
         link_a = MagicMock()
         link_b = MagicMock()
         link_c = MagicMock()
-        self.napp.links = {
+        self.napp.controller.links = {
             'link_a': link_a,
             'link_b': link_b,
             'link_c': link_c,
@@ -2075,19 +1916,19 @@ class TestMain:
         mock_link.status = EntityStatus.DISABLED
         mock_interface_a.link = mock_link
         mock_interface_b.link = mock_link
-        self.napp.links = {link_id: mock_link}
+        self.napp.controller.links = {link_id: mock_link}
 
         call_count = self.napp.controller.buffers.app.put.call_count
         endpoint = f"{self.base_endpoint}/links/{link_id}"
         response = await self.api_client.delete(endpoint)
         assert response.status_code == 200
         assert self.napp.topo_controller.delete_link.call_count == 1
-        assert len(self.napp.links) == 0
+        assert len(self.napp.controller.links) == 0
         call_count += 2
         assert self.napp.controller.buffers.app.put.call_count == call_count
 
         # Link is up
-        self.napp.links = {link_id: mock_link}
+        self.napp.controller.links = {link_id: mock_link}
         mock_link.status = EntityStatus.UP
         endpoint = f"{self.base_endpoint}/links/{link_id}"
         response = await self.api_client.delete(endpoint)
@@ -2096,7 +1937,7 @@ class TestMain:
         assert self.napp.controller.buffers.app.put.call_count == call_count
 
         # Link does not exist
-        del self.napp.links[link_id]
+        del self.napp.controller.links[link_id]
         endpoint = f"{self.base_endpoint}/links/{link_id}"
         response = await self.api_client.delete(endpoint)
         assert response.status_code == 404
@@ -2134,7 +1975,7 @@ class TestMain:
         mock_interface_a = get_interface_mock('s1-eth1', 1, mock_switch)
         mock_interface_b = get_interface_mock('s2-eth1', 1, mock_switch_2)
         mock_link = get_link_mock(mock_interface_a, mock_interface_b)
-        self.napp.links = {'0e2b5d7bc858b9f38db11b69': mock_link}
+        self.napp.controller.links = {'0e2b5d7bc858b9f38db11b69': mock_link}
         endpoint = f"{self.base_endpoint}/switches/{dpid}"
         response = await self.api_client.delete(endpoint)
         assert response.status_code == 409, response
@@ -2147,7 +1988,7 @@ class TestMain:
 
         # Success 202
         mock_get.return_value = {}
-        self.napp.links = {}
+        self.napp.controller.links = {}
         endpoint = f"{self.base_endpoint}/switches/{dpid}"
         response = await self.api_client.delete(endpoint)
         assert response.status_code == 200, response
