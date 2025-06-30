@@ -10,6 +10,8 @@ All notable changes to the ``topology`` project will be documented in this file.
 Changed
 =======
 - Moved the dictionary for ``Links`` to controller. Now all the links can be accessed with ``self.controller.links`` from all the NApps.
+- The tabs in the Link and Switch Details Menu are now collapsed by default.
+- The tabs in the Switch Details Menu were rearranged.
 
 Added
 =====
