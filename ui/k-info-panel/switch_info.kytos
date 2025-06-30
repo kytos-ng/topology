@@ -20,33 +20,14 @@
         :action="state_toggle"
         v-model:show-modal="show_dis_modal">
       </k-modal>
-      <k-accordion-item title="Usage Radar" v-if="this.metadata.id">
-        <k-switch-radar :dpid="metadata.id" :showGrid="true" :showAxis="true" :showLabels="true" :showLegend="false"></k-switch-radar>
-      </k-accordion-item>
-      <k-accordion-item title="Basic Details">
+      <k-accordion-item :defaultState="false" title="Basic Details">
           <k-property-panel>
             <template v-if="content" >
               <k-property-panel-item :name="key" :value="value" :key="key" v-for="(value, key) in this.metadata"></k-property-panel-item>
             </template>
           </k-property-panel>
       </k-accordion-item>
-      <k-accordion-item title="Custom Properties" v-if="this.custom_properties">
-          <k-property-panel>
-            <template v-if="content" >
-              <k-property-panel-item :name="key" :value="value" :key="key" v-for="(value, key) in this.custom_properties"></k-property-panel-item>
-            </template>
-          </k-property-panel>
-      </k-accordion-item>
-      <k-accordion-item title="Interfaces" v-if="this.interfaces">
-         <k-interface :interface_id="k_interface.id" :name="k_interface.name" :port_number="k_interface.port_number" :mac="k_interface.mac" 
-                      :speed="k_interface.speed" :key="k_interface.name" :enabled="k_interface.enabled" :metadata="k_interface.metadata"
-                      :active="k_interface.active" :lldp="k_interface.lldp" :nni="k_interface.nni" :uni="k_interface.uni" :content_switch="content_switch" v-for="k_interface in this.interfaces">
-         </k-interface>
-      </k-accordion-item>
-      <k-accordion-item title="Flows" v-if="this.flows">
-         <k-flow :content="flow" :key="flow.id" v-for="flow in this.flows"></k-flow>
-      </k-accordion-item>
-      <k-accordion-item title="Metadata" v-if="this.metadata_items.length !== 0">
+      <k-accordion-item :defaultState="false" title="Metadata" v-if="this.metadata_items.length !== 0">
          <div class="metadata_table">
             <table>
               <thead>
@@ -64,7 +45,17 @@
             </table>
          </div>
       </k-accordion-item>
-      <k-accordion-item title="Links" v-if="this.table_link_body.length > 0">
+      <k-accordion-item :defaultState="false" title="Metadata actions"> 
+         <k-textarea title="Add metadata" icon="arrow-right" placeholder='Eg. {"node_name": "some_name", "address": "some_address"}' v-model:value="to_add"></k-textarea>
+         <div class="metadata_container">
+              <k-button title="Add metadata" @click="bt_add_metadata"></k-button>
+         </div>
+         <k-input title="Delete metadata" icon="arrow-right" placeholder="Eg. node_name" v-model:value="to_delete"></k-input>
+         <div class="metadata_container">
+              <k-button title="Remove metadata" @click="bt_rmv_metadata"></k-button>
+         </div>
+      </k-accordion-item>
+      <k-accordion-item :defaultState="false" title="Links" v-if="this.table_link_body.length > 0">
         <div class="link-table">
           <table id="link-table-id">
             <thead>
@@ -81,27 +72,36 @@
             </tbody>
           </table>
         </div>
-      </k-accordion-item>            
-      <k-accordion-item title="Metadata actions"> 
-         <k-textarea title="Add metadata" icon="arrow-right" placeholder='Eg. {"node_name": "some_name", "address": "some_address"}' v-model:value="to_add"></k-textarea>
-         <div class="metadata_container">
-              <k-button title="Add metadata" @click="bt_add_metadata"></k-button>
-         </div>
-         <k-input title="Delete metadata" icon="arrow-right" placeholder="Eg. node_name" v-model:value="to_delete"></k-input>
-         <div class="metadata_container">
-              <k-button title="Remove metadata" @click="bt_rmv_metadata"></k-button>
-         </div>
       </k-accordion-item>
-      <k-accordion-item title="LLDP Packets">
+      <k-accordion-item :defaultState="false" title="Interfaces" v-if="this.interfaces">
+         <k-interface :interface_id="k_interface.id" :name="k_interface.name" :port_number="k_interface.port_number" :mac="k_interface.mac" 
+                      :speed="k_interface.speed" :key="k_interface.name" :enabled="k_interface.enabled" :metadata="k_interface.metadata"
+                      :active="k_interface.active" :lldp="k_interface.lldp" :nni="k_interface.nni" :uni="k_interface.uni" :content_switch="content_switch" v-for="k_interface in this.interfaces">
+         </k-interface>
+      </k-accordion-item>
+      <k-accordion-item :defaultState="false" title="Flows" v-if="this.flows">
+         <k-flow :content="flow" :key="flow.id" v-for="flow in this.flows"></k-flow>
+      </k-accordion-item>  
+      <k-accordion-item :defaultState="false" title="LLDP Packets">
         <k-select title="Interfaces:" :options="get_interfaces" v-model:value ="chosen_interfaces"></k-select>
         <k-dropdown title="Action:" :options="get_actions" v-model:value="chosen_action"></k-dropdown>
         <k-button title="Request" @click="bt_request"></k-button>
+      </k-accordion-item>
+      <k-accordion-item :defaultState="false" title="Usage Radar" v-if="this.metadata.id">
+        <k-switch-radar :dpid="metadata.id" :showGrid="true" :showAxis="true" :showLabels="true" :showLegend="false"></k-switch-radar>
+      </k-accordion-item>
+      <k-accordion-item :defaultState="false" title="Custom Properties" v-if="this.custom_properties">
+          <k-property-panel>
+            <template v-if="content" >
+              <k-property-panel-item :name="key" :value="value" :key="key" v-for="(value, key) in this.custom_properties"></k-property-panel-item>
+            </template>
+          </k-property-panel>
       </k-accordion-item>
     </k-accordion>
 </template>
 
 <script>
- module.exports = {
+module.exports = {
    props: ["content"],
    data () {
      return {
