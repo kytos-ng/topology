@@ -20,7 +20,7 @@
         :action="state_toggle"
         v-model:show-modal="show_toggle_modal">
       </k-modal>
-      <k-accordion-item title="Basic Details">
+      <k-accordion-item :defaultState="false" title="Basic Details">
         <k-property-panel>
           <template v-if="content" >
             <k-property-panel-item :name="key" :value="value" 
@@ -29,7 +29,7 @@
           </template>
         </k-property-panel>
       </k-accordion-item>
-      <k-accordion-item title="Metadata" v-if="Object.keys(this.metadata).length > 0">
+      <k-accordion-item :defaultState="false" title="Metadata" v-if="Object.keys(this.metadata).length > 0">
         <div class="metadata_table">
           <table>
             <thead>
@@ -47,7 +47,7 @@
           </table>
         </div>
       </k-accordion-item>
-      <k-accordion-item title="Metadata actions">
+      <k-accordion-item :defaultState="false" title="Metadata actions">
         <k-textarea title="Insert metadata" icon="arrow-right" placeholder='Eg. {"bandwidth": 100, "link_name": "some_name"}' v-model:value="to_add"></k-textarea>
         <div class="metadata_container">
           <k-button title="Add metadata" @click="bt_add_metadata"></k-button>
@@ -61,7 +61,7 @@
 </template>
 
 <script>
- module.exports = {
+module.exports = {
    props: ["content"],
    methods: {
    },
