@@ -79,6 +79,7 @@ class TestMain:
             'kytos/topology.notify_link_up_if_status',
             'topology.interruption.(start|end)',
             'kytos/core.interface_tags',
+            'kytos/core.link_tags',
         ]
         actual_events = self.napp.listeners()
         assert sorted(expected_events) == sorted(actual_events)
@@ -326,63 +327,41 @@ class TestMain:
         assert links_expected == list(self.napp.links.keys())
         assert mock_buffers_put.call_args[1] == {"timeout": 1}
 
-    @patch('napps.kytos.topology.main.Main._load_switch')
-    @patch('napps.kytos.topology.main.Main._load_link')
-    def test_load_topology_does_nothing(self, *args):
+    def test_load_topology_does_nothing(self):
         """Test _load_network_status doing nothing."""
-        (mock_load_link, mock_load_switch) = args
         self.napp.topo_controller.get_topology.return_value = {
             "topology": {"switches": {}, "links": {}}
         }
-        self.napp.topo_controller.load_topology()
-        assert mock_load_link.call_count == 0
-        assert mock_load_switch.call_count == 0
+        self.napp.load_topology()
+        assert not self.napp.controller.switches
+        assert not self.napp.links
 
-    @patch('napps.kytos.topology.main.Main._load_switch')
-    @patch('napps.kytos.topology.main.log')
-    def test_load_topology_fail_switch(self, *args):
+    def test_load_switch_fail(self):
         """Test load_topology failure in switch."""
-        (mock_log, mock_load_switch) = args
-        topology = {
-            'topology': {
-                'links': {},
-                'switches': {
-                    '1': {}
-                }
-            }
+        switches = {
+            '1': {}
         }
-        mock_log.error.return_value = True
-        self.napp.topo_controller.get_topology.return_value = topology
-        mock_load_switch.side_effect = AttributeError('xpto')
-        self.napp.load_topology()
-        error = 'Error loading switch: xpto'
-        mock_log.error.assert_called_with(error)
+        success, failure = self.napp._load_switches(
+            switches
+        )
 
-    @patch('napps.kytos.topology.main.Main._load_link')
-    @patch('napps.kytos.topology.main.log')
-    def test_load_topology_fail_link(self, *args):
+        assert '1' in failure
+        assert '1' not in success
+
+    def test_load_link_fail(self):
         """Test load_topology failure in link."""
-        (mock_log, mock_load_link) = args
-        topology = {
-            'topology': {
-                'switches': {},
-                'links': {
-                    '1': {}
-                }
-            }
+        links = {
+            '1': {}
         }
-        mock_log.error.return_value = True
-        self.napp.topo_controller.get_topology.return_value = topology
-        mock_load_link.side_effect = AttributeError('xpto')
-        self.napp.load_topology()
-        error = 'Error loading link 1: xpto'
-        mock_log.error.assert_called_with(error)
+        success, failure = self.napp._load_links(
+            links
+        )
+        assert '1' in failure
+        assert '1' not in success
 
-    @patch('napps.kytos.topology.main.Main.load_interfaces_tags_values')
     @patch('napps.kytos.topology.main.KytosEvent')
-    def test_load_switch(self, *args):
+    def test_load_switch(self, mock_event):
         """Test _load_switch."""
-        (mock_event, mock_load_tags) = args
         mock_buffers_put = MagicMock()
         self.napp.controller.buffers.app.put = mock_buffers_put
         dpid_a = "00:00:00:00:00:00:00:01"
@@ -406,15 +385,12 @@ class TestMain:
                 }
             }
         }
-        self.napp._load_switch(dpid_a, switch_attrs)
+        self.napp._load_switches({dpid_a: switch_attrs})
 
         assert len(self.napp.controller.switches) == 1
         assert dpid_a in self.napp.controller.switches
         assert dpid_x not in self.napp.controller.switches
         switch = self.napp.controller.switches[dpid_a]
-        interface_details = self.napp.topo_controller.get_interfaces_details
-        interface_details.assert_called_once_with([iface_a])
-        mock_load_tags.assert_called()
 
         assert switch.id == dpid_a
         assert switch.dpid == dpid_a
@@ -478,7 +454,7 @@ class TestMain:
         }
 
         assert len(self.napp.controller.switches) == 0
-        self.napp._load_switch(dpid_b, switch_attrs)
+        self.napp._load_switches({dpid_b: switch_attrs})
         assert len(self.napp.controller.switches) == 1
         assert dpid_b in self.napp.controller.switches
 
@@ -522,15 +498,23 @@ class TestMain:
             "id": mock_interface_a.id,
             "available_tags": ava_tags,
             "tag_ranges": tag_ranges,
+            "default_tag_ranges": tag_ranges,
             "special_available_tags": special_available_tags,
-            "special_tags": special_tags
+            "special_tags": special_tags,
+            "default_special_tags": special_tags,
         }]
-        self.napp.load_interfaces_tags_values(mock_switch_a,
-                                              interface_details)
+        switch_interfaces = {
+            interface.id: interface
+            for interface in mock_switch_a.interfaces.values()
+        }
+        self.napp.load_details(
+            switch_interfaces,
+            interface_details
+        )
         set_method = mock_interface_a.set_available_tags_tag_ranges
         set_method.assert_called_once_with(
-            ava_tags, tag_ranges,
-            special_available_tags, special_tags
+            ava_tags, tag_ranges, tag_ranges,
+            special_available_tags, special_tags, special_tags
         )
 
     def test_handle_on_interface_tags(self):
@@ -583,7 +567,7 @@ class TestMain:
             }
         }
 
-        self.napp._load_link(link_attrs)
+        self.napp._load_links({link_id: link_attrs})
 
         assert len(self.napp.links) == 1
         link = list(self.napp.links.values())[0]
@@ -606,12 +590,12 @@ class TestMain:
             # enable link
             link_attrs['enabled'] = True
             self.napp.links = {link_id: mock_link}
-            self.napp._load_link(link_attrs)
+            self.napp._load_links({link_id: link_attrs})
             assert mock_link.enable.call_count == 1
             # disable link
             link_attrs['enabled'] = False
             self.napp.links = {link_id: mock_link}
-            self.napp._load_link(link_attrs)
+            self.napp._load_links({link_id: link_attrs})
             assert mock_link.disable.call_count == 1
 
     @patch('napps.kytos.topology.main.Main._get_link_or_create')
@@ -641,7 +625,7 @@ class TestMain:
             }
         }
         with pytest.raises(RestoreError):
-            self.napp._load_link(link_attrs_fail)
+            self.napp._load_links({link_id: link_attrs_fail})
 
         link_attrs_fail = {
             'enabled': True,
@@ -654,7 +638,7 @@ class TestMain:
             }
         }
         with pytest.raises(RestoreError):
-            self.napp._load_link(link_attrs_fail)
+            self.napp._load_links({link_id: link_attrs_fail})
 
     @patch('napps.kytos.topology.main.Main.notify_switch_links_status')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
@@ -1849,8 +1833,8 @@ class TestMain:
         assert response.status_code == 200
 
         args = mock_interface.set_tag_ranges.call_args[0]
-        assert args[0] == payload['tag_ranges']
-        assert args[1] == payload['tag_type']
+        assert args[0] == payload['tag_type']
+        assert args[1] == payload['tag_ranges']
         assert self.napp.handle_on_interface_tags.call_count == 1
 
     async def test_set_tag_range_not_found(self):
@@ -1918,14 +1902,14 @@ class TestMain:
         dpid = '00:00:00:00:00:00:00:01'
         mock_switch = get_switch_mock(dpid)
         mock_interface = get_interface_mock('s1-eth1', 1, mock_switch)
-        mock_interface.remove_tag_ranges = MagicMock()
+        mock_interface.reset_tag_ranges = MagicMock()
         self.napp.handle_on_interface_tags = MagicMock()
         self.napp.controller.get_interface_by_id = MagicMock()
         self.napp.controller.get_interface_by_id.return_value = mock_interface
         url = f"{self.base_endpoint}/interfaces/{interface_id}/tag_ranges"
         response = await self.api_client.delete(url)
         assert response.status_code == 200
-        assert mock_interface.remove_tag_ranges.call_count == 1
+        assert mock_interface.reset_tag_ranges.call_count == 1
 
     async def test_delete_tag_range_not_found(self):
         """Test delete_tag_range. Not found"""
@@ -1950,7 +1934,7 @@ class TestMain:
         mock_switch = get_switch_mock(dpid)
         mock_interface = get_interface_mock('s1-eth1', 1, mock_switch)
         mock_interface.remove_tag_ranges = MagicMock()
-        remove_tag = mock_interface.remove_tag_ranges
+        remove_tag = mock_interface.reset_tag_ranges
         remove_tag.side_effect = KytosTagtypeNotSupported("")
         self.napp.controller.get_interface_by_id = MagicMock()
         self.napp.controller.get_interface_by_id.return_value = mock_interface
@@ -1968,8 +1952,10 @@ class TestMain:
         special_tags = {'vlan': ["vlan"]}
         interface.tag_ranges = tags
         interface.available_tags = tags
+        interface.default_tag_ranges = tags
         interface.special_available_tags = special_tags
         interface.special_tags = special_tags
+        interface.default_special_tags = special_tags
         switch.interfaces = {1: interface}
         self.napp.controller.switches = {dpid: switch}
         url = f"{self.base_endpoint}/interfaces/tag_ranges"
@@ -1977,8 +1963,10 @@ class TestMain:
         expected = {dpid + ":1": {
             'available_tags': tags,
             'tag_ranges': tags,
+            "default_tag_ranges": tags,
             'special_available_tags': special_tags,
-            'special_tags': special_tags
+            'special_tags': special_tags,
+            "default_special_tags": special_tags,
         }}
         assert response.status_code == 200
         assert response.json() == expected
@@ -1993,8 +1981,10 @@ class TestMain:
         special_tags = {'vlan': ["vlan"]}
         interface.tag_ranges = tags
         interface.available_tags = tags
+        interface.default_tag_ranges = tags
         interface.special_available_tags = special_tags
         interface.special_tags = special_tags
+        interface.default_special_tags = special_tags
         self.napp.controller.get_interface_by_id = MagicMock()
         self.napp.controller.get_interface_by_id.return_value = interface
         url = f"{self.base_endpoint}/interfaces/{dpid}:1/tag_ranges"
@@ -2003,8 +1993,10 @@ class TestMain:
             '00:00:00:00:00:00:00:01:1': {
                 "available_tags": tags,
                 "tag_ranges": tags,
+                "default_tag_ranges": tags,
                 'special_available_tags': special_tags,
-                'special_tags': special_tags
+                'special_tags': special_tags,
+                "default_special_tags": special_tags,
             }
         }
         assert response.status_code == 200

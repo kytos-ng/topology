@@ -55,6 +55,7 @@ class TestMain:
             'kytos/topology.notify_link_up_if_status',
             'topology.interruption.(start|end)',
             'kytos/core.interface_tags',
+            'kytos/core.link_tags',
         ]
         assert sorted(expected_events) == sorted(actual_events)
 

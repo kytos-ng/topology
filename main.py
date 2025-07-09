@@ -6,11 +6,11 @@ Manage the network topology
 import pathlib
 import time
 from collections import defaultdict
-from copy import deepcopy
 from contextlib import ExitStack
+from copy import deepcopy
 from datetime import timezone
 from threading import Lock
-from typing import Any, List, Optional
+from typing import Optional
 
 import httpx
 import tenacity
@@ -29,7 +29,8 @@ from kytos.core.rest_api import (HTTPException, JSONResponse, Request,
 from kytos.core.retry import before_sleep
 from kytos.core.switch import Switch
 from kytos.core.tag_capable import TAGCapable
-from kytos.core.tag_ranges import get_tag_ranges, range_intersection, range_difference
+from kytos.core.tag_ranges import (get_tag_ranges, range_addition,
+                                   range_difference, range_intersection)
 from napps.kytos.topology import settings
 
 from .controllers import TopoController
@@ -192,11 +193,16 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 interface_a = self.controller.get_interface_by_id(endpoint_a)
                 interface_b = self.controller.get_interface_by_id(endpoint_b)
 
-                error = f"Fail to load endpoints for link {link_str}. "
                 if not interface_a:
-                    raise RestoreError(f"{error}, endpoint_a {endpoint_a} not found")
+                    raise RestoreError(
+                        f"Fail to load endpoints for link {link_str},"
+                        f"endpoint_a {endpoint_a} not found"
+                    )
                 if not interface_b:
-                    raise RestoreError(f"{error}, endpoint_b {endpoint_b} not found")
+                    raise RestoreError(
+                        f"Fail to load endpoints for link {link_str},"
+                        f"endpoint_b {endpoint_b} not found"
+                    )
 
                 # with self._links_lock:
                 # NOTE: Technically speaking, this func can raise an exception.
@@ -234,11 +240,21 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     switch.enable()
                 else:
                     switch.disable()
-                switch.description['manufacturer'] = switch_att.get('manufacturer', '')
-                switch.description['hardware'] = switch_att.get('hardware', '')
-                switch.description['software'] = switch_att.get('software')
-                switch.description['serial'] = switch_att.get('serial', '')
-                switch.description['data_path'] = switch_att.get('data_path', '')
+                switch.description['manufacturer'] = switch_att.get(
+                    'manufacturer', ''
+                )
+                switch.description['hardware'] = switch_att.get(
+                    'hardware', ''
+                )
+                switch.description['software'] = switch_att.get(
+                    'software'
+                )
+                switch.description['serial'] = switch_att.get(
+                    'serial', ''
+                )
+                switch.description['data_path'] = switch_att.get(
+                    'data_path', ''
+                )
                 switch.extend_metadata(switch_att["metadata"])
 
                 switch_success[switch_id] = switch
@@ -255,7 +271,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def _load_interfaces(
         self,
         switch: Switch,
-        interfaces_att: dict[str, dict]      
+        interfaces_att: dict[str, dict]
     ):
         # NOTE: Maybe copy the pattern from load_switches and load_links?
         for iface_id, iface_att in interfaces_att.items():
@@ -291,10 +307,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self,
         interfaces: dict[str, Interface]
     ):
-        """
-        Undefined behaviour if called when _links_lock is not held.
-        """
-        intf_details = self.topo_controller.get_interfaces_details(list(interfaces))
+        intf_details = self.topo_controller.get_interfaces_details(
+            list(interfaces)
+        )
         self.load_details(
             interfaces,
             intf_details
@@ -304,10 +319,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         self,
         links: dict[str, Link]
     ):
-        """
-        Undefined behaviour if called when _links_lock is not held.
-        """
-        link_details = self.topo_controller.get_links_details(list(links))
+        link_details = self.topo_controller.get_links_details(
+            list(links)
+        )
         self.load_details(
             links,
             link_details
@@ -421,14 +435,14 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             switch: Switch = self.controller.switches[dpid]
         except KeyError:
             raise HTTPException(404, detail="Switch not found.")
-        
+
         with ExitStack() as exit_stack:
             exit_stack.enter_context(self._switch_lock[dpid])
             if switch.status != EntityStatus.DISABLED:
                 raise HTTPException(
                     409, detail="Switch should be disabled."
                 )
-            
+
             # Prevent any links from connecting to the switch
             # Other components are likely to first acquire the links_lock,
             # Then acquire the multi_tag_lock.
@@ -888,7 +902,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     @rest('v3/links/{link_id}/tag_ranges', methods=['POST'])
     @validate_openapi(spec)
-    def set_tag_range(self, request: Request) -> JSONResponse:
+    def set_link_tag_range(self, request: Request) -> JSONResponse:
         """Set tag range"""
         content_type_json_or_415(request)
         content = get_json_or_400(request, self.controller.loop)
@@ -997,7 +1011,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             try:
                 link = self.links[link_id]
             except KeyError:
-                raise HTTPException(404, detail="Link not found.")        
+                raise HTTPException(404, detail="Link not found.")
             if link.status != EntityStatus.DISABLED:
                 raise HTTPException(409, detail="Link is not disabled.")
             exit_stack.enter_context(self.multi_tag_lock)
@@ -1034,7 +1048,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     )
                     if conflict:
                         log.warning(
-                            f"{tag_type} default tags {conflict} already present in endpoint."
+                            f"{tag_type} default tags {conflict} "
+                            "already present in endpoint."
                         )
 
                 for tag_type, special_tags in link_special_tags.items():
@@ -1052,7 +1067,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
                     if conflict:
                         log.warning(
-                            f"{tag_type} default special tags {conflict} already present in endpoint."
+                            f"{tag_type} default special tags {conflict} "
+                            "already present in endpoint."
                         )
 
                 self.handle_on_interface_tags(
@@ -1065,12 +1081,12 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 )
 
             # Make tags unusable.
-            link.set_available_tags_tag_ranges({},{},{},{},{},{})
+            link.set_available_tags_tag_ranges({}, {}, {}, {}, {}, {})
 
             self.topo_controller.delete_link_from_details(link_id)
             self.topo_controller.delete_link(link_id)
             link = self.links.pop(link_id)
-        
+
         self.notify_topology_update()
         name = 'kytos/topology.link.deleted'
         event = KytosEvent(name=name, content={'link': link})
@@ -1527,7 +1543,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface_a: Interface = event.content['interface_a']
         interface_b: Interface = event.content['interface_b']
 
-
         with ExitStack() as exit_stack:
             exit_stack.enter_context(self._links_lock)
             try:
@@ -1568,11 +1583,15 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             shared_tag_ranges = None
             shared_special_tags = None
 
-            for endpont in endpoints.values():
-                exit_stack.enter_context(endpont.tag_lock)
+            for endpoint in endpoints.values():
+                exit_stack.enter_context(endpoint.tag_lock)
                 if shared_tag_ranges is None:
-                    shared_tag_ranges = deepcopy(endpoint.available_tags)
-                    shared_special_tags = deepcopy(endpoint.special_available_tags)
+                    shared_tag_ranges = deepcopy(
+                        endpoint.available_tags
+                    )
+                    shared_special_tags = deepcopy(
+                        endpoint.special_available_tags
+                    )
                     continue
 
                 for tag_type in list(shared_tag_ranges):
@@ -1582,10 +1601,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                             endpoint.available_tags[tag_type]
                         )
                         shared_special_tags[tag_type] = list(
-                            frozenset(shared_special_tags[tag_type]) &
-                            frozenset(endpoint.special_available_tags[tag_type])
+                            set(shared_special_tags[tag_type]) &
+                            set(endpoint.special_available_tags[tag_type])
                         )
-                        if shared_tag_ranges[tag_type] or shared_special_tags[tag_type]:
+                        if (
+                            shared_tag_ranges[tag_type] or
+                            shared_special_tags[tag_type]
+                        ):
                             continue
                     del shared_tag_ranges[tag_type]
                     del shared_special_tags[tag_type]
@@ -1599,8 +1621,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                         remove_tag_ranges
                     )
                     new_default_special_tags = list(
-                        frozenset(endpoint.default_special_tags[tag_type]) -
-                        frozenset(remove_special_tags)
+                        set(endpoint.default_special_tags[tag_type]) -
+                        set(remove_special_tags)
                     )
                     endpoint.set_default_tag_ranges(
                         tag_type,
@@ -1611,7 +1633,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                         new_default_special_tags
                     )
                     self.handle_on_interface_tags(endpoint)
-                                                 
+
             for switch_id, switch in switches.items():
                 self.topo_controller.upsert_switch(
                     switch_id, switch.as_dict()
@@ -1632,7 +1654,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if link.is_active():
             status_change_info = self.link_status_change[link.id]
             status_change_info['last_status_change'] = time.time()
-        
+
         self.topo_controller.upsert_link(link.id, link.as_dict())
         self.notify_link_up_if_status(link, "link up")
 
@@ -1796,6 +1818,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         tag_capable_dict: dict[str, TAGCapable],
         tag_details_list: list[dict]
     ):
+        """Load raw details into TAGCapable objects."""
         for tag_details in tag_details_list:
             object_id = tag_details["id"]
             tag_capable = tag_capable_dict[object_id]

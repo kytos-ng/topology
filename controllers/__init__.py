@@ -406,7 +406,7 @@ class TopoController:
                 {"$match": {"_id": {"$in": link_ids}}},
             ]
         )
-    
+
     def delete_link_from_details(self, link_id: str) -> Optional[dict]:
         """Delete link from link_details."""
         return self.db.link_details.find_one_and_delete(
