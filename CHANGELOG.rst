@@ -18,6 +18,10 @@ Added
 - When a link is added and one of the interfaces already has a link a warning would be log to indicate a mismatched link.
 - When two links shared an interface, the last added link will not be unmatched.
 
+Fixed
+=====
+- Fixed the ``k-chart-timeseries``/Interface Statistics Graph.
+
 [2025.1.1] - 2025-05-06
 ***********************
 
