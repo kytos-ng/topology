@@ -23,6 +23,10 @@ Added
 - Added node names from ``endpoint_a`` and ``endpoint_b`` to ``Link Details`` InfoPanel.
 - Added a new event ``kytos/topology.interface.(enabled|up|disabled|down)`` which is published when an interface is disabled or enabled or UP or DOWN (due to maintenance).
 
+Fixed
+=====
+- Fixed the ``k-chart-timeseries``/Interface Statistics Graph.
+
 [2025.1.1] - 2025-05-06
 ***********************
 
