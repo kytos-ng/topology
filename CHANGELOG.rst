@@ -20,7 +20,7 @@ Added
 
 Fixed
 =====
-- Fixed the ``k-chart-timeseries``/Interface Statistics Graph.
+- Fixed the ``k-chart-timeseries``/Interface Utilization Graph.
 
 [2025.1.1] - 2025-05-06
 ***********************
