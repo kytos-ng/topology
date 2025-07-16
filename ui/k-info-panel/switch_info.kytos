@@ -365,7 +365,6 @@ module.exports = {
    },
    mounted () {
      this.update_switch_content()
-
    },
    watch: {
      content: {
