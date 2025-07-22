@@ -7,6 +7,14 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2025.1.3] - 2025-07-22
+***********************
+
+Added
+=====
+
+- Published kytos/topology.interface.deleted event on interface deletion
+
 [2025.1.2] - 2025-06-12
 ***********************
 
