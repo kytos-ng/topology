@@ -227,6 +227,18 @@ Content:
     'switch': <switch object>
   }
 
+kytos/topology.interface.deleted
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Event reporting that an interface was deleted. It contains the interface instance.
+
+Content:
+
+.. code-block:: python3
+  {
+    'interface': <interface object>
+  }
+
 kytos/topology.link.(enabled|disabled)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -838,6 +838,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             raise HTTPException(409, detail=f"Interface could not be "
                                             f"deleted. Reason: {usage}")
         self._delete_interface(interface)
+        name = "kytos/topology.interface.deleted"
+        event = KytosEvent(name=name, content={"interface": interface})
+        self.controller.buffers.app.put(event)
         return JSONResponse("Operation Successful", status_code=200)
 
     @listen_to(
