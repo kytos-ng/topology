@@ -2056,6 +2056,11 @@ class TestMain:
         mock_delete.return_value = True
         response = await self.api_client.delete(endpoint)
         assert response.status_code == 200, response
+        assert self.napp.controller.buffers.app.put.call_count
+        args = self.napp.controller.buffers.app.put.call_args_list
+        event = args[-1][0][0]
+        assert event.name == "kytos/topology.interface.deleted"
+        assert "interface" in event.content
 
     def test_get_intf_usage(self):
         """Test get_intf_usage"""
