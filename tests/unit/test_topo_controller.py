@@ -200,8 +200,13 @@ class TestTopoController:
         tag_ranges = {'vlan': [[5, 4095]]}
         special_available_tags = {'vlan': ["untagged", "any"]}
         self.topo.upsert_interface_details(
-            id_, available_tags, tag_ranges,
-            special_available_tags, special_available_tags
+            id_,
+            available_tags,
+            tag_ranges,
+            tag_ranges,
+            special_available_tags,
+            special_available_tags,
+            special_available_tags,
         )
         arg = self.topo.db.interface_details.find_one_and_update.call_args[0]
         assert arg[0] == {"_id": id_}

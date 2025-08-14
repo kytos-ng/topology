@@ -299,8 +299,10 @@ class TopoController:
         id_: str,
         available_tags: dict[str, list[list[int]]],
         tag_ranges: dict[str, list[list[int]]],
+        default_tag_ranges: dict[str, list[list[int]]],
         special_available_tags: dict[str, list[str]],
-        special_tags: dict[str, list[str]]
+        special_tags: dict[str, list[str]],
+        default_special_tags: dict[str, list[str]],
     ) -> Optional[dict]:
         """Update or insert interfaces details."""
         utc_now = datetime.utcnow()
@@ -308,8 +310,10 @@ class TopoController:
                 "_id": id_,
                 "available_tags": available_tags,
                 "tag_ranges": tag_ranges,
+                "default_tag_ranges": default_tag_ranges,
                 "special_available_tags": special_available_tags,
                 "special_tags": special_tags,
+                "default_special_tags": default_special_tags,
                 "updated_at": utc_now
         }).model_dump(exclude={"inserted_at"})
         updated = self.db.interface_details.find_one_and_update(
@@ -357,4 +361,54 @@ class TopoController:
         """Delete interface from interface_details."""
         return self.db.interface_details.find_one_and_delete(
             {"_id": intf_id}
+        )
+
+    # pylint: disable=too-many-arguments
+    def upsert_link_details(
+        self,
+        id_: str,
+        available_tags: dict[str, list[list[int]]],
+        tag_ranges: dict[str, list[list[int]]],
+        default_tag_ranges: dict[str, list[list[int]]],
+        special_available_tags: dict[str, list[str]],
+        special_tags: dict[str, list[str]],
+        default_special_tags: dict[str, list[str]]
+    ) -> Optional[dict]:
+        """Update or insert link details."""
+        utc_now = datetime.utcnow()
+        model = InterfaceDetailDoc(**{
+                "_id": id_,
+                "available_tags": available_tags,
+                "tag_ranges": tag_ranges,
+                "default_tag_ranges": default_tag_ranges,
+                "special_available_tags": special_available_tags,
+                "special_tags": special_tags,
+                "default_special_tags": default_special_tags,
+                "updated_at": utc_now
+        }).model_dump(exclude={"inserted_at"})
+        updated = self.db.link_details.find_one_and_update(
+            {"_id": id_},
+            {
+                "$set": model,
+                "$setOnInsert": {"inserted_at": utc_now},
+            },
+            return_document=ReturnDocument.AFTER,
+            upsert=True,
+        )
+        return updated
+
+    def get_links_details(
+        self, link_ids: List[str]
+    ) -> Optional[dict]:
+        """Try to get link details given a list of link ids."""
+        return self.db.link_details.aggregate(
+            [
+                {"$match": {"_id": {"$in": link_ids}}},
+            ]
+        )
+
+    def delete_link_from_details(self, link_id: str) -> Optional[dict]:
+        """Delete link from link_details."""
+        return self.db.link_details.find_one_and_delete(
+            {"_id": link_id}
         )
