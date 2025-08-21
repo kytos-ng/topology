@@ -134,7 +134,9 @@ module.exports = {
        links: [],
        headers: ['Links'],
        show_dl_modal: false,
-       show_dis_modal: false
+       show_dis_modal: false,
+       watcher_timeout_id: 0,
+       is_watcher_disabled: false
      }
    },
    methods: {
@@ -264,7 +266,7 @@ module.exports = {
          if(subtitle.length > 16) subtitle=subtitle.substr(0,16) + "..."         
          
        }
-       var content = {
+       let content = {
                       "component": 'kytos-topology-k-info-panel-link_info',
                       
                       "icon": "home",
@@ -367,14 +369,31 @@ module.exports = {
    mounted () {
      this.update_switch_content()
    },
+   beforeUnmount() {
+     // Clear the timeout if the component is unmounted before the timeout finishes
+     if (this.watcher_timeout_id) {
+       clearTimeout(this.watcher_timeout_id);
+     }
+   },
    watch: {
      content: {
-      handler: function () {
-       if (this.content) {
-         this.update_switch_content()
-       }
+      handler: function (currentValue, oldValue) {
+        // Disable watcher for 3 seconds if is the same switch for debouncing purposes
+        if (currentValue.dpid == oldValue?.dpid && this.is_watcher_disabled) {
+          return; // Exit the watcher if it's disabled
+        }
+
+        this.update_switch_content();
+
+        // Temporarily disable the watcher
+        this.is_watcher_disabled = true;
+
+        const _this = this; // get the current context
+        this.watcher_timeout_id = setTimeout(() => {
+          _this.is_watcher_disabled = false;
+        }, 3000); // 3 seconds
       },
-      deep: true
+      deep: true,
      },
    },
    computed: {
