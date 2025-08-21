@@ -13,6 +13,10 @@ Changed
 - The tabs in the Link and Switch Details Menu are now collapsed by default.
 - The tabs in the Switch Details Menu were rearranged.
 
+Fixed
+=====
+- Fixed issue where creating the switch info panel would trigger dozens of repeated requests
+
 Added
 =====
 - When a link is added and one of the interfaces already has a link a warning would be log to indicate a mismatched link.
