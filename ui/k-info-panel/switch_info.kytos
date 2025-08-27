@@ -136,7 +136,7 @@ module.exports = {
        show_dl_modal: false,
        show_dis_modal: false,
        watcher_timeout_id: 0,
-       is_watcher_disabled: false
+       is_watcher_disabled: true
      }
    },
    methods: {
@@ -365,9 +365,17 @@ module.exports = {
           _this.$kytos.eventBus.$emit("setNotification", notification)
        });
      },
+     temporarily_disable_watcher() {
+        this.is_watcher_disabled = true;
+        const _this = this; // get the current context
+        this.watcher_timeout_id = setTimeout(() => {
+          _this.is_watcher_disabled = false;
+        }, 3000); // 3 seconds
+     },
    },
    mounted () {
-     this.update_switch_content()
+     this.update_switch_content();
+     this.temporarily_disable_watcher();
    },
    beforeUnmount() {
      // Clear the timeout if the component is unmounted before the timeout finishes
@@ -386,12 +394,7 @@ module.exports = {
         this.update_switch_content();
 
         // Temporarily disable the watcher
-        this.is_watcher_disabled = true;
-
-        const _this = this; // get the current context
-        this.watcher_timeout_id = setTimeout(() => {
-          _this.is_watcher_disabled = false;
-        }, 3000); // 3 seconds
+        this.temporarily_disable_watcher();
       },
       deep: true,
      },
