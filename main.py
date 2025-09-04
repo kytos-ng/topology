@@ -680,7 +680,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Set tag range"""
         content_type_json_or_415(request)
         content = get_json_or_400(request, self.controller.loop)
-        tag_type = content.get("tag_type")
+        tag_type = content.get("tag_type", "vlan")
         try:
             ranges = get_tag_ranges(content["tag_ranges"])
         except KytosInvalidTagRanges as err:
@@ -721,7 +721,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Set special_tags"""
         content_type_json_or_415(request)
         content = get_json_or_400(request, self.controller.loop)
-        tag_type = content.get("tag_type")
+        tag_type = content.get("tag_type", "vlan")
         special_tags = content["special_tags"]
         interface_id = request.path_params["interface_id"]
         interface = self.controller.get_interface_by_id(interface_id)
@@ -886,7 +886,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Set tag range"""
         content_type_json_or_415(request)
         content = get_json_or_400(request, self.controller.loop)
-        tag_type = content.get("tag_type")
+        tag_type = content.get("tag_type", "vlan")
         try:
             ranges = get_tag_ranges(content["tag_ranges"])
         except KytosInvalidTagRanges as err:
@@ -927,7 +927,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Set special_tags"""
         content_type_json_or_415(request)
         content = get_json_or_400(request, self.controller.loop)
-        tag_type = content.get("tag_type")
+        tag_type = content.get("tag_type", "vlan")
         special_tags = content["special_tags"]
         link_id = request.path_params["link_id"]
         link = self.controller.links.get(link_id)
@@ -1091,7 +1091,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
             # Make tags unusable.
             link.set_available_tags_tag_ranges(
-                {}, {}, {}, {}, {}, {}
+                {}, {}, {}, {}, {}, {},
+                link.supported_tag_types
             )
 
             self.topo_controller.delete_link_from_details(link_id)
@@ -1241,6 +1242,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             interface.special_available_tags,
             interface.special_tags,
             interface.default_special_tags,
+            interface.supported_tag_types,
         )
 
     @listen_to("kytos/core.link_tags")
@@ -1269,6 +1271,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             link.special_available_tags,
             link.special_tags,
             link.default_special_tags,
+            link.supported_tag_types,
         )
 
     @listen_to('.*.switch.(new|reconnected)')
@@ -1634,41 +1637,43 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             #     for endpoint in endpoints.values()
             # }
 
-            shared_tag_ranges = None
-            shared_special_tags = None
+            endpoints_list = list(endpoints.values())
 
-            for endpoint in endpoints.values():
+            endpoints_head = endpoints_list[0]
+            endpoints_tail = endpoints_list[1:]
+
+            stack.enter_context(endpoints_head.tag_lock)
+
+            supported_tag_types = endpoints_head.supported_tag_types
+            shared_tag_ranges = deepcopy(
+                endpoints_head.available_tags
+            )
+            shared_special_tags = deepcopy(
+                endpoints_head.special_available_tags
+            )
+
+            for endpoint in endpoints_tail:
                 stack.enter_context(endpoint.tag_lock)
-                if shared_tag_ranges is None:
-                    shared_tag_ranges = deepcopy(
-                        endpoint.available_tags
+                supported_tag_types = supported_tag_types & endpoint.supported_tag_types
+                for tag_type in supported_tag_types:
+                    shared_tag_ranges[tag_type] = range_intersection(
+                        shared_tag_ranges[tag_type],
+                        endpoint.available_tags[tag_type]
                     )
-                    shared_special_tags = deepcopy(
-                        endpoint.special_available_tags
+                    shared_special_tags[tag_type] = list(
+                        set(shared_special_tags[tag_type]) &
+                        set(endpoint.special_available_tags[tag_type])
                     )
-                    continue
-                for tag_type in list(shared_tag_ranges):
-                    if endpoint.is_tag_type_supported(tag_type):
-                        shared_tag_ranges[tag_type] = range_intersection(
-                            shared_tag_ranges[tag_type],
-                            endpoint.available_tags[tag_type]
-                        )
-                        shared_special_tags[tag_type] = list(
-                            set(shared_special_tags[tag_type]) &
-                            set(endpoint.special_available_tags[tag_type])
-                        )
-                        if (
-                            shared_tag_ranges[tag_type] or
-                            shared_special_tags[tag_type]
-                        ):
-                            continue
-                        del shared_tag_ranges[tag_type]
-                        del shared_special_tags[tag_type]
 
-            for tag_type in list(shared_tag_ranges):
-                remove_tag_ranges = shared_tag_ranges[tag_type]
-                remove_special_tags = shared_special_tags[tag_type]
-                for endpoint in endpoints.values():
+            for tag_type in shared_tag_ranges.keys() - supported_tag_types:
+                del shared_tag_ranges[tag_type]
+                del shared_special_tags[tag_type]
+
+            for endpoint in endpoints_list:
+                for tag_type in supported_tag_types:
+                    remove_tag_ranges = shared_tag_ranges[tag_type]
+                    remove_special_tags = shared_special_tags[tag_type]
+
                     new_default_tag_ranges = range_difference(
                         endpoint.default_tag_ranges[tag_type],
                         remove_tag_ranges
@@ -1685,7 +1690,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                         tag_type,
                         new_default_special_tags
                     )
-                    self.handle_on_interface_tags(endpoint)
+                self.handle_on_interface_tags(endpoint)
 
             # for switch_id, switch in switches.items():
             #     self.topo_controller.upsert_switch(
@@ -1699,6 +1704,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 shared_special_tags,
                 shared_special_tags,
                 shared_special_tags,
+                supported_tag_types,
             )
             self.handle_on_link_tags(link)
 
@@ -1887,6 +1893,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     tag_details["special_available_tags"],
                     tag_details["special_tags"],
                     tag_details["default_special_tags"],
+                    frozenset(tag_details["supported_tag_types"]),
                 )
 
     @listen_to(

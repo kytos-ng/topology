@@ -207,6 +207,7 @@ class TestTopoController:
             special_available_tags,
             special_available_tags,
             special_available_tags,
+            frozenset({"vlan"}),
         )
         arg = self.topo.db.interface_details.find_one_and_update.call_args[0]
         assert arg[0] == {"_id": id_}

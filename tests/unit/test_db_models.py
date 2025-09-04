@@ -99,6 +99,7 @@ def test_interface_detail_doc() -> None:
         "special_available_tags": {"vlan": ["any"]},
         "special_tags": {"vlan": ["any", "untagged"]},
         "default_special_tags": {"vlan": ["any", "untagged"]},
+        "supported_tag_types": frozenset("vlan"),
     }
     model = InterfaceDetailDoc(**payload)
     assert model

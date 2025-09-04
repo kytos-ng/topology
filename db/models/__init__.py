@@ -132,3 +132,4 @@ class InterfaceDetailDoc(DocumentBaseModel):
     special_available_tags: Dict[str, list[str]]
     special_tags: Dict[str, list[str]]
     default_special_tags: dict[str, list[str]]
+    supported_tag_types: list[str]

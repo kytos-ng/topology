@@ -303,6 +303,7 @@ class TopoController:
         special_available_tags: dict[str, list[str]],
         special_tags: dict[str, list[str]],
         default_special_tags: dict[str, list[str]],
+        supported_tag_types: list[str],
     ) -> Optional[dict]:
         """Update or insert interfaces details."""
         utc_now = datetime.utcnow()
@@ -314,6 +315,7 @@ class TopoController:
                 "special_available_tags": special_available_tags,
                 "special_tags": special_tags,
                 "default_special_tags": default_special_tags,
+                "supported_tag_types": supported_tag_types,
                 "updated_at": utc_now
         }).model_dump(exclude={"inserted_at"})
         updated = self.db.interface_details.find_one_and_update(
@@ -372,7 +374,8 @@ class TopoController:
         default_tag_ranges: dict[str, list[list[int]]],
         special_available_tags: dict[str, list[str]],
         special_tags: dict[str, list[str]],
-        default_special_tags: dict[str, list[str]]
+        default_special_tags: dict[str, list[str]],
+        supported_tag_types: list[str],
     ) -> Optional[dict]:
         """Update or insert link details."""
         utc_now = datetime.utcnow()
@@ -384,6 +387,7 @@ class TopoController:
                 "special_available_tags": special_available_tags,
                 "special_tags": special_tags,
                 "default_special_tags": default_special_tags,
+                "supported_tag_types": supported_tag_types,
                 "updated_at": utc_now
         }).model_dump(exclude={"inserted_at"})
         updated = self.db.link_details.find_one_and_update(

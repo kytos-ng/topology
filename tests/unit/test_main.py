@@ -368,6 +368,7 @@ class TestMain:
         tag_ranges = {'vlan': [[5, 4095]]}
         special_available_tags = {'vlan': ["untagged", "any"]}
         special_tags = {'vlan': ["untagged", "any"]}
+        supported_tag_types = ["vlan"]
         interface_details = [{
             "id": mock_interface_a.id,
             "available_tags": ava_tags,
@@ -376,6 +377,7 @@ class TestMain:
             "special_available_tags": special_available_tags,
             "special_tags": special_tags,
             "default_special_tags": special_tags,
+            "supported_tag_types": supported_tag_types,
         }]
 
         switch_interfaces = {
@@ -389,7 +391,8 @@ class TestMain:
         set_method = mock_interface_a.set_available_tags_tag_ranges
         set_method.assert_called_once_with(
             ava_tags, tag_ranges, tag_ranges,
-            special_available_tags, special_tags, special_tags
+            special_available_tags, special_tags, special_tags,
+            frozenset(supported_tag_types),
         )
 
     def test_handle_on_interface_tags(self):
