@@ -821,6 +821,142 @@ paths:
               schema:
                 type: string
                 example: Link not found
+  /v3/links/tag_ranges:
+    get:
+      summary: Get tag_ranges and available_tags from all links
+      responses:
+        '200':
+          description: Ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  link_id:
+                    type: object
+                    properties:
+                      tag_ranges:
+                        $ref: '#/components/schemas/InterfaceRanges'
+                      available_tags:
+                        $ref: '#/components/schemas/InterfaceRanges'
+              example: 
+                "00:00:00:00:00:00:00:01:2":
+                  "available_tags": [[1, 4096]]
+                  "tag_ranges": [[1,4096]]
+                  "special_tags": ["untagged", "any"]
+                  "special_available_tags": ["any"]
+  /v3/links/{link_id}/tag_ranges:
+    get:
+      summary: Get tag_ranges and available_tags from an link
+      parameters:
+        - name: link_id
+          schema:
+            type: string
+          required: true
+          description: The link ID
+          in: path
+      responses:
+        '200':
+          description: Ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  link_id:
+                    type: object
+                    properties:
+                      tag_ranges:
+                        $ref: '#/components/schemas/InterfaceRanges'
+                      available_tags:
+                        $ref: '#/components/schemas/InterfaceRanges'
+              example: 
+                "00:00:00:00:00:00:00:01:2":
+                  "available_tags": [[1, 4096]]
+                  "tag_ranges": [[1,4096]]
+                  "special_tags": ["untagged", "any"]
+                  "special_available_tags": ["any"]
+        '404':
+          description: Link not found
+    post:
+      summary: Set tag_ranges from an link
+      parameters:
+        - name: link_id
+          schema:
+            type: string
+          required: true
+          description: The link ID
+          in: path
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Tag_ranges'
+      responses:
+        '200':
+          description: Ok
+        '400':
+          description: Bad request.
+        '404':
+          description: Link not found.
+    delete:
+      summary: Set tag ranges from an Link for a given tag_type to default value [1, 4095]
+      parameters:
+        - name: link_id
+          schema:
+            type: string
+          required: true
+          description: The link ID
+          in: path
+        - name: tag_type
+          in: query
+          schema:
+            type: string
+          description: Type of the tag to be modified
+          required: false
+          example: vlan
+      responses:
+        '200':
+          description: Ok
+        '400':
+          description: Bad request.
+        '404':
+          description: Link not found.
+  /v3/links/{link_id}/special_tags:
+    post:
+      summary: Set special_tags from an link
+      parameters:
+        - name: link_id
+          schema:
+            type: string
+          required: true
+          description: The link ID
+          in: path
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tag_type
+                - special_tags
+              properties:
+                tag_type:
+                  type: string
+                  enum: ['vlan']
+                special_tags:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Ok
+        '400':
+          description: Bad request.
+        '404':
+          description: Link not found.
 
 # Components models here
 components:
