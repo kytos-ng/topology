@@ -1091,7 +1091,6 @@ components:
           enum: ['vlan']
         tag_ranges:
           type: array
-          minItems: 1
           items:
             anyOf:
               - type: array
