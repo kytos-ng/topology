@@ -690,7 +690,61 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if not interface:
             raise HTTPException(404, detail="Interface not found")
         try:
-            with interface.tag_lock:
+            with ExitStack() as stack:
+                link = None
+                with ExitStack() as stack2:
+                    stack2.enter_context(
+                        self.controller.links_lock
+                    )
+                    stack2.enter_context(
+                        self.controller.multi_tag_lock
+                    )
+                    if interface.link:
+                        link = interface.link
+                        stack.enter_context(link.tag_lock)
+                        endpoints = {
+                            link.endpoint_a.id: link.endpoint_a,
+                            link.endpoint_b.id: link.endpoint_b,
+                        }
+                        for endpoint in endpoints.values():
+                            stack.enter_context(endpoint.tag_lock)
+                    else:
+                        stack.enter_context(interface.tag_lock)
+
+                if link and link.is_tag_type_supported(tag_type):
+                    tags_in_link = range_intersection(
+                        link.default_tag_ranges[tag_type],
+                        ranges
+                    )
+                    if tags_in_link:
+                        tags_used_by_link = range_intersection(
+                            link.tag_ranges[tag_type],
+                            tags_in_link
+                        )
+                        if tags_used_by_link:
+                            raise HTTPException(
+                                400,
+                                detail=f"Tags {tags_used_by_link} in use by link {link}."
+                            )
+                        for endpoint in endpoints.values():
+                            endpoint_defaults = endpoint.default_tag_ranges[tag_type]
+                            new_defaults, conflict = range_addition(
+                                endpoint_defaults,
+                                tags_in_link
+                            )
+                            endpoint.default_tag_ranges[tag_type] = new_defaults
+                            if conflict:
+                                log.warning(
+                                    f"{tag_type} default tags {conflict} "
+                                    f"already present in endpoint {endpoint}."
+                                )
+                            self.handle_on_interface_tags(endpoint)
+                        new_defaults = range_difference(
+                            link.default_tag_ranges[tag_type],
+                            tags_in_link
+                        )
+                        link.default_tag_ranges[tag_type] = new_defaults
+                        self.handle_on_link_tags(link)
                 interface.set_tag_ranges(tag_type, ranges)
                 self.handle_on_interface_tags(interface)
         except KytosTagError as err:
@@ -700,7 +754,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     @rest('v3/interfaces/{interface_id}/tag_ranges', methods=['DELETE'])
     @validate_openapi(spec)
     def delete_tag_range(self, request: Request) -> JSONResponse:
-        """Set tag_range from tag_type to default value [1, 4095]"""
+        """Set tag_range from tag_type to default value."""
         interface_id = request.path_params["interface_id"]
         params = request.query_params
         tag_type = params.get("tag_type", 'vlan')
@@ -896,7 +950,69 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if not link:
             raise HTTPException(404, detail="Link not found")
         try:
-            with link.tag_lock:
+            with ExitStack() as stack:
+                with ExitStack() as stack2:
+                    stack2.enter_context(
+                        self.controller.links_lock
+                    )
+                    stack2.enter_context(
+                        self.controller.multi_tag_lock
+                    )
+
+                    stack.enter_context(link.tag_lock)
+                    endpoints = {
+                        link.endpoint_a.id: link.endpoint_a,
+                        link.endpoint_b.id: link.endpoint_b,
+                    }
+                    for endpoint in endpoints.values():
+                        stack.enter_context(endpoint.tag_lock)
+
+                link.assert_tag_type_supported(
+                    tag_type
+                )
+                tags_not_in_link = range_difference(
+                    ranges,
+                    link.default_tag_ranges[tag_type]
+                )
+                if tags_not_in_link:
+                    for endpoint in endpoints.values():
+                        tags_used_by_interface = range_intersection(
+                            endpoint.tag_ranges[tag_type],
+                            tags_not_in_link
+                        )
+                        if tags_used_by_interface:
+                            raise HTTPException(
+                                400,
+                                detail=f"Tags {tags_used_by_interface} "
+                                    f"in use by interface {endpoint}."
+                            )
+                    for endpoint in endpoints.values():
+                        endpoint_defaults = endpoint.default_tag_ranges[tag_type]
+                        new_defaults = range_difference(
+                            endpoint_defaults,
+                            tags_not_in_link
+                        )
+                        missing = range_difference(
+                            tags_not_in_link,
+                            endpoint_defaults
+                        )
+                        endpoint.default_tag_ranges[tag_type] = new_defaults
+                        if missing:
+                            log.warning(
+                                f"{tag_type} default tags {missing} "
+                                f"missing from endpoint {endpoint}."
+                            )
+                        self.handle_on_interface_tags(endpoint)
+                    new_defaults, conflict = range_addition(
+                        link.default_tag_ranges[tag_type],
+                        tags_not_in_link
+                    )
+                    link.default_tag_ranges[tag_type] = new_defaults
+                    if conflict:
+                        log.warning(
+                            f"{tag_type} default tags {missing} "
+                            f"already present in link {link}."
+                        )
                 link.set_tag_ranges(tag_type, ranges)
                 self.handle_on_link_tags(link)
         except KytosTagError as err:
@@ -906,7 +1022,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     @rest('v3/links/{link_id}/tag_ranges', methods=['DELETE'])
     @validate_openapi(spec)
     def delete_link_tag_range(self, request: Request) -> JSONResponse:
-        """Set tag_range from tag_type to default value [1, 4095]"""
+        """Set tag_range from tag_type to default value."""
         link_id = request.path_params["link_id"]
         params = request.query_params
         tag_type = params.get("tag_type", 'vlan')
@@ -1063,12 +1179,12 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     if conflict_ranges:
                         log.warning(
                             f"{tag_type} default tags {conflict_ranges} "
-                            "already present in endpoint."
+                            f"already present in endpoint {endpoint}."
                         )
                     if conflict_special_tags:
                         log.warning(
                             f"{tag_type} default special tags {conflict_special_tags} "
-                            "already present in endpoint."
+                            f"already present in endpoint {endpoint}."
                         )
 
                     endpoint.set_default_tag_ranges(
