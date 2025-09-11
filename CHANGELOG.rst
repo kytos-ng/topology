@@ -12,12 +12,15 @@ Changed
 - Moved the dictionary for ``Links`` to controller. Now all the links can be accessed with ``self.controller.links`` from all the NApps.
 - The tabs in the Link and Switch Details Menu are now collapsed by default.
 - The tabs in the Switch Details Menu were rearranged.
+- Moved collapsable panel ``Links`` to be just under ``Basic Details`` from Switch Details InfoPanel.
 
 Added
 =====
 - When a link is added and one of the interfaces already has a link a warning would be log to indicate a mismatched link.
 - When two links shared an interface, the last added link will not be unmatched.
-- Published kytos/topology.interface.deleted event on interface deletion
+- Published kytos/topology.interface.deleted event on interface deletion.
+- Added node name as subtitle in ``Switch Details`` InfoPanel.
+- Added node names from ``endpoint_a`` and ``endpoint_b`` to ``Link Details`` InfoPanel.
 
 [2025.1.1] - 2025-05-06
 ***********************

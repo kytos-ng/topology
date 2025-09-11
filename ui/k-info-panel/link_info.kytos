@@ -75,7 +75,9 @@ module.exports = {
                    'active': '',
                    'id': '',
                    'endpoint_a': '',
+                   'node_name_a': '',
                    'endpoint_b': '',
+                   'node_name_b': '',
                    'status': '',
                    'status_reason': '',
                    },
@@ -89,7 +91,10 @@ module.exports = {
        var self = this
        Object.keys(this.details).forEach(function (key) {
          let value = self.content[key]
-         if (key != 'endpoint_a' && key != 'endpoint_b') {
+         if (key.includes('node_name')) {
+             return;
+         }
+         else if (key != 'endpoint_a' && key != 'endpoint_b') {
              self.details[key] = String(value)
          }
          else {
@@ -232,6 +237,23 @@ module.exports = {
          _this.$kytos.eventBus.$emit("setNotification", notification)
        });
      },
+     get_switch_name: function(switch_id) {
+       let request = $.ajax({
+            type: "GET",
+            url: this.$kytos_server_api + "kytos/topology/v3/switches/" + switch_id + "/metadata",
+            async: false,
+       })
+       if (request.status === 200 && 'node_name' in request.responseJSON.metadata) {
+        return request.responseJSON.metadata.node_name
+       }
+       else { /* Rare case if request fails at this point. */}
+       return ''
+     },
+     get_node_names: function () {
+       if(this.content === undefined) return
+       this.details["node_name_a"] = this.get_switch_name(this.content.endpoint_a['switch'])
+       this.details["node_name_b"] = this.get_switch_name(this.content.endpoint_b['switch'])
+     },
    },
    computed: {
        modal_message() {
@@ -243,6 +265,7 @@ module.exports = {
    },
    mounted () {
        this.get_details()
+       this.get_node_names()
    },
    watch:{
        content: {
