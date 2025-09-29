@@ -237,22 +237,13 @@ module.exports = {
          _this.$kytos.eventBus.$emit("setNotification", notification)
        });
      },
-     get_switch_name: function(switch_id) {
-       let request = $.ajax({
-            type: "GET",
-            url: this.$kytos_server_api + "kytos/topology/v3/switches/" + switch_id + "/metadata",
-            async: false,
-       })
-       if (request.status === 200 && 'node_name' in request.responseJSON.metadata) {
-        return request.responseJSON.metadata.node_name
-       }
-       else { /* Rare case if request fails at this point. */}
-       return ''
-     },
-     get_node_names: function () {
-       if(this.content === undefined) return
-       this.details["node_name_a"] = this.get_switch_name(this.content.endpoint_a['switch'])
-       this.details["node_name_b"] = this.get_switch_name(this.content.endpoint_b['switch'])
+     get_node_name: function(switch_id, field_name) {
+       return this.$http.get(this.$kytos_server_api + "kytos/topology/v3/switches/" + switch_id + "/metadata")
+          .then(response => {
+            if (response.status === 200 && 'node_name' in response.data.metadata) {
+              this.details[field_name] = response.data.metadata.node_name
+            }
+          })
      },
    },
    computed: {
@@ -264,8 +255,14 @@ module.exports = {
        },
    },
    mounted () {
-       this.get_details()
-       this.get_node_names()
+      if(this.content === undefined) return
+      let _this = this
+      _this.get_details()
+      let endpoint_a = this.content.endpoint_a['switch']
+      let endpoint_b = this.content.endpoint_b['switch']
+      Promise.all([_this.get_node_name(endpoint_a, "node_name_a"),
+                   _this.get_node_name(endpoint_b, "node_name_b")])
+                 .then()
    },
    watch:{
        content: {
