@@ -240,9 +240,18 @@ module.exports = {
      get_node_name: function(switch_id, field_name) {
        return this.$http.get(this.$kytos_server_api + "kytos/topology/v3/switches/" + switch_id + "/metadata")
           .then(response => {
-            if (response.status === 200 && 'node_name' in response.data.metadata) {
+            if ('node_name' in response.data.metadata) {
               this.details[field_name] = response.data.metadata.node_name
             }
+          })
+          .catch(error => {
+            let notification = {
+                 icon: 'gear',
+                 title: 'Getting switch metadata: Failure',
+                 description: (error.status + ': ' + error.response.data.description + 
+                               '. The switch ' + switch_id + ' metadata could not be retrieved.'),
+            }
+            this.$kytos.eventBus.$emit("setNotification", notification)
           })
      },
    },
