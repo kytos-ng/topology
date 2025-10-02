@@ -27,6 +27,24 @@
             </template>
           </k-property-panel>
       </k-accordion-item>
+      <k-accordion-item :defaultState="false" title="Links" v-if="this.table_link_body.length > 0">
+        <div class="link-table">
+          <table id="link-table-id">
+            <thead>
+              <tr v-for="header in this.table_link_header">
+                <th>{{header}}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="link in this.table_link_body"
+                @click="rowClicked(link)">
+                <td v-if="link.metadata.link_name !== undefined && link.metadata.link_name.length !== 0">{{link.metadata.link_name}}</td>
+                <td v-else>{{link.id}}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </k-accordion-item>
       <k-accordion-item :defaultState="false" title="Metadata" v-if="this.metadata_items.length !== 0">
          <div class="metadata_table">
             <table>
@@ -54,24 +72,6 @@
          <div class="metadata_container">
               <k-button title="Remove metadata" @click="bt_rmv_metadata"></k-button>
          </div>
-      </k-accordion-item>
-      <k-accordion-item :defaultState="false" title="Links" v-if="this.table_link_body.length > 0">
-        <div class="link-table">
-          <table id="link-table-id">
-            <thead>
-              <tr v-for="header in this.table_link_header">
-                <th>{{header}}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="link in this.table_link_body"
-                @click="rowClicked(link)">
-                <td v-if="link.metadata.link_name !== undefined && link.metadata.link_name.length !== 0">{{link.metadata.link_name}}</td>
-                <td v-else>{{link.id}}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
       </k-accordion-item>
       <k-accordion-item :defaultState="false" title="Interfaces" v-if="this.interfaces">
          <k-interface :interface_id="k_interface.id" :name="k_interface.name" :port_number="k_interface.port_number" :mac="k_interface.mac" 
@@ -266,7 +266,6 @@ module.exports = {
        }
        var content = {
                       "component": 'kytos-topology-k-info-panel-link_info',
-                      
                       "icon": "home",
                       "title": "Link Details",
                       "subtitle": subtitle,
@@ -456,7 +455,6 @@ module.exports = {
   display: block;
   padding: 0.5em 0 1em 0.3em;
   font-size: .8em;
-  height: 190px;
   overflow-x: hidden;
   overflow-y: auto;
 }
