@@ -411,6 +411,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                         self._notify_interface_link_status(
                             [interface], "link enabled"
                         )
+                self.notify_interface_status(interface, "enabled")
             except KeyError:
                 msg = f"Switch {dpid} interface {interface_number} not found"
                 raise HTTPException(404, detail=msg)
@@ -422,6 +423,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                         self._notify_interface_link_status(
                             [interface], "link enabled"
                         )
+                self.notify_interface_status(interface, "enabled")
             self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         self.notify_topology_update()
         return JSONResponse("Operation successful")
@@ -460,6 +462,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     interface.link.disable()
                     self.notify_link_enabled_state(interface.link, "disabled")
                 interface.disable()
+                self.notify_interface_status(interface, "disabled")
             self._notify_interface_link_status(interfaces, "link disabled")
             self.topo_controller.bulk_disable_links(link_ids)
 
@@ -1371,6 +1374,12 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Notify when a port is created."""
         name = 'kytos/topology.port.created'
         event = KytosEvent(name=name, content=event.content)
+        self.controller.buffers.app.put(event)
+
+    def notify_interface_status(self, interface: Interface, status: str):
+        """Send an event to notify if an interface is enabled/disabled."""
+        name = f'kytos/topology.interface.{status}'
+        event = KytosEvent(name=name, content={'interface': interface})
         self.controller.buffers.app.put(event)
 
     @staticmethod

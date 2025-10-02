@@ -240,7 +240,7 @@ Content:
   }
 
 kytos/topology.link.(enabled|disabled)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Event reporting that a link status has changed to enabled or disabled.
 
@@ -248,5 +248,16 @@ Content:
 
 .. code-block:: python3
   {
-    'link': <switch object>
+    'link': <Link object>
+  }
+
+kytos/topology.interface.(enabled|disabled)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Event reporting that an interface status has changed to enabled or disabled.
+
+Content:
+
+.. code-block:: python3
+  {
+    'interface': <interface object>
   }
