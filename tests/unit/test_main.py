@@ -2212,11 +2212,11 @@ class TestMain:
         self.napp.controller.buffers.app.put = mock_buffers_put
         intf_mock = Mock()
         expected_name = "kytos/topology.interface.disabled"
-        self.napp.notify_interface_status(intf_mock, 'disabled')
+        self.napp.notify_interface_status(intf_mock, 'disabled', 'test')
         assert mock_buffers_put.call_count == 1
         assert mock_buffers_put.call_args_list[0][0][0].name == expected_name
 
         expected_name = "kytos/topology.interface.enabled"
-        self.napp.notify_interface_status(intf_mock, 'enabled')
+        self.napp.notify_interface_status(intf_mock, 'up', 'test')
         assert mock_buffers_put.call_count == 2
         assert mock_buffers_put.call_args_list[1][0][0].name == expected_name
