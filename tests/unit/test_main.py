@@ -2216,7 +2216,7 @@ class TestMain:
         assert mock_buffers_put.call_count == 1
         assert mock_buffers_put.call_args_list[0][0][0].name == expected_name
 
-        expected_name = "kytos/topology.interface.enabled"
+        expected_name = "kytos/topology.interface.up"
         self.napp.notify_interface_status(intf_mock, 'up', 'test')
         assert mock_buffers_put.call_count == 2
         assert mock_buffers_put.call_args_list[1][0][0].name == expected_name
