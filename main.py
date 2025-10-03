@@ -1432,8 +1432,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         )
         # for switch_id in switches:
         #     pass
-        # for interface_id in interfaces:
-        #     pass
+        for interface_id in interfaces:
+            interface = self.controller.get_interface_by_id(interface_id)
+            if interface:
+                self.notify_interface_status(interface, 'DOWN')
         for link_id in links:
             link = self.controller.get_link(link_id)
             if link is None:
@@ -1463,8 +1465,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         )
         # for switch_id in switches:
         #     pass
-        # for interface_id in interfaces:
-        #     pass
+        for interface_id in interfaces:
+            interface = self.controller.get_interface_by_id(interface_id)
+            if interface:
+                self.notify_interface_status(interface, 'UP')
         for link_id in links:
             link = self.controller.get_link(link_id)
             if link is None:

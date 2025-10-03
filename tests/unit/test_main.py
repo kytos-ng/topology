@@ -1602,12 +1602,14 @@ class TestMain:
         self.napp.notify_switch_links_status(mock_switch, "link enabled")
         assert self.napp.controller.buffers.app.put.call_count == 1
 
+    @patch('napps.kytos.topology.main.Main.notify_interface_status')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.notify_link_status_change')
     def test_interruption_start(
         self,
         mock_notify_link_status_change,
-        mock_notify_topology_update
+        mock_notify_topology_update,
+        mock_notify_interface_status,
     ):
         """Tests processing of received interruption start events."""
         link_a = MagicMock()
@@ -1618,6 +1620,8 @@ class TestMain:
             'link_b': link_b,
             'link_c': link_c,
         }
+        mock_get_interface = MagicMock(side_effect=[Mock(), Mock()])
+        self.napp.controller.get_interface_by_id = mock_get_interface
         event = KytosEvent(
             "topology.interruption.start",
             {
@@ -1625,6 +1629,8 @@ class TestMain:
                 'switches': [
                 ],
                 'interfaces': [
+                    'intf_a',
+                    'intf_b',
                 ],
                 'links': [
                     'link_a',
@@ -1641,13 +1647,16 @@ class TestMain:
         )
         assert mock_notify_link_status_change.call_count == 2
         mock_notify_topology_update.assert_called_once()
+        assert mock_notify_interface_status.call_count == 2
 
+    @patch('napps.kytos.topology.main.Main.notify_interface_status')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.notify_link_status_change')
     def test_interruption_end(
         self,
         mock_notify_link_status_change,
-        mock_notify_topology_update
+        mock_notify_topology_update,
+        mock_notify_interface_status,
     ):
         """Tests processing of received interruption end events."""
         link_a = MagicMock()
@@ -1658,6 +1667,8 @@ class TestMain:
             'link_b': link_b,
             'link_c': link_c,
         }
+        mock_get_interface = MagicMock(side_effect=[Mock(), Mock()])
+        self.napp.controller.get_interface_by_id = mock_get_interface
         event = KytosEvent(
             "topology.interruption.start",
             {
@@ -1665,6 +1676,8 @@ class TestMain:
                 'switches': [
                 ],
                 'interfaces': [
+                    'intf_a',
+                    'intf_b',
                 ],
                 'links': [
                     'link_a',
@@ -1681,6 +1694,7 @@ class TestMain:
         )
         assert mock_notify_link_status_change.call_count == 2
         mock_notify_topology_update.assert_called_once()
+        assert mock_notify_interface_status.call_count == 2
 
     async def test_set_tag_range(self):
         """Test set_tag_range"""

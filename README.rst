@@ -251,7 +251,7 @@ Content:
     'link': <Link object>
   }
 
-kytos/topology.interface.(enabled|disabled)
+kytos/topology.interface.(enabled|UP|disabled|DOWN)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Event reporting that an interface status has changed to enabled or disabled.
 
