@@ -21,7 +21,7 @@ Added
 - Published kytos/topology.interface.deleted event on interface deletion.
 - Added node name as subtitle in ``Switch Details`` InfoPanel.
 - Added node names from ``endpoint_a`` and ``endpoint_b`` to ``Link Details`` InfoPanel.
-- Added a new event ``kytos/topology.interface.(enabled|UP|disabled|DOWN)`` which is published when an interface is disabled or enabled.
+- Added a new event ``kytos/topology.interface.(enabled|UP|disabled|DOWN)`` which is published when an interface is disabled or enabled or UP or DOWN (due to maintenance).
 
 [2025.1.1] - 2025-05-06
 ***********************
