@@ -390,6 +390,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Administratively enable interfaces in the topology."""
         interface_enable_id = request.path_params.get("interface_enable_id")
         dpid = request.path_params.get("dpid")
+        reason = 'interface enabled'
         if dpid is None:
             dpid = ":".join(interface_enable_id.split(":")[:-1])
         try:
@@ -411,6 +412,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                         self._notify_interface_link_status(
                             [interface], "link enabled"
                         )
+                self.notify_interface_status(interface, "enabled", reason)
             except KeyError:
                 msg = f"Switch {dpid} interface {interface_number} not found"
                 raise HTTPException(404, detail=msg)
@@ -422,6 +424,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                         self._notify_interface_link_status(
                             [interface], "link enabled"
                         )
+                self.notify_interface_status(interface, "enabled", reason)
             self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         self.notify_topology_update()
         return JSONResponse("Operation successful")
@@ -432,6 +435,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Administratively disable interfaces in the topology."""
         interface_disable_id = request.path_params.get("interface_disable_id")
         dpid = request.path_params.get("dpid")
+        reason = 'interface disabled'
         if dpid is None:
             dpid = ":".join(interface_disable_id.split(":")[:-1])
         try:
@@ -460,6 +464,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     interface.link.disable()
                     self.notify_link_enabled_state(interface.link, "disabled")
                 interface.disable()
+                self.notify_interface_status(interface, "disabled", reason)
             self._notify_interface_link_status(interfaces, "link disabled")
             self.topo_controller.bulk_disable_links(link_ids)
 
@@ -1373,6 +1378,19 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         event = KytosEvent(name=name, content=event.content)
         self.controller.buffers.app.put(event)
 
+    def notify_interface_status(
+        self,
+        interface: Interface,
+        status: str,
+        reason: str
+    ):
+        """Send an event to notify if an interface is enabled/disabled."""
+        name = f'kytos/topology.interface.{status}'
+        event = KytosEvent(
+            name=name, content={'interface': interface, 'reason': reason}
+        )
+        self.controller.buffers.app.put(event)
+
     @staticmethod
     def load_interfaces_tags_values(switch: Switch,
                                     interfaces_details: List[dict]) -> None:
@@ -1423,8 +1441,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         )
         # for switch_id in switches:
         #     pass
-        # for interface_id in interfaces:
-        #     pass
+        for interface_id in interfaces:
+            interface = self.controller.get_interface_by_id(interface_id)
+            if interface:
+                self.notify_interface_status(interface, 'down', interrupt_type)
         for link_id in links:
             link = self.controller.get_link(link_id)
             if link is None:
@@ -1454,8 +1474,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         )
         # for switch_id in switches:
         #     pass
-        # for interface_id in interfaces:
-        #     pass
+        for interface_id in interfaces:
+            interface = self.controller.get_interface_by_id(interface_id)
+            if interface:
+                self.notify_interface_status(interface, 'up', interrupt_type)
         for link_id in links:
             link = self.controller.get_link(link_id)
             if link is None:
