@@ -1444,7 +1444,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         for interface_id in interfaces:
             interface = self.controller.get_interface_by_id(interface_id)
             if interface:
-                self.notify_interface_status(interface, 'down', 'maintenance')
+                self.notify_interface_status(interface, 'down', interrupt_type)
         for link_id in links:
             link = self.controller.get_link(link_id)
             if link is None:
@@ -1477,7 +1477,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         for interface_id in interfaces:
             interface = self.controller.get_interface_by_id(interface_id)
             if interface:
-                self.notify_interface_status(interface, 'up', 'maintenance')
+                self.notify_interface_status(interface, 'up', interrupt_type)
         for link_id in links:
             link = self.controller.get_link(link_id)
             if link is None:
