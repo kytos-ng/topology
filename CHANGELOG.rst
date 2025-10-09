@@ -14,6 +14,10 @@ Changed
 - The tabs in the Switch Details Menu were rearranged.
 - Moved collapsable panel ``Links`` to be just under ``Basic Details`` from Switch Details InfoPanel.
 
+Fixed
+=====
+- Fixed issue where creating the switch info panel would trigger dozens of repeated requests
+
 Added
 =====
 - When a link is added and one of the interfaces already has a link a warning would be log to indicate a mismatched link.
