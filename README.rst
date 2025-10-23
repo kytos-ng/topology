@@ -169,24 +169,6 @@ Content:
      'metadata': object's metadata dict
    }
 
-
-.. |License| image:: https://img.shields.io/github/license/kytos-ng/kytos.svg
-   :target: https://github.com/kytos-ng/topology/blob/master/LICENSE
-.. |Build| image:: https://scrutinizer-ci.com/g/kytos-ng/topology/badges/build.png?b=master
-  :alt: Build status
-  :target: https://scrutinizer-ci.com/g/kytos-ng/topology/?branch=master
-.. |Coverage| image:: https://scrutinizer-ci.com/g/kytos-ng/topology/badges/coverage.png?b=master
-  :alt: Code coverage
-  :target: https://scrutinizer-ci.com/g/kytos-ng/topology/?branch=master
-.. |Quality| image:: https://scrutinizer-ci.com/g/kytos-ng/topology/badges/quality-score.png?b=master
-  :alt: Code-quality score
-  :target: https://scrutinizer-ci.com/g/kytos-ng/topology/?branch=master
-.. |Stable| image:: https://img.shields.io/badge/stability-stable-green.svg
-   :target: https://github.com/kytos-ng/topology
-.. |Tag| image:: https://img.shields.io/github/tag/kytos-ng/topology.svg
-   :target: https://github.com/kytos-ng/topology/tags
-
-
 kytos/topology.notify_link_up_if_status
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -240,7 +222,7 @@ Content:
   }
 
 kytos/topology.link.(enabled|disabled)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Event reporting that a link status has changed to enabled or disabled.
 
@@ -248,5 +230,33 @@ Content:
 
 .. code-block:: python3
   {
-    'link': <switch object>
+    'link': <Link object>
   }
+
+kytos/topology.interface.(enabled|up|disabled|down)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Event reporting that an interface status has changed to enabled or disabled.
+
+Content:
+
+.. code-block:: python3
+  {
+    'reason': <reason string>,
+    'interface': <interface object>
+  }
+
+.. |License| image:: https://img.shields.io/github/license/kytos-ng/kytos.svg
+   :target: https://github.com/kytos-ng/topology/blob/master/LICENSE
+.. |Build| image:: https://scrutinizer-ci.com/g/kytos-ng/topology/badges/build.png?b=master
+  :alt: Build status
+  :target: https://scrutinizer-ci.com/g/kytos-ng/topology/?branch=master
+.. |Coverage| image:: https://scrutinizer-ci.com/g/kytos-ng/topology/badges/coverage.png?b=master
+  :alt: Code coverage
+  :target: https://scrutinizer-ci.com/g/kytos-ng/topology/?branch=master
+.. |Quality| image:: https://scrutinizer-ci.com/g/kytos-ng/topology/badges/quality-score.png?b=master
+  :alt: Code-quality score
+  :target: https://scrutinizer-ci.com/g/kytos-ng/topology/?branch=master
+.. |Stable| image:: https://img.shields.io/badge/stability-stable-green.svg
+   :target: https://github.com/kytos-ng/topology
+.. |Tag| image:: https://img.shields.io/github/tag/kytos-ng/topology.svg
+   :target: https://github.com/kytos-ng/topology/tags

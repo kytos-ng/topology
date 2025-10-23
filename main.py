@@ -476,6 +476,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Administratively enable interfaces in the topology."""
         interface_enable_id = request.path_params.get("interface_enable_id")
         dpid = request.path_params.get("dpid")
+        reason = 'interface enabled'
         if dpid is None:
             dpid, _, interface_number = interface_enable_id.rpartition(":")
             interface_number = int(interface_number)
@@ -512,6 +513,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 link = interface.link
                 if link:
                     affected_links[link.id] = link
+                self.notify_interface_status(interface, "enabled", reason)
 
             self._notify_interface_link_status(
                 affected_links.values(),
@@ -534,6 +536,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             "interface_disable_id"
         )
         dpid = request.path_params.get("dpid")
+        reason = 'interface disabled'
         if dpid is None:
             dpid, _, interface_number = interface_disable_id.rpartition(":")
             interface_number = int(interface_number)
@@ -583,6 +586,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
             for interface in interfaces:
                 interface.disable()
+                self.notify_interface_status(interface, "disabled", reason)
 
             self._notify_interface_link_status(
                 links_to_update.values(),
@@ -1993,6 +1997,19 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         event = KytosEvent(name=name, content=event.content)
         self.controller.buffers.app.put(event)
 
+    def notify_interface_status(
+        self,
+        interface: Interface,
+        status: str,
+        reason: str
+    ):
+        """Send an event to notify if an interface is enabled/disabled."""
+        name = f'kytos/topology.interface.{status}'
+        event = KytosEvent(
+            name=name, content={'interface': interface, 'reason': reason}
+        )
+        self.controller.buffers.app.put(event)
+
     @staticmethod
     def _load_details(
         tag_capable_dict: dict[str, TAGCapable],
@@ -2040,8 +2057,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         )
         # for switch_id in switches:
         #     pass
-        # for interface_id in interfaces:
-        #     pass
+        for interface_id in interfaces:
+            interface = self.controller.get_interface_by_id(interface_id)
+            if interface:
+                self.notify_interface_status(interface, 'down', interrupt_type)
         for link_id in links:
             link = self.controller.get_link(link_id)
             if link is None:
@@ -2071,8 +2090,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         )
         # for switch_id in switches:
         #     pass
-        # for interface_id in interfaces:
-        #     pass
+        for interface_id in interfaces:
+            interface = self.controller.get_interface_by_id(interface_id)
+            if interface:
+                self.notify_interface_status(interface, 'up', interrupt_type)
         for link_id in links:
             link = self.controller.get_link(link_id)
             if link is None:

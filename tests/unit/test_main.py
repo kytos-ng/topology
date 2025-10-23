@@ -666,9 +666,11 @@ class TestMain:
         assert response.status_code == 404
 
     # pylint: disable=too-many-statements
+    @patch('napps.kytos.topology.main.Main.notify_interface_status')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
-    async def test_enable_interfaces(self, mock_notify_topo):
+    async def test_enable_interfaces(self, *args):
         """Test enable_interfaces."""
+        (mock_notify_topo, mock_notify_interface) = args
         dpid = '00:00:00:00:00:00:00:01'
         mock_switch = get_switch_mock(dpid)
         mock_interface_1 = get_interface_mock('s1-eth1', 1, mock_switch)
@@ -705,6 +707,8 @@ class TestMain:
             interface_id
         )
         mock_notify_topo.assert_called()
+        assert mock_notify_interface.call_count == 1
+        assert mock_notify_interface.call_args[0][1] == 'enabled'
 
         mock_interface_1.enable.call_count = 0
         mock_interface_2.enable.call_count = 0
@@ -716,6 +720,8 @@ class TestMain:
         )
         assert mock_interface_1.enable.call_count == 1
         assert mock_interface_2.enable.call_count == 1
+        assert mock_notify_interface.call_count == 3
+        assert mock_notify_interface.call_args[0][1] == 'enabled'
 
         # test interface not found
         interface_id = '00:00:00:00:00:00:00:01:3'
@@ -735,10 +741,12 @@ class TestMain:
         assert mock_interface_1.enable.call_count == 0
         assert mock_interface_2.enable.call_count == 0
 
+    @patch('napps.kytos.topology.main.Main.notify_interface_status')
     @patch('napps.kytos.topology.main.Main.notify_link_enabled_state')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
-    async def test_disable_interfaces(self, mock_notify_topo, mock_noti_link):
+    async def test_disable_interfaces(self, *args):
         """Test disable_interfaces."""
+        (mock_notify_topo, mock_noti_link, mock_notify_interface) = args
         interface_id = '00:00:00:00:00:00:00:01:1'
         dpid = '00:00:00:00:00:00:00:01'
         mock_switch = get_switch_mock(dpid)
@@ -767,6 +775,8 @@ class TestMain:
         assert mock_noti_link.call_args[0][0] == mock_interface_1.link
         assert mock_noti_link.call_args[0][1] == "disabled"
         assert self.napp.topo_controller.disable_interface.call_count == 1
+        assert mock_notify_interface.call_count == 1
+        assert mock_notify_interface.call_args[0][1] == 'disabled'
         mock_notify_topo.assert_called()
 
         mock_interface_1.disable.call_count = 0
@@ -788,6 +798,8 @@ class TestMain:
         bulk_controller = self.napp.topo_controller.bulk_disable_links
         assert bulk_controller.call_count == 2
         assert len(bulk_controller.call_args[0][0]) == 1
+        assert mock_notify_interface.call_count == 3
+        assert mock_notify_interface.call_args[0][1] == 'disabled'
 
         # test interface not found
         interface_id = '00:00:00:00:00:00:00:01:3'
@@ -1594,12 +1606,14 @@ class TestMain:
         self.napp.notify_switch_links_status(mock_switch, "link enabled")
         assert self.napp.controller.buffers.app.put.call_count == 1
 
+    @patch('napps.kytos.topology.main.Main.notify_interface_status')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.notify_link_status_change')
     def test_interruption_start(
         self,
         mock_notify_link_status_change,
-        mock_notify_topology_update
+        mock_notify_topology_update,
+        mock_notify_interface_status,
     ):
         """Tests processing of received interruption start events."""
         link_a = MagicMock()
@@ -1610,6 +1624,8 @@ class TestMain:
             'link_b': link_b,
             'link_c': link_c,
         }
+        mock_get_interface = MagicMock(side_effect=[Mock(), Mock()])
+        self.napp.controller.get_interface_by_id = mock_get_interface
         event = KytosEvent(
             "topology.interruption.start",
             {
@@ -1617,6 +1633,8 @@ class TestMain:
                 'switches': [
                 ],
                 'interfaces': [
+                    'intf_a',
+                    'intf_b',
                 ],
                 'links': [
                     'link_a',
@@ -1633,13 +1651,16 @@ class TestMain:
         )
         assert mock_notify_link_status_change.call_count == 2
         mock_notify_topology_update.assert_called_once()
+        assert mock_notify_interface_status.call_count == 2
 
+    @patch('napps.kytos.topology.main.Main.notify_interface_status')
     @patch('napps.kytos.topology.main.Main.notify_topology_update')
     @patch('napps.kytos.topology.main.Main.notify_link_status_change')
     def test_interruption_end(
         self,
         mock_notify_link_status_change,
-        mock_notify_topology_update
+        mock_notify_topology_update,
+        mock_notify_interface_status,
     ):
         """Tests processing of received interruption end events."""
         link_a = MagicMock()
@@ -1650,6 +1671,8 @@ class TestMain:
             'link_b': link_b,
             'link_c': link_c,
         }
+        mock_get_interface = MagicMock(side_effect=[Mock(), Mock()])
+        self.napp.controller.get_interface_by_id = mock_get_interface
         event = KytosEvent(
             "topology.interruption.start",
             {
@@ -1657,6 +1680,8 @@ class TestMain:
                 'switches': [
                 ],
                 'interfaces': [
+                    'intf_a',
+                    'intf_b',
                 ],
                 'links': [
                     'link_a',
@@ -1673,6 +1698,7 @@ class TestMain:
         )
         assert mock_notify_link_status_change.call_count == 2
         mock_notify_topology_update.assert_called_once()
+        assert mock_notify_interface_status.call_count == 2
 
     async def test_set_tag_range(self):
         """Test set_tag_range"""
@@ -1682,6 +1708,7 @@ class TestMain:
         mock_switch = get_switch_mock(dpid)
         mock_interface = get_interface_mock('s1-eth1', 1, mock_switch)
         mock_interface.set_tag_ranges = MagicMock()
+        mock_interface.link = None
         self.napp.handle_on_interface_tags = MagicMock()
         self.napp.controller.get_interface_by_id = MagicMock()
         self.napp.controller.get_interface_by_id.return_value = mock_interface
@@ -1722,6 +1749,7 @@ class TestMain:
         mock_interface.set_tag_ranges = MagicMock()
         mock_interface.set_tag_ranges.side_effect = KytosSetTagRangeError("")
         mock_interface.notify_interface_tags = MagicMock()
+        mock_interface.link = None
         self.napp.controller.get_interface_by_id = MagicMock()
         self.napp.controller.get_interface_by_id.return_value = mock_interface
         payload = {
@@ -2196,3 +2224,18 @@ class TestMain:
 
         mock_detect_mismatched_link.return_value = False
         assert self.napp.link_status_mismatched(mock_link_1) is None
+
+    def test_notify_interface_status(self):
+        """Test notify_interface_status"""
+        mock_buffers_put = MagicMock()
+        self.napp.controller.buffers.app.put = mock_buffers_put
+        intf_mock = Mock()
+        expected_name = "kytos/topology.interface.disabled"
+        self.napp.notify_interface_status(intf_mock, 'disabled', 'test')
+        assert mock_buffers_put.call_count == 1
+        assert mock_buffers_put.call_args_list[0][0][0].name == expected_name
+
+        expected_name = "kytos/topology.interface.up"
+        self.napp.notify_interface_status(intf_mock, 'up', 'test')
+        assert mock_buffers_put.call_count == 2
+        assert mock_buffers_put.call_args_list[1][0][0].name == expected_name
