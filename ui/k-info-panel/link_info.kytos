@@ -75,7 +75,9 @@ module.exports = {
                    'active': '',
                    'id': '',
                    'endpoint_a': '',
+                   'node_name_a': '',
                    'endpoint_b': '',
+                   'node_name_b': '',
                    'status': '',
                    'status_reason': '',
                    },
@@ -89,7 +91,10 @@ module.exports = {
        var self = this
        Object.keys(this.details).forEach(function (key) {
          let value = self.content[key]
-         if (key != 'endpoint_a' && key != 'endpoint_b') {
+         if (key.includes('node_name')) {
+             return;
+         }
+         else if (key != 'endpoint_a' && key != 'endpoint_b') {
              self.details[key] = String(value)
          }
          else {
@@ -232,6 +237,23 @@ module.exports = {
          _this.$kytos.eventBus.$emit("setNotification", notification)
        });
      },
+     get_node_name: function(switch_id, field_name) {
+       return this.$http.get(this.$kytos_server_api + "kytos/topology/v3/switches/" + switch_id + "/metadata")
+          .then(response => {
+            if ('node_name' in response.data.metadata) {
+              this.details[field_name] = response.data.metadata.node_name
+            }
+          })
+          .catch(error => {
+            let notification = {
+                 icon: 'gear',
+                 title: 'Getting switch metadata: Failure',
+                 description: (error.status + ': ' + error.response.data.description + 
+                               '. The switch ' + switch_id + ' metadata could not be retrieved.'),
+            }
+            this.$kytos.eventBus.$emit("setNotification", notification)
+          })
+     },
    },
    computed: {
        modal_message() {
@@ -242,7 +264,14 @@ module.exports = {
        },
    },
    mounted () {
-       this.get_details()
+      if(this.content === undefined) return
+      let _this = this
+      _this.get_details()
+      let endpoint_a = this.content.endpoint_a['switch']
+      let endpoint_b = this.content.endpoint_b['switch']
+      Promise.all([_this.get_node_name(endpoint_a, "node_name_a"),
+                   _this.get_node_name(endpoint_b, "node_name_b")])
+                 .then()
    },
    watch:{
        content: {
