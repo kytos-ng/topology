@@ -189,6 +189,49 @@ class TopoController:
             return_document=ReturnDocument.AFTER,
         )
 
+    def enable_interfaces(
+        self,
+        switch_id: str,
+        ports: list[int]
+    ):
+        """Try to enable several interfaces and their embedded objects."""
+        return self._update_interfaces_of_switch(
+            switch_id, ports, {"$set": {"enabled": True}}
+        )
+
+    def disable_interfaces(
+        self,
+        switch_id: str,
+        ports: list[int]
+    ):
+        """Try to disable several interfaces and their embedded objects."""
+        return self._update_interfaces_of_switch(
+            switch_id, ports, {"$set": {"enabled": False}}
+        )
+
+    def _update_interfaces_of_switch(
+        self,
+        switch_id: str,
+        ports: list[int],
+        update_expr: dict
+    ):
+        self._set_updated_at(update_expr)
+        interfaces_expression = {}
+        for operator, values in update_expr.items():
+            interfaces_expression[operator] = {
+                f"interfaces.$[iface].{key}": value
+                for key, value in values.items()
+            }
+
+        return self.db.switches.find_one_and_update(
+            {"_id": switch_id},
+            interfaces_expression,
+            array_filters=[{
+                "iface.port_number": {"$in": ports}
+            }],
+            return_document=ReturnDocument.AFTER
+        )
+
     def upsert_link(self, link_id: str, link_dict: dict) -> dict:
         """Update or insert a Link."""
         utc_now = datetime.utcnow()

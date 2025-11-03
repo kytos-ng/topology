@@ -715,8 +715,8 @@ class TestMain:
         endpoint = f"{self.base_endpoint}/interfaces/switch/{dpid}/enable"
         response = await self.api_client.post(endpoint)
         assert response.status_code == 200
-        self.napp.topo_controller.upsert_switch.assert_called_with(
-            mock_switch.id, mock_switch.as_dict()
+        self.napp.topo_controller.enable_interfaces.assert_called_with(
+            mock_switch.id, [1, 2]
         )
         assert mock_interface_1.enable.call_count == 1
         assert mock_interface_2.enable.call_count == 1
@@ -786,8 +786,8 @@ class TestMain:
         response = await self.api_client.post(endpoint)
         assert response.status_code == 200
 
-        self.napp.topo_controller.upsert_switch.assert_called_with(
-            mock_switch.id, mock_switch.as_dict()
+        self.napp.topo_controller.disable_interfaces.assert_called_with(
+            mock_switch.id, [1, 2]
         )
         assert mock_interface_1.disable.call_count == 1
         assert mock_interface_1.link.disable.call_count == 2

@@ -521,7 +521,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             )
 
             if not interface_enable_id:
-                self.topo_controller.upsert_switch(switch.id, switch.as_dict())
+                self.topo_controller.enable_interfaces(
+                    switch.id,
+                    [interface.port_number for interface in interfaces]
+                )
             else:
                 self.topo_controller.enable_interface(interface.id)
 
@@ -595,7 +598,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             self.topo_controller.bulk_disable_links(link_ids)
 
             if not interface_disable_id:
-                self.topo_controller.upsert_switch(switch.id, switch.as_dict())
+                self.topo_controller.disable_interfaces(
+                    switch.id,
+                    [interface.port_number for interface in interfaces]
+                )
             else:
                 self.topo_controller.disable_interface(interface.id)
 
