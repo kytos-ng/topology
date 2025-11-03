@@ -368,7 +368,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         with ExitStack() as stack:
             stack.enter_context(self.controller.switches_lock)
             stack.enter_context(self.controller.links_lock)
-            stack.enter_context(self.controller.multi_tag_lock)
             try:
                 switch: Switch = self.controller.switches[dpid]
             except KeyError:
@@ -697,9 +696,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     stack2.enter_context(
                         self.controller.links_lock
                     )
-                    stack2.enter_context(
-                        self.controller.multi_tag_lock
-                    )
                     if interface.link:
                         link = interface.link
                         stack.enter_context(link.tag_lock)
@@ -952,9 +948,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     stack2.enter_context(
                         self.controller.links_lock
                     )
-                    stack2.enter_context(
-                        self.controller.multi_tag_lock
-                    )
 
                     stack.enter_context(link.tag_lock)
                     endpoints = {
@@ -1138,7 +1131,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             with ExitStack() as stack_2:
                 stack_2.enter_context(self.controller.switches_lock)
                 stack.enter_context(self.controller.links_lock)
-                stack_2.enter_context(self.controller.multi_tag_lock)
                 for switch in switches.values():
                     stack.enter_context(switch.lock)
                 stack.enter_context(link.lock)
@@ -1710,7 +1702,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         with ExitStack() as stack:
             with self.controller.links_lock:
-                stack.enter_context(self.controller.multi_tag_lock)
                 try:
                     link, created = self.controller.get_link_or_create(
                         interface_a,
