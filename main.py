@@ -334,7 +334,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             stack.enter_context(switch.lock)
             links_to_disable = dict[str, Link]()
             for _, interface in switch.interfaces.copy().items():
-                stack.enter_context(interface.lock)
                 link = interface.link
                 if link:
                     links_to_disable[link.id] = link
@@ -382,7 +381,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 )
 
             for intf_id, interface in switch.interfaces.items():
-                stack.enter_context(interface.lock)
                 stack.enter_context(interface.tag_lock)
                 if not interface.all_tags_available():
                     detail = f"Interface {intf_id} vlans are being used."\
@@ -498,11 +496,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 except KeyError:
                     msg = f"Switch {dpid} interface {interface_number} not found"
                     raise HTTPException(404, detail=msg)
-                stack.enter_context(interface.lock)
                 interfaces.append(interface)
             else:
                 for interface in switch.interfaces.values():
-                    stack.enter_context(interface.lock)
                     interfaces.append(interface)
 
             affected_links = dict[str, Link]()
@@ -559,11 +555,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 except KeyError:
                     msg = f"Switch {dpid} interface {interface_number} not found"
                     raise HTTPException(404, detail=msg)
-                stack.enter_context(interface.lock)
                 interfaces.append(interface)
             else:
                 for interface in switch.interfaces.values():
-                    stack.enter_context(interface.lock)
                     interfaces = switch.interfaces.copy().values()
 
             links_to_update = dict[str, Link]()
@@ -636,12 +630,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         except KeyError:
             raise HTTPException(404, detail="Switch not found")
 
-        try:
-            interface = switch.interfaces[interface_number]
-        except KeyError:
-            raise HTTPException(404, detail="Interface not found")
-
-        with interface.lock:
+        with switch.lock:
+            try:
+                interface = switch.interfaces[interface_number]
+            except KeyError:
+                raise HTTPException(404, detail="Interface not found")
             self.topo_controller.add_interface_metadata(interface.id, metadata)
             interface.extend_metadata(metadata)
             self.notify_metadata_changes(interface, 'added')
@@ -664,11 +657,11 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         except KeyError:
             raise HTTPException(404, detail="Switch not found")
 
-        try:
-            interface = switch.interfaces[interface_number]
-        except KeyError:
-            raise HTTPException(404, detail="Interface not found")
-        with interface.lock:
+        with switch.lock:
+            try:
+                interface = switch.interfaces[interface_number]
+            except KeyError:
+                raise HTTPException(404, detail="Interface not found")
             try:
                 _ = interface.metadata[key]
             except KeyError:
@@ -874,9 +867,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 # Uncertain if correct, but likely would be.
                 stack_2.enter_context(self.controller.switches_lock)
                 for switch in switches.values():
-                    stack_2.enter_context(switch.lock)
-                for endpoint in endpoints.values():
-                    stack.enter_context(endpoint.lock)
+                    stack.enter_context(switch.lock)
             stack.enter_context(link.lock)
             for endpoint in endpoints.values():
                 if not endpoint.is_enabled():
@@ -1150,8 +1141,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 stack_2.enter_context(self.controller.multi_tag_lock)
                 for switch in switches.values():
                     stack.enter_context(switch.lock)
-                for endpoint in endpoints.values():
-                    stack.enter_context(endpoint.lock)
                 stack.enter_context(link.lock)
                 stack.enter_context(link.tag_lock)
                 for endpoint in endpoints.values():
@@ -1247,7 +1236,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 interface = switch.interfaces[intf_port]
             except KeyError:
                 raise HTTPException(404, detail="Interface not found.")
-            stack.enter_context(interface.lock)
 
             usage = self.get_intf_usage(interface)
             if usage:
@@ -1316,9 +1304,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
             for switch in switches.values():
                 stack.enter_context(switch.lock)
-
-            for interface in interfaces:
-                stack.enter_context(interface.lock)
 
             links = {
                 interface.link.id: interface.link
@@ -1451,7 +1436,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         created event again and it can be belong to a link.
         """
         interface: Interface = event.content['interface']
-        with interface.lock:
+        switch = interface.switch
+        with switch.lock:
             if not interface.is_active():
                 self.handle_interface_link_down(interface, event)
             else:
@@ -1477,7 +1463,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         The event notifies that an interface was changed to 'down'.
         """
         interface = event.content['interface']
-        with interface.lock:
+        switch = interface.switch
+        with switch.lock:
             if (
                 interface.id in self._intfs_updated_at
                 and self._intfs_updated_at[interface.id] > event.timestamp
@@ -1503,7 +1490,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             return
         with ExitStack() as stack:
             stack.enter_context(interface.switch.lock)
-            stack.enter_context(interface.lock)
             # NOTE: Could potentially revive a dead switch
             self._delete_interface(interface)
 
@@ -1563,7 +1549,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         The event notifies that an interface's link was changed to 'up'.
         """
         interface: Interface = event.content['interface']
-        with interface.lock:
+        switch = interface.switch
+        with switch.lock:
             self.handle_interface_link_up(interface, event)
 
     def handle_interface_link_up(self, interface, event):
@@ -1684,7 +1671,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         The event notifies that an interface's link was changed to 'down'.
         """
         interface = event.content['interface']
-        with interface.lock:
+        switch = interface.switch
+        with switch.lock:
             self.handle_interface_link_down(interface, event)
 
     def handle_interface_link_down(
@@ -1873,18 +1861,17 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             stack.enter_context(self.controller.links_lock)
             stack.enter_context(switch.lock)
             for interface in switch.interfaces.values():
-                with interface.lock:
-                    link = interface.link
-                    if link is None:
-                        continue
-                    with link.lock:
-                        if reason == "link enabled":
-                            name = 'kytos/topology.notify_link_up_if_status'
-                            content = {'reason': reason, "link": link}
-                            event = KytosEvent(name=name, content=content)
-                            self.controller.buffers.app.put(event)
-                        else:
-                            self.notify_link_status_change(link, reason)
+                link = interface.link
+                if link is None:
+                    continue
+                with link.lock:
+                    if reason == "link enabled":
+                        name = 'kytos/topology.notify_link_up_if_status'
+                        content = {'reason': reason, "link": link}
+                        event = KytosEvent(name=name, content=content)
+                        self.controller.buffers.app.put(event)
+                    else:
+                        self.notify_link_status_change(link, reason)
 
     def notify_switch_disabled(self, dpid):
         """Send an event to notify that a switch is disabled."""
