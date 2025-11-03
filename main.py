@@ -332,7 +332,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             stack.enter_context(self.controller.links_lock)
 
             stack.enter_context(switch.lock)
-            stack.enter_context(switch.interfaces_lock)
             links_to_disable = dict[str, Link]()
             for _, interface in switch.interfaces.copy().items():
                 stack.enter_context(interface.lock)
@@ -382,7 +381,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     409, detail="Switch should be disabled."
                 )
 
-            stack.enter_context(switch.interfaces_lock)
             for intf_id, interface in switch.interfaces.items():
                 stack.enter_context(interface.lock)
                 stack.enter_context(interface.tag_lock)
@@ -493,19 +491,19 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 raise HTTPException(409, detail="Enable Switch first")
 
             interfaces = list[Interface]()
-            with switch.interfaces_lock:
-                if interface_enable_id:
-                    try:
-                        interface = switch.interfaces[interface_number]
-                    except KeyError:
-                        msg = f"Switch {dpid} interface {interface_number} not found"
-                        raise HTTPException(404, detail=msg)
+
+            if interface_enable_id:
+                try:
+                    interface = switch.interfaces[interface_number]
+                except KeyError:
+                    msg = f"Switch {dpid} interface {interface_number} not found"
+                    raise HTTPException(404, detail=msg)
+                stack.enter_context(interface.lock)
+                interfaces.append(interface)
+            else:
+                for interface in switch.interfaces.values():
                     stack.enter_context(interface.lock)
                     interfaces.append(interface)
-                else:
-                    for interface in switch.interfaces.values():
-                        stack.enter_context(interface.lock)
-                        interfaces.append(interface)
 
             affected_links = dict[str, Link]()
             for interface in interfaces:
@@ -554,19 +552,19 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 stack.enter_context(switch.lock)
 
             interfaces = list[Interface]()
-            with switch.interfaces_lock:
-                if interface_disable_id:
-                    try:
-                        interface = switch.interfaces[interface_number]
-                    except KeyError:
-                        msg = f"Switch {dpid} interface {interface_number} not found"
-                        raise HTTPException(404, detail=msg)
+
+            if interface_disable_id:
+                try:
+                    interface = switch.interfaces[interface_number]
+                except KeyError:
+                    msg = f"Switch {dpid} interface {interface_number} not found"
+                    raise HTTPException(404, detail=msg)
+                stack.enter_context(interface.lock)
+                interfaces.append(interface)
+            else:
+                for interface in switch.interfaces.values():
                     stack.enter_context(interface.lock)
-                    interfaces.append(interface)
-                else:
-                    for interface in switch.interfaces.values():
-                        stack.enter_context(interface.lock)
-                        interfaces = switch.interfaces.copy().values()
+                    interfaces = switch.interfaces.copy().values()
 
             links_to_update = dict[str, Link]()
 
@@ -871,21 +869,19 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             with ExitStack() as stack_2:
                 # NOTE: Potential optimization here:
                 # If len(endpoints) == 1 then directly acquire the iface lock
-                # If len(switches) == 1 then only acquire interfaces_lock
+                # elif len(switches) == 1 then only acquire switch lock
                 # If len(switches) == 2 then only acquire switches_lock
                 # Uncertain if correct, but likely would be.
                 stack_2.enter_context(self.controller.switches_lock)
                 for switch in switches.values():
-                    stack_2.enter_context(switch.interfaces_lock)
+                    stack_2.enter_context(switch.lock)
                 for endpoint in endpoints.values():
                     stack.enter_context(endpoint.lock)
             stack.enter_context(link.lock)
-            if not link.endpoint_a.is_enabled():
-                detail = f"{link.endpoint_a.id} needs enabling."
-                raise HTTPException(409, detail=detail)
-            if not link.endpoint_b.is_enabled():
-                detail = f"{link.endpoint_b.id} needs enabling."
-                raise HTTPException(409, detail=detail)
+            for endpoint in endpoints.values():
+                if not endpoint.is_enabled():
+                    detail = f"{link.endpoint_a.id} needs enabling."
+                    raise HTTPException(409, detail=detail)
             if not link.is_enabled():
                 self.topo_controller.enable_link(link.id)
                 link.enable()
@@ -1154,7 +1150,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 stack_2.enter_context(self.controller.multi_tag_lock)
                 for switch in switches.values():
                     stack.enter_context(switch.lock)
-                    stack_2.enter_context(switch.interfaces_lock)
                 for endpoint in endpoints.values():
                     stack.enter_context(endpoint.lock)
                 stack.enter_context(link.lock)
@@ -1248,7 +1243,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 except KeyError:
                     raise HTTPException(404, detail="Switch not found.")
                 stack.enter_context(switch.lock)
-                stack.enter_context(switch.interfaces_lock)
             try:
                 interface = switch.interfaces[intf_port]
             except KeyError:
@@ -1321,8 +1315,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             }
 
             for switch in switches.values():
-                # stack.enter_context(switch.lock)
-                stack.enter_context(switch.interfaces_lock)
+                stack.enter_context(switch.lock)
 
             for interface in interfaces:
                 stack.enter_context(interface.lock)
@@ -1510,7 +1503,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             return
         with ExitStack() as stack:
             stack.enter_context(interface.switch.lock)
-            stack.enter_context(interface.switch.interfaces_lock)
             stack.enter_context(interface.lock)
             # NOTE: Could potentially revive a dead switch
             self._delete_interface(interface)
@@ -1756,7 +1748,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 )
             }
 
-
             # TODO: Are we sure we don't need to udpate the switches?
             # switches = {
             #     endpoint.switch.id: endpoint.switch
@@ -1880,7 +1871,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Send an event to notify the status of a link in a switch"""
         with ExitStack() as stack:
             stack.enter_context(self.controller.links_lock)
-            stack.enter_context(switch.interfaces_lock)
+            stack.enter_context(switch.lock)
             for interface in switch.interfaces.values():
                 with interface.lock:
                     link = interface.link
