@@ -329,7 +329,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             raise HTTPException(404, detail="Switch not found")
         disabled_links = set()
         with ExitStack() as stack:
-            stack.enter_context(self.controller.links_lock)
+            stack.enter_context(self.controller.switches_lock)
 
             stack.enter_context(switch.lock)
             links_to_disable = dict[str, Link]()
@@ -367,7 +367,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         dpid = request.path_params["dpid"]
         with ExitStack() as stack:
             stack.enter_context(self.controller.switches_lock)
-            stack.enter_context(self.controller.links_lock)
             try:
                 switch: Switch = self.controller.switches[dpid]
             except KeyError:
@@ -538,13 +537,12 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             interface_number = int(interface_number)
 
         with ExitStack() as stack:
-            with self.controller.switches_lock:
-                stack.enter_context(self.controller.links_lock)
-                try:
-                    switch = self.controller.switches[dpid]
-                except KeyError:
-                    raise HTTPException(404, detail="Switch not found")
-                stack.enter_context(switch.lock)
+            stack.enter_context(self.controller.switches_lock)
+            try:
+                switch = self.controller.switches[dpid]
+            except KeyError:
+                raise HTTPException(404, detail="Switch not found")
+            stack.enter_context(switch.lock)
 
             interfaces = list[Interface]()
 
@@ -692,10 +690,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         try:
             with ExitStack() as stack:
                 link = None
-                with ExitStack() as stack2:
-                    stack2.enter_context(
-                        self.controller.links_lock
-                    )
+                with self.controller.switches_lock:
                     if interface.link:
                         link = interface.link
                         stack.enter_context(link.tag_lock)
@@ -855,16 +850,15 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         }
 
         with ExitStack() as stack:
-            with ExitStack() as stack_2:
+            with self.controller.switches_lock:
                 # NOTE: Potential optimization here:
                 # If len(endpoints) == 1 then directly acquire the iface lock
                 # elif len(switches) == 1 then only acquire switch lock
                 # If len(switches) == 2 then only acquire switches_lock
                 # Uncertain if correct, but likely would be.
-                stack_2.enter_context(self.controller.switches_lock)
                 for switch in switches.values():
                     stack.enter_context(switch.lock)
-            stack.enter_context(link.lock)
+                stack.enter_context(link.lock)
             for endpoint in endpoints.values():
                 if not endpoint.is_enabled():
                     detail = f"{link.endpoint_a.id} needs enabling."
@@ -944,11 +938,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             raise HTTPException(404, detail="Link not found")
         try:
             with ExitStack() as stack:
-                with ExitStack() as stack2:
-                    stack2.enter_context(
-                        self.controller.links_lock
-                    )
-
+                with self.controller.switches_lock:
                     stack.enter_context(link.tag_lock)
                     endpoints = {
                         link.endpoint_a.id: link.endpoint_a,
@@ -1128,15 +1118,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             for endpoint in endpoints.values()
         }
         with ExitStack() as stack:
-            with ExitStack() as stack_2:
-                stack_2.enter_context(self.controller.switches_lock)
-                stack.enter_context(self.controller.links_lock)
-                for switch in switches.values():
-                    stack.enter_context(switch.lock)
-                stack.enter_context(link.lock)
-                stack.enter_context(link.tag_lock)
-                for endpoint in endpoints.values():
-                    stack.enter_context(endpoint.tag_lock)
+            stack.enter_context(self.controller.switches_lock)
+            for switch in switches.values():
+                stack.enter_context(switch.lock)
+            stack.enter_context(link.lock)
+            stack.enter_context(link.tag_lock)
+            for endpoint in endpoints.values():
+                stack.enter_context(endpoint.tag_lock)
 
             if link.status != EntityStatus.DISABLED:
                 raise HTTPException(409, detail="Link is not disabled.")
@@ -1288,7 +1276,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         with ExitStack() as stack:
             stack.enter_context(self.controller.switches_lock)
-            stack.enter_context(self.controller.links_lock)
             switches: dict[str, Switch] = {
                 interface.switch.id: interface.switch
                 for interface in interfaces
@@ -1701,7 +1688,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface_b: Interface = event.content['interface_b']
 
         with ExitStack() as stack:
-            with self.controller.links_lock:
+            with self.controller.switches_lock:
                 try:
                     link, created = self.controller.get_link_or_create(
                         interface_a,
@@ -1849,7 +1836,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def notify_switch_links_status(self, switch: Switch, reason):
         """Send an event to notify the status of a link in a switch"""
         with ExitStack() as stack:
-            stack.enter_context(self.controller.links_lock)
+            stack.enter_context(self.controller.switches_lock)
             stack.enter_context(switch.lock)
             for interface in switch.interfaces.values():
                 link = interface.link
