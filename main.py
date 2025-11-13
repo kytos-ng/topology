@@ -851,11 +851,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         with ExitStack() as stack:
             with self.controller.switches_lock:
-                # NOTE: Potential optimization here:
-                # If len(endpoints) == 1 then directly acquire the iface lock
-                # elif len(switches) == 1 then only acquire switch lock
-                # If len(switches) == 2 then only acquire switches_lock
-                # Uncertain if correct, but likely would be.
                 for switch in switches.values():
                     stack.enter_context(switch.lock)
                 stack.enter_context(link.lock)
@@ -1467,9 +1462,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             log.info(f"Interface {interface.id} could not be safely removed."
                      f" Reason: {usage}")
             return
-        with ExitStack() as stack:
-            stack.enter_context(interface.switch.lock)
-            # NOTE: Could potentially revive a dead switch
+        with interface.switch.lock:
             self._delete_interface(interface)
 
     def get_intf_usage(self, interface: Interface) -> Optional[str]:
@@ -1518,7 +1511,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
          it was confirmed that the interface is not used."""
         switch: Switch = interface.switch
         switch.remove_interface(interface)
-        self.topo_controller.upsert_switch(switch.id, switch.as_dict())
+        self.topo_controller.delete_interface(interface.id)
         self.topo_controller.delete_interface_from_details(interface.id)
 
     @listen_to('.*.switch.interface.link_up')
@@ -1607,15 +1600,23 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def handle_link_up(self, interface: Interface):
         """Handle link up for an interface."""
-        link = interface.link
-        if not link:
-            self.notify_topology_update()
-            return
-        with link.lock:
-            other_interface = (
-                link.endpoint_b if link.endpoint_a == interface
-                else link.endpoint_a
-            )
+        with ExitStack() as stack:
+            stack.enter_context(self.controller.switches_lock)
+            link = interface.link
+            if not link:
+                self.notify_topology_update()
+                return
+            stack.enter_context(link.lock)
+            interfaces = {
+                iface.id: iface
+                for iface in (link.endpoint_a, link.endpoint_b)
+            }
+            switches = {
+                iface.switch.id: iface.switch
+                for iface in interfaces.values()
+            }
+            for switch in switches.values():
+                stack.enter_context(switch.lock)
             if (
                 link.id not in self.link_status_change or
                 not link.is_active()
@@ -1624,12 +1625,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 status_change_info['last_status_change'] = time.time()
                 link.activate()
             self.notify_topology_update()
-            # NOTE: Don't have all of these resources locked
             link_dependencies: list[GenericEntity] = [
-                other_interface.switch,
-                interface.switch,
-                other_interface,
-                interface,
+                *switches.values(),
+                *interfaces.values(),
             ]
             for dependency in link_dependencies:
                 if not dependency.is_active():
@@ -1688,19 +1686,20 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface_b: Interface = event.content['interface_b']
 
         with ExitStack() as stack:
-            with self.controller.switches_lock:
-                try:
-                    link, created = self.controller.get_link_or_create(
-                        interface_a,
-                        interface_b
-                    )
-                except KytosLinkCreationError as err:
-                    log.error(f'Error creating link: {err}.')
-                    return
-                # NOTE: Other things could have acquired
-                # the lock between link creation and now.
-                stack.enter_context(link.lock)
-                stack.enter_context(link.tag_lock)
+            stack.enter_context(self.controller.switches_lock)
+            # TODO: Maybe setup acquiring the interface/switch locks before creating the link
+            try:
+                link, created = self.controller.get_link_or_create(
+                    interface_a,
+                    interface_b
+                )
+            except KytosLinkCreationError as err:
+                log.error(f'Error creating link: {err}.')
+                return
+            # NOTE: Other things could have acquired
+            # the lock between link creation and now.
+            stack.enter_context(link.lock)
+            stack.enter_context(link.tag_lock)
 
             if not created:
                 return

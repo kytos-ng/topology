@@ -35,7 +35,7 @@ from napps.kytos.topology.db.models import (InterfaceDetailDoc, LinkDoc,
 class TopoController:
     """TopoController."""
 
-    def __init__(self, get_mongo=lambda: Mongo()) -> None:
+    def __init__(self, get_mongo=Mongo) -> None:
         """Constructor of TopoController."""
         self.mongo = get_mongo()
         self.db_client = self.mongo.client
@@ -154,6 +154,19 @@ class TopoController:
         """Try to disable one interface and its embedded object on links."""
         return self._update_interface(
             interface_id, {"$set": {"enabled": False}}
+        )
+    
+    def delete_interface(self, interface_id: str) -> Optional[dict]:
+        """Try to delete an interface embedded in a switch."""
+        switch_id, _, port_num = interface_id.rsplit(":")
+        port_num = int(port_num)
+        return self.db.switches.find_one_and_update(
+            {"_id": switch_id},
+            {"$unset": {"interfaces.$[iface]": 1}},
+            array_filters=[{
+                "iface.port_number": {"$eq": port_num}
+            }],
+            return_document=ReturnDocument.AFTER
         )
 
     def add_interface_metadata(
