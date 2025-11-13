@@ -2071,5 +2071,5 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def get_latest_topology(self):
         """Get the latest topology."""
-        with self.controller.links_lock:
+        with self.controller.switches_lock:
             return self.last_pushed_topology
