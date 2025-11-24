@@ -1796,7 +1796,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             self.topo_controller.upsert_link(link.id, link.as_dict())
         self.notify_link_up_if_status(link, "link up")
 
-    @listen_to('.*.of_lldp.network_status.updated')
+    @listen_to(
+        '.*.of_lldp.network_status.updated',
+        pool="dynamic_single"
+    )
     def on_lldp_status_updated(self, event):
         """Handle of_lldp.network_status.updated from of_lldp."""
         self.handle_lldp_status_updated(event)
@@ -1814,17 +1817,34 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Handle .*.network_status.updated events from of_lldp."""
         content = event.content
         interface_ids = content["interface_ids"]
-        switches = set()
+        ports_by_switch = defaultdict(set)
         for interface_id in interface_ids:
-            dpid = ":".join(interface_id.split(":")[:-1])
-            switch = self.controller.get_switch_by_dpid(dpid)
-            if switch:
-                switches.add(switch)
+            dpid, _, port = interface_id.rpartition(":")
+            port = int(port)
+            ports_by_switch[dpid].add(port)
 
-        name = "kytos/topology.topo_controller.upsert_switch"
-        for switch in switches:
-            event = KytosEvent(name=name, content={"switch": switch})
-            self.controller.buffers.app.put(event)
+        for dpid, ports in ports_by_switch.items():
+            # Ideally this would be done using the same lock
+            # as that used by of_lldp
+            switch = self.controller.get_switch_by_dpid(dpid)
+            enabled_interfaces = [
+                port
+                for port in ports
+                if switch.interfaces[port].lldp
+            ]
+            disabled_interfaces = [
+                port
+                for port in ports
+                if not switch.interfaces[port].lldp
+            ]
+            self.topo_controller.enable_interfaces_lldp(
+                dpid,
+                enabled_interfaces
+            )
+            self.topo_controller.disable_interfaces_lldp(
+                dpid,
+                disabled_interfaces
+            )
 
     def notify_switch_enabled(self, dpid):
         """Send an event to notify that a switch is enabled."""

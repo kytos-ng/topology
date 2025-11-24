@@ -207,7 +207,7 @@ class TopoController:
         switch_id: str,
         ports: list[int]
     ):
-        """Try to enable several interfaces and their embedded objects."""
+        """Try to enable several interfaces."""
         return self._update_interfaces_of_switch(
             switch_id, ports, {"$set": {"enabled": True}}
         )
@@ -217,9 +217,29 @@ class TopoController:
         switch_id: str,
         ports: list[int]
     ):
-        """Try to disable several interfaces and their embedded objects."""
+        """Try to disable several interfaces."""
         return self._update_interfaces_of_switch(
             switch_id, ports, {"$set": {"enabled": False}}
+        )
+
+    def enable_interfaces_lldp(
+        self,
+        switch_id: str,
+        ports: list[int]
+    ):
+        """Try to enable lldp on several interfaces."""
+        return self._update_interfaces_of_switch(
+            switch_id, ports, {"$set": {"lldp": True}}
+        )
+
+    def disable_interfaces_lldp(
+        self,
+        switch_id: str,
+        ports: list[int]
+    ):
+        """Try to disable lldp on several interfaces."""
+        return self._update_interfaces_of_switch(
+            switch_id, ports, {"$set": {"lldp": False}}
         )
 
     def _update_interfaces_of_switch(
