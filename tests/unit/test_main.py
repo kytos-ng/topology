@@ -545,7 +545,6 @@ class TestMain:
         mock_switch = get_switch_mock(dpid)
         interface = Mock()
         interface.link.is_enabled = lambda: True
-        interface.lock = MagicMock()
         interface.link.lock = MagicMock()
         mock_switch.interfaces = {1: interface}
         self.napp.controller.switches = {dpid: mock_switch}
@@ -1005,19 +1004,39 @@ class TestMain:
 
         dpid_a = "00:00:00:00:00:00:00:01"
         dpid_b = "00:00:00:00:00:00:00:02"
-        dpids = [dpid_a, dpid_b]
-        interface_ids = [f"{dpid}:1" for dpid in dpids]
+        interface_ids = [f"{dpid_a}:1", f"{dpid_b}:4"]
 
         mock_switch_a = get_switch_mock(dpid_a, 0x04)
         mock_switch_b = get_switch_mock(dpid_b, 0x04)
+        interface_mock_a = get_interface_mock(
+            "test_interface_a", 1, mock_switch_a
+        )
+        interface_mock_a.lldp = True
+        interface_mock_b = get_interface_mock(
+            "test_interface_b", 4, mock_switch_b
+        )
+        interface_mock_b.lldp = False
+        mock_switch_a.interfaces = {
+            1: interface_mock_a
+        }
+        mock_switch_b.interfaces = {
+            4: interface_mock_b
+        }
         self.napp.controller.switches = {dpid_a: mock_switch_a,
                                          dpid_b: mock_switch_b}
 
         event.content = {"interface_ids": interface_ids, "state": "disabled"}
         self.napp.handle_lldp_status_updated(event)
 
-        mock_put = self.napp.controller.buffers.app.put
-        assert mock_put.call_count == len(interface_ids)
+        mock_enable = self.napp.topo_controller.enable_interfaces_lldp
+        mock_disable = self.napp.topo_controller.disable_interfaces_lldp
+
+        mock_enable.assert_called_with(
+            dpid_a, [1]
+        )
+        mock_disable.assert_called_with(
+            dpid_b, [4]
+        )
 
     def test_handle_topo_controller_upsert_switch(self):
         """Test handle_topo_controller_upsert_switch."""
@@ -1152,9 +1171,11 @@ class TestMain:
     def test_handle_interface_created(self, mock_link_up, mock_link_down):
         """Test handle_interface_created."""
         mock_event = MagicMock()
+        mock_switch = create_autospec(Switch)
+        mock_switch.lock = MagicMock()
         mock_interface = create_autospec(Interface)
         mock_interface.id = "1"
-        mock_interface.lock = MagicMock()
+        mock_interface.switch = mock_switch
         mock_event.content = {'interface': mock_interface}
         self.napp.handle_interface_created(mock_event)
         mock_link_up.assert_called()
@@ -1166,9 +1187,11 @@ class TestMain:
                                                mock_link_down):
         """Test handle_interface_created inactive."""
         mock_event = MagicMock()
+        mock_switch = create_autospec(Switch)
+        mock_switch.lock = MagicMock()
         mock_interface = create_autospec(Interface)
         mock_interface.id = "1"
-        mock_interface.lock = MagicMock()
+        mock_interface.switch = mock_switch
         mock_event.content = {'interface': mock_interface}
         mock_interface.is_active.return_value = False
         self.napp.handle_interface_created(mock_event)
@@ -1184,11 +1207,10 @@ class TestMain:
         mock_event = MagicMock()
         mock_interface = create_autospec(Interface)
         mock_interface.id = "1"
-        mock_interface.lock = MagicMock()
         mock_interface.switch = mock_switch
         mock_interface_two = create_autospec(Interface)
         mock_interface_two.id = "2"
-        mock_interface_two.lock = MagicMock()
+        mock_interface_two.switch = mock_switch
         mock_event.content = {'interfaces': [mock_interface,
                               mock_interface_two]}
         self.napp.handle_interfaces_created(mock_event)
@@ -1220,8 +1242,10 @@ class TestMain:
         tnow = time.time()
         mock_switch_a = create_autospec(Switch)
         mock_switch_a.is_active.return_value = True
+        mock_switch_a.lock = MagicMock()
         mock_switch_b = create_autospec(Switch)
         mock_switch_b.is_active.return_value = True
+        mock_switch_b.lock = MagicMock()
         mock_interface_a = create_autospec(Interface)
         mock_interface_a.switch = mock_switch_a
         mock_interface_a.is_active.return_value = False
@@ -2024,7 +2048,7 @@ class TestMain:
         assert response.status_code == 409, response.text
 
         # Error 409 Switch has flows
-        # TODO: I don't think this is testing what it thinks it is
+        mock_interface_a.link = None
         mock_get.return_value = {dpid: {}}
         endpoint = f"{self.base_endpoint}/switches/{dpid}"
         response = await self.api_client.delete(endpoint)
@@ -2192,7 +2216,7 @@ class TestMain:
         mock_intf = get_interface_mock('s1-eth1', 1, mock_switch)
         self.napp._delete_interface(mock_intf)
         assert mock_switch.remove_interface.call_count == 1
-        assert self.napp.topo_controller.upsert_switch.call_count == 1
+        assert self.napp.topo_controller.delete_interface.call_count == 1
         delete = self.napp.topo_controller.delete_interface_from_details
         assert delete.call_count == 1
 

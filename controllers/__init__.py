@@ -155,7 +155,7 @@ class TopoController:
         return self._update_interface(
             interface_id, {"$set": {"enabled": False}}
         )
-    
+
     def delete_interface(self, interface_id: str) -> Optional[dict]:
         """Try to delete an interface embedded in a switch."""
         switch_id, _, port_num = interface_id.rsplit(":")
