@@ -1,5 +1,8 @@
 from collections import defaultdict
+from kytos.core.controller import Controller
 from kytos.core.tag_ranges import range_difference
+
+controller: Controller = controller
 
 # Change to False so this script makes changes
 DRY_RUN = True
@@ -44,20 +47,17 @@ def get_range(vlans, avoid) -> list[list[int]]:
 mef_eline = controller.napps[('kytos', 'mef_eline')]
 evcs = {evc_id: evc.as_dict() for evc_id, evc in mef_eline.circuits.items() if not evc.archived}
 
-in_use_tags = defaultdict(set)
+in_use_intf_tags = defaultdict(set)
+in_use_link_tags = defaultdict(set)
 for evc_id, evc in evcs.items():
     for link in evc["current_path"]:
         svlan = link["metadata"]["s_vlan"]["value"]
-        intfa = link["endpoint_a"]["id"]
-        intfb = link["endpoint_b"]["id"]
-        in_use_tags[intfa].add(svlan)
-        in_use_tags[intfb].add(svlan)
+        link_id = link["id"]
+        in_use_link_tags[link_id].add(svlan)
     for link in evc["failover_path"]:
         svlan = link["metadata"]["s_vlan"]["value"]
-        intfa = link["endpoint_a"]["id"]
-        intfb = link["endpoint_b"]["id"]
-        in_use_tags[intfa].add(svlan)
-        in_use_tags[intfb].add(svlan)
+        link_id = link["id"]
+        in_use_link_tags[link_id].add(svlan)
     for uni in ("uni_a", "uni_z"):
         intf_id = evc[uni]["interface_id"]
         if (
@@ -68,16 +68,16 @@ for evc_id, evc in evcs.items():
         ):
             tag = evc[uni]["tag"]["value"]
             if isinstance(tag, int):
-                in_use_tags[intf_id].add(tag)
+                in_use_intf_tags[intf_id].add(tag)
             elif isinstance(tag, list):
                 for tag_item in tag:
                     if isinstance(tag_item, int):
-                        in_use_tags[intf_id].add(tag_item)
+                        in_use_intf_tags[intf_id].add(tag_item)
                     elif isinstance(tag_item, list) and len(tag_item) == 1:
-                        in_use_tags[intf_id].add(tag_item[0])
+                        in_use_intf_tags[intf_id].add(tag_item[0])
                     elif isinstance(tag_item, list) and len(tag_item) == 2:
                         for val in range(tag_item[0], tag_item[1]+1):
-                            in_use_tags[intf_id].add(val)
+                            in_use_intf_tags[intf_id].add(val)
 
 switch_rm_flows = {}
 flow_manager = controller.napps[('kytos', 'flow_manager')]
@@ -91,7 +91,7 @@ for dpid in list(controller.switches.keys()):
 
     for interface in switch.interfaces.copy().values():
         intf_id = interface.id
-        vlans = in_use_tags.get(intf_id, set())
+        vlans = in_use_intf_tags.get(intf_id, set())
         if OF_LLDP_VLAN and switch.is_enabled() and of_lldp_flow_flag:
             vlans.add(OF_LLDP_VLAN)
         vlans = get_range(sorted(list(vlans)), set())
@@ -105,5 +105,21 @@ for dpid in list(controller.switches.keys()):
             if PRINT_MISSING:
                 print(f"AVAILABLE MISSING -> {range_difference(available_tags, intf.available_tags['vlan'])}")
             if not DRY_RUN:
-                intf.make_tags_available(controller, available_tags, 'vlan')
+                intf.atomic_make_tags_available(controller, 'vlan', available_tags)
+            print("\n")
+
+for link_id in list(controller.links.keys()):
+    vlans = in_use_link_tags.get(link_id, set())
+    vlans = get_range(sorted(list(vlans)), set())
+    link = controller.get_link(link_id)
+    tag_range = link.tag_ranges["vlan"]
+    available_tags = range_difference(tag_range, vlans)
+    if link.available_tags["vlan"] != available_tags:
+            print(f"Inconsistent available tags in link {link_id}:\n"
+                  f"WRONG -> {link.available_tags['vlan']}\n"
+                  f"CORRECT -> {available_tags}")
+            if PRINT_MISSING:
+                print(f"AVAILABLE MISSING -> {range_difference(available_tags, link.available_tags['vlan'])}")
+            if not DRY_RUN:
+                link.atomic_make_tags_available(controller, 'vlan', available_tags)
             print("\n")
