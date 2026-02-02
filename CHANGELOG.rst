@@ -7,6 +7,9 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2025.2.0] - 2026-02-02
+***********************
+
 Changed
 =======
 - Moved the dictionary for ``Links`` to controller. Now all the links can be accessed with ``self.controller.links`` from all the NApps.
