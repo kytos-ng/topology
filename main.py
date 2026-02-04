@@ -1408,8 +1408,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         created event again and it can be belong to a link.
         """
         interface: Interface = event.content['interface']
-        switch = interface.switch
-        with switch.lock:
+        with ExitStack() as stack:
+            stack.enter_context(self.controller.switches_lock)
+            switch: Switch = interface.switch
+            stack.enter_context(switch.lock)
             if not interface.is_active():
                 self.handle_interface_link_down(interface, event)
             else:
@@ -1429,23 +1431,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Update the topology based on a list of created interfaces."""
         self.handle_interfaces_created(event)
 
-    def handle_interface_down(self, event):
-        """Update the topology based on a Port Modify event.
-
-        The event notifies that an interface was changed to 'down'.
-        """
-        interface = event.content['interface']
-        switch = interface.switch
-        with switch.lock:
-            if (
-                interface.id in self._intfs_updated_at
-                and self._intfs_updated_at[interface.id] > event.timestamp
-            ):
-                return
-            self._intfs_updated_at[interface.id] = event.timestamp
-            interface.deactivate()
-            self.handle_interface_link_down(interface, event)
-
     @listen_to('.*.switch.interface.deleted')
     def on_interface_deleted(self, event):
         """Update the topology based on a Port Delete event."""
@@ -1453,14 +1438,18 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def handle_interface_deleted(self, event):
         """Update the topology based on a Port Delete event."""
-        self.handle_interface_down(event)
+        # self.handle_interface_down(event)
         interface: Interface = event.content['interface']
-        usage = self.get_intf_usage(interface)
-        if usage:
-            log.info(f"Interface {interface.id} could not be safely removed."
-                     f" Reason: {usage}")
-            return
-        with interface.switch.lock:
+        with ExitStack() as stack:
+            stack.enter_context(self.controller.switches_lock)
+            switch: Switch = interface.switch
+            stack.enter_context(switch.lock)
+            self.handle_interface_link_down(interface, event)
+            usage = self.get_intf_usage(interface)
+            if usage:
+                log.info(f"Interface {interface.id} could not be safely removed."
+                        f" Reason: {usage}")
+                return
             self._delete_interface(interface)
 
     def get_intf_usage(self, interface: Interface) -> Optional[str]:
@@ -1519,8 +1508,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         The event notifies that an interface's link was changed to 'up'.
         """
         interface: Interface = event.content['interface']
-        switch = interface.switch
-        with switch.lock:
+        with ExitStack() as stack:
+            stack.enter_context(self.controller.switches_lock)
+            switch: Switch = interface.switch
+            stack.enter_context(switch.lock)
             self.handle_interface_link_up(interface, event)
 
     def handle_interface_link_up(self, interface, event):
@@ -1599,7 +1590,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def handle_link_up(self, interface: Interface):
         """Handle link up for an interface."""
         with ExitStack() as stack:
-            stack.enter_context(self.controller.switches_lock)
             link = interface.link
             if not link:
                 self.notify_topology_update()
@@ -1614,7 +1604,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 for iface in interfaces.values()
             }
             for switch in switches.values():
-                stack.enter_context(switch.lock)
+                if switch is not interface.switch:
+                    stack.enter_context(switch.lock)
             if (
                 link.id not in self.link_status_change or
                 not link.is_active()
@@ -1646,8 +1637,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         The event notifies that an interface's link was changed to 'down'.
         """
         interface = event.content['interface']
-        switch = interface.switch
-        with switch.lock:
+        with ExitStack() as stack:
+            stack.enter_context(self.controller.switches_lock)
+            switch: Switch = interface.switch
+            stack.enter_context(switch.lock)
             self.handle_interface_link_down(interface, event)
 
     def handle_interface_link_down(
