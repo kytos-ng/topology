@@ -1,5 +1,9 @@
 from collections import defaultdict
 
+from kytos.core.controller import Controller
+
+controller: Controller = controller
+
 # Change to False so this script makes changes
 DRY_RUN = True
 # Modify with VLAN used in of_lldp
@@ -31,20 +35,17 @@ evcs = {
     if not evc.archived
 }
 
-in_use_tags = defaultdict(list)
+in_use_link_tags = defaultdict(list)
+in_use_intf_tags = defaultdict(list)
 for evc_id, evc in evcs.items():
     for link in evc["current_path"]:
         svlan = link["metadata"]["s_vlan"]["value"]
-        intfa = link["endpoint_a"]["id"]
-        intfb = link["endpoint_b"]["id"]
-        in_use_tags[intfa].append((svlan, evc_id))
-        in_use_tags[intfb].append((svlan, evc_id))
+        link_id = link["id"]
+        in_use_link_tags[link_id].append((svlan, evc_id))
     for link in evc["failover_path"]:
         svlan = link["metadata"]["s_vlan"]["value"]
-        intfa = link["endpoint_a"]["id"]
-        intfb = link["endpoint_b"]["id"]
-        in_use_tags[intfa].append((svlan, evc_id))
-        in_use_tags[intfb].append((svlan, evc_id))
+        link_id = link["id"]
+        in_use_link_tags[link_id].append((svlan, evc_id))
 
     for uni in ("uni_a", "uni_z"):
         intf_id = evc[uni]["interface_id"]
@@ -56,16 +57,16 @@ for evc_id, evc in evcs.items():
         ):
             tag = evc[uni]["tag"]["value"]
             if isinstance(tag, int):
-                in_use_tags[intf_id].append((tag, evc_id))
+                in_use_intf_tags[intf_id].append((tag, evc_id))
             elif isinstance(tag, list):
                 for tag_item in tag:
                     if isinstance(tag_item, int):
-                        in_use_tags[intf_id].append((tag_item, evc_id))
+                        in_use_intf_tags[intf_id].append((tag_item, evc_id))
                     elif isinstance(tag_item, list) and len(tag_item) == 1:
-                        in_use_tags[intf_id].append((tag_item[0], evc_id))
+                        in_use_intf_tags[intf_id].append((tag_item[0], evc_id))
                     elif isinstance(tag_item, list) and len(tag_item) == 2:
                         for val in range(tag_item[0], tag_item[1]+1):
-                            in_use_tags[intf_id].append((val, evc_id))
+                            in_use_intf_tags[intf_id].append((val, evc_id))
 
 switch_rm_flows = {}
 flow_manager = controller.napps[('kytos', 'flow_manager')]
@@ -83,15 +84,26 @@ for dpid in list(controller.switches.keys()):
     
     for intf_id, intf in switch.interfaces.copy().items():
         if OF_LLDP_VLAN and switch.is_enabled() and of_lldp_flow_flag:
-            in_use_tags[intf_id].append((OF_LLDP_VLAN, "of_lldp"))
-        for tag, evc_id in in_use_tags[intf_id]:
+            in_use_intf_tags[intf_id].append((OF_LLDP_VLAN, "of_lldp"))
+        for tag, evc_id in in_use_intf_tags[intf_id]:
             if intf.is_tag_available(tag, tag_type="vlan"):
                 dry_run_key = "WILL" if not DRY_RUN else "WOULD"
                 print(
                     f"s_vlan {tag} that was in use from EVC {evc_id} is still available on intf {intf_id}, {dry_run_key} use it..."
                 )
                 if not DRY_RUN:
-                    intf.use_tags(controller, tag)
+                    intf.atomic_use_tags(controller, "vlan", tag)
+
+for link_id in list(controller.links.keys()):
+    link = controller.get_link(link_id)
+    for tag, evc_id in in_use_link_tags[link_id]:
+        if link.is_tag_available(tag, tag_type="vlan"):
+            dry_run_key = "WILL" if not DRY_RUN else "WOULD"
+            print(
+                f"s_vlan {tag} that was in use from EVC {evc_id} is still available on link {link_id}, {dry_run_key} use it..."
+            )
+            if not DRY_RUN:
+                intf.atomic_use_tags(controller, "vlan", tag)
 
 if REMOVE_LLDP_FLOWS and switch_rm_flows and not DRY_RUN:
     print("Deleting LLDP flows...")
