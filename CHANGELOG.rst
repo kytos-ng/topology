@@ -7,6 +7,14 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+Changed
+=======
+- Added tag pool for ``Links``, separate from ``Interfaces``.
+
+Fixed
+=====
+- Fixed potential race conditions in multithreaded code.
+
 [2025.2.0] - 2026-02-02
 ***********************
 

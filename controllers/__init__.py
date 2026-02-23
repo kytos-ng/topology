@@ -35,7 +35,7 @@ from napps.kytos.topology.db.models import (InterfaceDetailDoc, LinkDoc,
 class TopoController:
     """TopoController."""
 
-    def __init__(self, get_mongo=lambda: Mongo()) -> None:
+    def __init__(self, get_mongo=Mongo) -> None:
         """Constructor of TopoController."""
         self.mongo = get_mongo()
         self.db_client = self.mongo.client
@@ -156,6 +156,19 @@ class TopoController:
             interface_id, {"$set": {"enabled": False}}
         )
 
+    def delete_interface(self, interface_id: str) -> Optional[dict]:
+        """Try to delete an interface embedded in a switch."""
+        switch_id, _, port_num = interface_id.rpartition(":")
+        port_num = int(port_num)
+        return self.db.switches.find_one_and_update(
+            {"_id": switch_id},
+            {"$unset": {"interfaces.$[iface]": 1}},
+            array_filters=[{
+                "iface.port_number": {"$eq": port_num}
+            }],
+            return_document=ReturnDocument.AFTER
+        )
+
     def add_interface_metadata(
         self, interface_id: str, metadata: dict
     ) -> Optional[dict]:
@@ -187,6 +200,69 @@ class TopoController:
             {"interfaces.id": interface_id},
             interfaces_expression,
             return_document=ReturnDocument.AFTER,
+        )
+
+    def enable_interfaces(
+        self,
+        switch_id: str,
+        ports: list[int]
+    ):
+        """Try to enable several interfaces."""
+        return self._update_interfaces_of_switch(
+            switch_id, ports, {"$set": {"enabled": True}}
+        )
+
+    def disable_interfaces(
+        self,
+        switch_id: str,
+        ports: list[int]
+    ):
+        """Try to disable several interfaces."""
+        return self._update_interfaces_of_switch(
+            switch_id, ports, {"$set": {"enabled": False}}
+        )
+
+    def enable_interfaces_lldp(
+        self,
+        switch_id: str,
+        ports: list[int]
+    ):
+        """Try to enable lldp on several interfaces."""
+        return self._update_interfaces_of_switch(
+            switch_id, ports, {"$set": {"lldp": True}}
+        )
+
+    def disable_interfaces_lldp(
+        self,
+        switch_id: str,
+        ports: list[int]
+    ):
+        """Try to disable lldp on several interfaces."""
+        return self._update_interfaces_of_switch(
+            switch_id, ports, {"$set": {"lldp": False}}
+        )
+
+    def _update_interfaces_of_switch(
+        self,
+        switch_id: str,
+        ports: list[int],
+        update_expr: dict
+    ):
+        self._set_updated_at(update_expr)
+        interfaces_expression = {}
+        for operator, values in update_expr.items():
+            interfaces_expression[operator] = {
+                f"interfaces.$[iface].{key}": value
+                for key, value in values.items()
+            }
+
+        return self.db.switches.find_one_and_update(
+            {"_id": switch_id},
+            interfaces_expression,
+            array_filters=[{
+                "iface.port_number": {"$in": ports}
+            }],
+            return_document=ReturnDocument.AFTER
         )
 
     def upsert_link(self, link_id: str, link_dict: dict) -> dict:
@@ -299,8 +375,11 @@ class TopoController:
         id_: str,
         available_tags: dict[str, list[list[int]]],
         tag_ranges: dict[str, list[list[int]]],
+        default_tag_ranges: dict[str, list[list[int]]],
         special_available_tags: dict[str, list[str]],
-        special_tags: dict[str, list[str]]
+        special_tags: dict[str, list[str]],
+        default_special_tags: dict[str, list[str]],
+        supported_tag_types: list[str],
     ) -> Optional[dict]:
         """Update or insert interfaces details."""
         utc_now = datetime.utcnow()
@@ -308,8 +387,11 @@ class TopoController:
                 "_id": id_,
                 "available_tags": available_tags,
                 "tag_ranges": tag_ranges,
+                "default_tag_ranges": default_tag_ranges,
                 "special_available_tags": special_available_tags,
                 "special_tags": special_tags,
+                "default_special_tags": default_special_tags,
+                "supported_tag_types": supported_tag_types,
                 "updated_at": utc_now
         }).model_dump(exclude={"inserted_at"})
         updated = self.db.interface_details.find_one_and_update(
@@ -357,4 +439,56 @@ class TopoController:
         """Delete interface from interface_details."""
         return self.db.interface_details.find_one_and_delete(
             {"_id": intf_id}
+        )
+
+    # pylint: disable=too-many-arguments
+    def upsert_link_details(
+        self,
+        id_: str,
+        available_tags: dict[str, list[list[int]]],
+        tag_ranges: dict[str, list[list[int]]],
+        default_tag_ranges: dict[str, list[list[int]]],
+        special_available_tags: dict[str, list[str]],
+        special_tags: dict[str, list[str]],
+        default_special_tags: dict[str, list[str]],
+        supported_tag_types: list[str],
+    ) -> Optional[dict]:
+        """Update or insert link details."""
+        utc_now = datetime.utcnow()
+        model = InterfaceDetailDoc(**{
+                "_id": id_,
+                "available_tags": available_tags,
+                "tag_ranges": tag_ranges,
+                "default_tag_ranges": default_tag_ranges,
+                "special_available_tags": special_available_tags,
+                "special_tags": special_tags,
+                "default_special_tags": default_special_tags,
+                "supported_tag_types": supported_tag_types,
+                "updated_at": utc_now
+        }).model_dump(exclude={"inserted_at"})
+        updated = self.db.link_details.find_one_and_update(
+            {"_id": id_},
+            {
+                "$set": model,
+                "$setOnInsert": {"inserted_at": utc_now},
+            },
+            return_document=ReturnDocument.AFTER,
+            upsert=True,
+        )
+        return updated
+
+    def get_links_details(
+        self, link_ids: List[str]
+    ) -> Optional[dict]:
+        """Try to get link details given a list of link ids."""
+        return self.db.link_details.aggregate(
+            [
+                {"$match": {"_id": {"$in": link_ids}}},
+            ]
+        )
+
+    def delete_link_from_details(self, link_id: str) -> Optional[dict]:
+        """Delete link from link_details."""
+        return self.db.link_details.find_one_and_delete(
+            {"_id": link_id}
         )
