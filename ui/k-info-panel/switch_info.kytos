@@ -74,7 +74,7 @@
          </div>
       </k-accordion-item>
       <k-accordion-item :defaultState="false" title="Interfaces" v-if="this.interfaces">
-         <k-interface :interface_id="k_interface.id" :name="k_interface.name" :port_number="k_interface.port_number" :mac="k_interface.mac" 
+         <k-interface :interface_id="k_interface.id" :interface_switch="k_interface.switch" :name="k_interface.name" :port_number="k_interface.port_number" :mac="k_interface.mac" 
                       :speed="k_interface.speed" :key="k_interface.name" :enabled="k_interface.enabled" :metadata="k_interface.metadata"
                       :active="k_interface.active" :lldp="k_interface.lldp" :nni="k_interface.nni" :uni="k_interface.uni" :content_switch="content_switch" v-for="k_interface in this.interfaces">
          </k-interface>

@@ -7,6 +7,9 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+[2025.2.0] - 2026-02-02
+***********************
+
 Changed
 =======
 - Moved the dictionary for ``Links`` to controller. Now all the links can be accessed with ``self.controller.links`` from all the NApps.
@@ -22,6 +25,10 @@ Added
 - Added node name as subtitle in ``Switch Details`` InfoPanel.
 - Added node names from ``endpoint_a`` and ``endpoint_b`` to ``Link Details`` InfoPanel.
 - Added a new event ``kytos/topology.interface.(enabled|up|disabled|down)`` which is published when an interface is disabled or enabled or UP or DOWN (due to maintenance).
+
+Fixed
+=====
+- Fixed the ``k-chart-timeseries``/Interface Utilization Graph.
 
 [2025.1.1] - 2025-05-06
 ***********************
