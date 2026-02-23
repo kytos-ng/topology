@@ -1438,7 +1438,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def handle_interface_deleted(self, event):
         """Update the topology based on a Port Delete event."""
-        # self.handle_interface_down(event)
         interface: Interface = event.content['interface']
         with ExitStack() as stack:
             stack.enter_context(self.controller.switches_lock)
@@ -1447,8 +1446,10 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             self.handle_interface_link_down(interface, event)
             usage = self.get_intf_usage(interface)
             if usage:
-                log.info(f"Interface {interface.id} could not be safely removed."
-                        f" Reason: {usage}")
+                log.info(
+                    f"Interface {interface.id} could not be safely removed."
+                    f" Reason: {usage}"
+                )
                 return
             self._delete_interface(interface)
 

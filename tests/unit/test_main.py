@@ -1219,15 +1219,6 @@ class TestMain:
         assert self.napp.controller.buffers.app.put.call_count == 2
 
     @patch('napps.kytos.topology.main.Main.handle_interface_link_down')
-    def test_handle_interface_down(self, mock_handle_interface_link_down):
-        """Test handle interface down."""
-        mock_event = MagicMock()
-        mock_interface = create_autospec(Interface)
-        mock_event.content['interface'] = mock_interface
-        self.napp.handle_interface_down(mock_event)
-        mock_handle_interface_link_down.assert_called()
-
-    @patch('napps.kytos.topology.main.Main.handle_interface_down')
     def test_interface_deleted(self, mock_handle_interface_link_down):
         """Test interface deleted."""
         mock_event = MagicMock()
