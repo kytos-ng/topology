@@ -214,26 +214,6 @@ class TopoController:
             return_document=ReturnDocument.AFTER,
             upsert=True,
         )
-        self.db.switches.find_one_and_update(
-            {"interfaces.id": endpoint_a},
-            {
-                "$set": {
-                    "interfaces.$.link_id": link_id,
-                    "interfaces.$.link_side": "endpoint_a",
-                    "updated_at": utc_now,
-                }
-            },
-        )
-        self.db.switches.find_one_and_update(
-            {"interfaces.id": endpoint_b},
-            {
-                "$set": {
-                    "interfaces.$.link_id": link_id,
-                    "interfaces.$.link_side": "endpoint_b",
-                    "updated_at": utc_now,
-                }
-            },
-        )
         return updated
 
     def _update_link(self, link_id: str, update_expr: dict) -> Optional[dict]:

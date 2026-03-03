@@ -7,6 +7,14 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+Changed
+=======
+- Removed unused ``link_side`` from the DB switches collection.
+
+General Information
+===================
+- Added the script ``000_remove_link_side.py`` to remove ``link_side`` field from switch collection.
+
 [2025.2.0] - 2026-02-02
 ***********************
 

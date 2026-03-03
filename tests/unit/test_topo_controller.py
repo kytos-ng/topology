@@ -232,7 +232,7 @@ class TestTopoController:
             "endpoint_b": {"id": "00:00:00:00:00:00:00:02:01"},
         }
         self.topo.upsert_link(self.link_id, link_dict)
-        assert self.topo.db.switches.find_one_and_update.call_count == 2
+        assert self.topo.db.switches.find_one_and_update.call_count == 0
         assert self.topo.db.links.find_one_and_update.call_count == 1
 
     def test_delete_link(self) -> None:
