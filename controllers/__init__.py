@@ -92,14 +92,16 @@ class TopoController:
         return {"interfaces": {value["id"]: value for value in interfaces}}
 
     @staticmethod
-    def _set_updated_at(update_expr: dict) -> None:
+    def _set_updated_at(update_expr: dict | list[dict]) -> None:
         """Set updated_at on $set expression."""
+        if isinstance(update_expr, list):
+            update_expr = update_expr[0]
         if "$set" in update_expr:
             update_expr["$set"].update({"updated_at": datetime.utcnow()})
         else:
             update_expr.update({"$set": {"updated_at": datetime.utcnow()}})
 
-    def _update_switch(self, dpid: str, update_expr: dict) -> Optional[dict]:
+    def _update_switch(self, dpid: str, update_expr: dict | list[dict]) -> Optional[dict]:
         """Try to find one switch and update it given an update expression."""
         self._set_updated_at(update_expr)
         return self.db.switches.find_one_and_update({"_id": dpid}, update_expr)
@@ -128,7 +130,27 @@ class TopoController:
     def disable_switch(self, dpid: str) -> Optional[dict]:
         """Try to find one switch and disable it."""
         return self._update_switch(
-            dpid, {"$set": {"enabled": False, "interfaces.$[].enabled": False}}
+            dpid,
+            [
+                {
+                    "$set": {
+                        "enabled": False,
+                        "interfaces": {
+                            "$map": {
+                                "input": "$interfaces",
+                                "as": "iface",
+                                "in": {
+                                    "$setField": {
+                                        "input": "$$iface",
+                                        "field": "enabled",
+                                        "value": False
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
         )
 
     def add_switch_metadata(self, dpid: str, metadata: dict) -> Optional[dict]:
