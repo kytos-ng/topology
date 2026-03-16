@@ -18,10 +18,15 @@ Added
 Changed
 =======
 - Added tag pool for ``Links``, separate from ``Interfaces``.
+- Removed unused ``link_side`` from the DB switches collection.
 
 Fixed
 =====
 - Fixed potential race conditions in multithreaded code.
+
+General Information
+===================
+- Added the script ``000_remove_link_side.py`` to remove ``link_side`` field from switch collection.
 
 [2025.2.0] - 2026-02-02
 ***********************

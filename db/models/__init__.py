@@ -39,7 +39,6 @@ class InterfaceSubDoc(BaseModel):
     lldp: bool
     switch: str
     link: Optional[str] = None
-    link_side: Optional[str] = None
     metadata: dict = {}
     updated_at: Optional[datetime] = None
 
