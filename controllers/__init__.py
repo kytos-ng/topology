@@ -35,7 +35,7 @@ from napps.kytos.topology.db.models import (InterfaceDetailDoc, LinkDoc,
 class TopoController:
     """TopoController."""
 
-    def __init__(self, get_mongo=Mongo) -> None:
+    def __init__(self, get_mongo=lambda: Mongo()) -> None:
         """Constructor of TopoController."""
         self.mongo = get_mongo()
         self.db_client = self.mongo.client
