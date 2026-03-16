@@ -184,10 +184,7 @@ class TopoController:
         port_num = int(port_num)
         return self.db.switches.find_one_and_update(
             {"_id": switch_id},
-            {"$unset": {"interfaces.$[iface]": 1}},
-            array_filters=[{
-                "iface.port_number": {"$eq": port_num}
-            }],
+            {"$pull": {"interfaces": {"port_number": {"$eq": port_num}}}}
             return_document=ReturnDocument.AFTER
         )
 
