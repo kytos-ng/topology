@@ -1330,8 +1330,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 link.id in self._link_tags_updated_at
                 and self._link_tags_updated_at[link.id] > event.timestamp
             ):
-                self._link_tags_updated_at[link.id] = event.timestamp
-                self.handle_on_link_tags(link)
+                return
+            self._link_tags_updated_at[link.id] = event.timestamp
+            self.handle_on_link_tags(link)
 
     def handle_on_link_tags(
         self,
