@@ -101,7 +101,11 @@ class TopoController:
         else:
             update_expr.update({"$set": {"updated_at": datetime.utcnow()}})
 
-    def _update_switch(self, dpid: str, update_expr: dict | list[dict]) -> Optional[dict]:
+    def _update_switch(
+        self,
+        dpid: str,
+        update_expr: dict | list[dict]
+    ) -> Optional[dict]:
         """Try to find one switch and update it given an update expression."""
         self._set_updated_at(update_expr)
         return self.db.switches.find_one_and_update({"_id": dpid}, update_expr)
@@ -184,7 +188,7 @@ class TopoController:
         port_num = int(port_num)
         return self.db.switches.find_one_and_update(
             {"_id": switch_id},
-            {"$pull": {"interfaces": {"port_number": {"$eq": port_num}}}}
+            {"$pull": {"interfaces": {"port_number": {"$eq": port_num}}}},
             return_document=ReturnDocument.AFTER
         )
 
