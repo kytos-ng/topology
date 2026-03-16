@@ -7,6 +7,14 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+Added
+=====
+- Added new endpoint ``POST v3/links/{link_id}/tag_ranges`` for updating Link tag ranges.
+- Added new endpoint ``DELETE v3/links/{link_id}/tag_ranges`` for resetting link tag ranges.
+- Added new endpoint ``POST v3/links/{link_id}/special_tags`` for updating Link special tags.
+- Added new endpoint ``GET v3/links/tag_ranges`` for getting all link tags + special tags.
+- Added new endpoint ``GET v3/links/{link_id}/tag_ranges`` for getting the tags + special tags of a link.
+
 Changed
 =======
 - Added tag pool for ``Links``, separate from ``Interfaces``.
