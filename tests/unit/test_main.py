@@ -69,7 +69,7 @@ class TestMain:
             '.*.interface.is.nni',
             '.*.connection.lost',
             '.*.switch.interfaces.created',
-            '.*.topology.switch.interface.created',
+            '.*.switch.interface.created',
             '.*.switch.interface.deleted',
             '.*.switch.interface.link_down',
             '.*.switch.interface.link_up',
@@ -1164,12 +1164,24 @@ class TestMain:
     def test_handle_interface_created(self, mock_link_up, mock_link_down):
         """Test handle_interface_created."""
         mock_event = MagicMock()
+        upsert_mock = self.napp.topo_controller.upsert_switch
+        mock_switch = create_autospec(Switch)
         mock_interface = create_autospec(Interface)
+        mock_interface.switch = mock_switch
         mock_interface.id = "1"
         mock_event.content = {'interface': mock_interface}
+        mock_event.name = "kytos/topology.switch.interface.created"
         self.napp.handle_interface_created(mock_event)
         mock_link_up.assert_called()
         mock_link_down.assert_not_called()
+        upsert_mock.assert_not_called()
+
+        # Event from of_core
+        mock_event.name = "kytos/of_core.switch.interface.created"
+        self.napp.handle_interface_created(mock_event)
+        mock_link_up.assert_called()
+        mock_link_down.assert_not_called()
+        upsert_mock.assert_called_with(mock_switch.id, mock_switch.as_dict())
 
     @patch('napps.kytos.topology.main.Main.handle_interface_link_down')
     @patch('napps.kytos.topology.main.Main.handle_interface_link_up')

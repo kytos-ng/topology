@@ -46,7 +46,7 @@ class TestMain:
             '.*.interface.is.nni',
             '.*.connection.lost',
             '.*.switch.interfaces.created',
-            '.*.topology.switch.interface.created',
+            '.*.switch.interface.created',
             '.*.switch.interface.deleted',
             '.*.switch.interface.link_down',
             '.*.switch.interface.link_up',

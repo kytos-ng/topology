@@ -938,12 +938,15 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         created event again and it can be belong to a link.
         """
         interface = event.content['interface']
+        if "of_core" in event.name:
+            switch = interface.switch
+            self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         if not interface.is_active():
             self.handle_interface_link_down(interface, event)
         else:
             self.handle_interface_link_up(interface, event)
 
-    @listen_to('.*.topology.switch.interface.created')
+    @listen_to('.*.switch.interface.created')
     def on_interface_created(self, event):
         """Handle individual interface create event.
 

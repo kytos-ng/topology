@@ -7,6 +7,10 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
+Fixed
+=====
+- Fixed updating switch interfaces in the database when an interface is added while Kytos is running (from ``OFPPR_ADD`` message).
+
 Changed
 =======
 - Removed unused ``link_side`` from the DB switches collection.
