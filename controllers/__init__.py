@@ -16,7 +16,7 @@ from tenacity import retry_if_exception_type, stop_after_attempt, wait_random
 from kytos.core import log
 from kytos.core.db import Mongo
 from kytos.core.retry import before_sleep, for_all_methods, retries
-from napps.kytos.topology.db.models import (InterfaceDetailDoc, LinkDoc,
+from napps.kytos.topology.db.models import (InterfaceDetailDoc, LinkDetailDoc, LinkDoc,
                                             SwitchDoc)
 
 
@@ -458,7 +458,7 @@ class TopoController:
     ) -> Optional[dict]:
         """Update or insert link details."""
         utc_now = datetime.utcnow()
-        model = InterfaceDetailDoc(**{
+        model = LinkDetailDoc(**{
                 "_id": id_,
                 "available_tags": available_tags,
                 "tag_ranges": tag_ranges,
