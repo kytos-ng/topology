@@ -933,12 +933,13 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
     def handle_interface_created(self, event):
         """Update the topology based on an interface created event.
-
         It's handled as a link_up in case a switch send a
         created event again and it can be belong to a link.
+        Updates the switch in the DB when the event has come  from
+        of_core only.
         """
         interface = event.content['interface']
-        if "of_core" in event.name:
+        if "kytos/of_core.switch.interface.created" in event.name:
             switch = interface.switch
             self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         if not interface.is_active():
