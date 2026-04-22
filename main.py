@@ -1004,7 +1004,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         try:
             with link.tag_lock:
                 link.reset_tag_ranges(tag_type)
-                self.handle_on_interface_tags(link)
+                self.handle_on_link_tags(link)
         except KytosTagError as err:
             raise HTTPException(400, detail=str(err))
         return JSONResponse("Operation Successful", status_code=200)
@@ -1024,7 +1024,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         try:
             with link.tag_lock:
                 link.set_special_tags(tag_type, special_tags)
-                self.handle_on_interface_tags(link)
+                self.handle_on_link_tags(link)
         except KytosTagError as err:
             raise HTTPException(400, detail=str(err))
         return JSONResponse("Operation Successful", status_code=200)
