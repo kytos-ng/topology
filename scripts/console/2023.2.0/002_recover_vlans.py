@@ -105,7 +105,7 @@ for dpid in list(controller.switches.keys()):
             if PRINT_MISSING:
                 print(f"AVAILABLE MISSING -> {range_difference(available_tags, intf.available_tags['vlan'])}")
             if not DRY_RUN:
-                intf.atomic_make_tags_available(controller, 'vlan', available_tags)
+                intf.atomic_make_tags_available('vlan', available_tags)
             print("\n")
 
 for link_id in list(controller.links.keys()):
@@ -121,5 +121,5 @@ for link_id in list(controller.links.keys()):
             if PRINT_MISSING:
                 print(f"AVAILABLE MISSING -> {range_difference(available_tags, link.available_tags['vlan'])}")
             if not DRY_RUN:
-                link.atomic_make_tags_available(controller, 'vlan', available_tags)
+                link.atomic_make_tags_available('vlan', available_tags)
             print("\n")

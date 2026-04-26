@@ -92,7 +92,7 @@ for dpid in list(controller.switches.keys()):
                     f"s_vlan {tag} that was in use from EVC {evc_id} is still available on intf {intf_id}, {dry_run_key} use it..."
                 )
                 if not DRY_RUN:
-                    intf.atomic_use_tags(controller, "vlan", tag)
+                    intf.atomic_use_tags("vlan", tag)
 
 for link_id in list(controller.links.keys()):
     link = controller.get_link(link_id)
@@ -103,7 +103,7 @@ for link_id in list(controller.links.keys()):
                 f"s_vlan {tag} that was in use from EVC {evc_id} is still available on link {link_id}, {dry_run_key} use it..."
             )
             if not DRY_RUN:
-                intf.atomic_use_tags(controller, "vlan", tag)
+                intf.atomic_use_tags("vlan", tag)
 
 if REMOVE_LLDP_FLOWS and switch_rm_flows and not DRY_RUN:
     print("Deleting LLDP flows...")

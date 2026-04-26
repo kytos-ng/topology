@@ -71,6 +71,16 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                                          self.detect_mismatched_link)
         Link.register_status_func(f"{self.napp_id}_mismatched_status",
                                   self.link_status_mismatched)
+        
+        Link.register_tag_listener(
+            self.napp_id,
+            self.handle_on_link_tags
+        )
+        Interface.register_tag_listener(
+            self.napp_id,
+            self.handle_on_interface_tags
+        )
+
         self.topo_controller.bootstrap_indexes()
         self.load_topology()
 
