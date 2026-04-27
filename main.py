@@ -71,7 +71,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                                          self.detect_mismatched_link)
         Link.register_status_func(f"{self.napp_id}_mismatched_status",
                                   self.link_status_mismatched)
-        
+
+        # Attach listener for tag events.
         Link.register_tag_listener(
             self.napp_id,
             self.handle_on_link_tags

@@ -10,19 +10,22 @@ from kytos.core.switch import Switch
 from kytos.lib.helpers import (get_controller_mock, get_connection_mock,
                                get_test_client)
 
+
 class TestMain:
     """Test tag manipulation in the Main class."""
+    # pylint: disable=too-many-statements
 
     def setup_method(self):
         """Execute steps before each tests."""
+        # pylint: disable=attribute-defined-outside-init
         # patch('kytos.core.helpers.run_on_thread', lambda x: x).start()
-        # pylint: disable=import-outside-toplevel
+        # pylint: disable-next=import-outside-toplevel
         from napps.kytos.topology.main import Main
         Main.get_topo_controller = MagicMock()
         controller = get_controller_mock()
         self.napp = Main(controller)
         self.api_client = get_test_client(controller, self.napp)
-        self.base_endpoint = 'kytos/topology/v3'
+        self.base_url = 'kytos/topology/v3'
 
         self.switch_1 = Switch("00:00:00:00:00:00:00:01")
         connection = get_connection_mock(0x04, self.switch_1)
@@ -128,8 +131,8 @@ class TestMain:
             }
         }
 
-        endpoint = f"{self.base_endpoint}/"
-        response = await self.api_client.get(endpoint)
+        url = f"{self.base_url}/"
+        response = await self.api_client.get(url)
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -176,8 +179,8 @@ class TestMain:
             },
         }
 
-        endpoint = f"{self.base_endpoint}/interfaces/tag_ranges"
-        response = await self.api_client.get(endpoint)
+        url = f"{self.base_url}/interfaces/tag_ranges"
+        response = await self.api_client.get(url)
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -192,8 +195,8 @@ class TestMain:
             },
         }
 
-        endpoint = f"{self.base_endpoint}/links/tag_ranges"
-        response = await self.api_client.get(endpoint)
+        url = f"{self.base_url}/links/tag_ranges"
+        response = await self.api_client.get(url)
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -205,9 +208,9 @@ class TestMain:
             "tag_type": "vlan",
             "tag_ranges": [],
         }
-        endpoint = f"{self.base_endpoint}/links/{self.link_1_2.id}/tag_ranges"
+        url = f"{self.base_url}/links/{self.link_1_2.id}/tag_ranges"
         response = await self.api_client.post(
-            endpoint,
+            url,
             json=payload
         )
         assert response.status_code == 200
@@ -216,9 +219,9 @@ class TestMain:
             "tag_type": "vlan",
             "tag_ranges": [[1, 4094]],
         }
-        endpoint = f"{self.base_endpoint}/interfaces/{self.interface_1_2.id}/tag_ranges"
+        url = f"{self.base_url}/interfaces/{self.interface_1_2.id}/tag_ranges"
         response = await self.api_client.post(
-            endpoint,
+            url,
             json=payload
         )
         assert response.status_code == 200
@@ -227,16 +230,16 @@ class TestMain:
             "tag_type": "vlan",
             "tag_ranges": [[1, 4094]],
         }
-        endpoint = f"{self.base_endpoint}/interfaces/{self.interface_2_2.id}/tag_ranges"
+        url = f"{self.base_url}/interfaces/{self.interface_2_2.id}/tag_ranges"
         response = await self.api_client.post(
-            endpoint,
+            url,
             json=payload
         )
         assert response.status_code == 200
 
-        endpoint = f"{self.base_endpoint}/links/{self.link_1_2.id}/tag_ranges"
+        url = f"{self.base_url}/links/{self.link_1_2.id}/tag_ranges"
         response = await self.api_client.get(
-            endpoint
+            url
         )
         assert response.status_code == 200
         data = response.json()
@@ -254,9 +257,9 @@ class TestMain:
 
         assert data == expected
 
-        endpoint = f"{self.base_endpoint}/interfaces/{self.interface_1_2.id}/tag_ranges"
+        url = f"{self.base_url}/interfaces/{self.interface_1_2.id}/tag_ranges"
         response = await self.api_client.get(
-            endpoint
+            url
         )
         assert response.status_code == 200
         data = response.json()
@@ -274,9 +277,9 @@ class TestMain:
 
         assert data == expected
 
-        endpoint = f"{self.base_endpoint}/interfaces/{self.interface_2_2.id}/tag_ranges"
+        url = f"{self.base_url}/interfaces/{self.interface_2_2.id}/tag_ranges"
         response = await self.api_client.get(
-            endpoint
+            url
         )
         assert response.status_code == 200
         data = response.json()
@@ -298,9 +301,9 @@ class TestMain:
             "tag_type": "vlan",
             "tag_ranges": [],
         }
-        endpoint = f"{self.base_endpoint}/interfaces/{self.interface_1_2.id}/tag_ranges"
+        url = f"{self.base_url}/interfaces/{self.interface_1_2.id}/tag_ranges"
         response = await self.api_client.post(
-            endpoint,
+            url,
             json=payload
         )
         assert response.status_code == 200
@@ -309,9 +312,9 @@ class TestMain:
             "tag_type": "vlan",
             "tag_ranges": [],
         }
-        endpoint = f"{self.base_endpoint}/interfaces/{self.interface_2_2.id}/tag_ranges"
+        url = f"{self.base_url}/interfaces/{self.interface_2_2.id}/tag_ranges"
         response = await self.api_client.post(
-            endpoint,
+            url,
             json=payload
         )
         assert response.status_code == 200
@@ -320,18 +323,18 @@ class TestMain:
             "tag_type": "vlan",
             "tag_ranges": [[1, 4094]],
         }
-        endpoint = f"{self.base_endpoint}/links/{self.link_1_2.id}/tag_ranges"
+        url = f"{self.base_url}/links/{self.link_1_2.id}/tag_ranges"
         response = await self.api_client.post(
-            endpoint,
+            url,
             json=payload
         )
         assert response.status_code == 200
 
         #######
 
-        endpoint = f"{self.base_endpoint}/links/{self.link_1_2.id}/tag_ranges"
+        url = f"{self.base_url}/links/{self.link_1_2.id}/tag_ranges"
         response = await self.api_client.get(
-            endpoint
+            url
         )
         assert response.status_code == 200
         data = response.json()
@@ -349,9 +352,9 @@ class TestMain:
 
         assert data == expected
 
-        endpoint = f"{self.base_endpoint}/interfaces/{self.interface_1_2.id}/tag_ranges"
+        url = f"{self.base_url}/interfaces/{self.interface_1_2.id}/tag_ranges"
         response = await self.api_client.get(
-            endpoint
+            url
         )
         assert response.status_code == 200
         data = response.json()
@@ -369,9 +372,9 @@ class TestMain:
 
         assert data == expected
 
-        endpoint = f"{self.base_endpoint}/interfaces/{self.interface_2_2.id}/tag_ranges"
+        url = f"{self.base_url}/interfaces/{self.interface_2_2.id}/tag_ranges"
         response = await self.api_client.get(
-            endpoint
+            url
         )
         assert response.status_code == 200
         data = response.json()
@@ -391,6 +394,7 @@ class TestMain:
 
     async def test_link_creation(self):
         """Test transferring tags to from interfaces to a new link."""
+        # pylint: disable=attribute-defined-outside-init
         self.napp.controller.loop = asyncio.get_running_loop()
 
         self.interface_2_3 = Interface('s2-eth3', 3, self.switch_2)
@@ -399,9 +403,9 @@ class TestMain:
         self.interface_3_3 = Interface('s3-eth3', 3, self.switch_3)
         self.switch_3.update_interface(self.interface_3_3)
 
-        endpoint = f"{self.base_endpoint}/interfaces/{self.interface_2_3.id}/tag_ranges"
+        url = f"{self.base_url}/interfaces/{self.interface_2_3.id}/tag_ranges"
         response = await self.api_client.get(
-            endpoint
+            url
         )
         assert response.status_code == 200
         data = response.json()
@@ -419,9 +423,9 @@ class TestMain:
 
         assert data == expected
 
-        endpoint = f"{self.base_endpoint}/interfaces/{self.interface_3_3.id}/tag_ranges"
+        url = f"{self.base_url}/interfaces/{self.interface_3_3.id}/tag_ranges"
         response = await self.api_client.get(
-            endpoint
+            url
         )
         assert response.status_code == 200
         data = response.json()
@@ -455,9 +459,9 @@ class TestMain:
 
         self.link_2_3 = new_link
 
-        endpoint = f"{self.base_endpoint}/links/{self.link_2_3.id}/tag_ranges"
+        url = f"{self.base_url}/links/{self.link_2_3.id}/tag_ranges"
         response = await self.api_client.get(
-            endpoint
+            url
         )
         assert response.status_code == 200
         data = response.json()
@@ -495,9 +499,9 @@ class TestMain:
 
         assert data == expected
 
-        endpoint = f"{self.base_endpoint}/interfaces/{self.interface_2_3.id}/tag_ranges"
+        url = f"{self.base_url}/interfaces/{self.interface_2_3.id}/tag_ranges"
         response = await self.api_client.get(
-            endpoint
+            url
         )
         assert response.status_code == 200
         data = response.json()
@@ -515,9 +519,9 @@ class TestMain:
 
         assert data == expected
 
-        endpoint = f"{self.base_endpoint}/interfaces/{self.interface_3_3.id}/tag_ranges"
+        url = f"{self.base_url}/interfaces/{self.interface_3_3.id}/tag_ranges"
         response = await self.api_client.get(
-            endpoint
+            url
         )
         assert response.status_code == 200
         data = response.json()

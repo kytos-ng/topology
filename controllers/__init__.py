@@ -16,8 +16,8 @@ from tenacity import retry_if_exception_type, stop_after_attempt, wait_random
 from kytos.core import log
 from kytos.core.db import Mongo
 from kytos.core.retry import before_sleep, for_all_methods, retries
-from napps.kytos.topology.db.models import (InterfaceDetailDoc, LinkDetailDoc, LinkDoc,
-                                            SwitchDoc)
+from napps.kytos.topology.db.models import (InterfaceDetailDoc, LinkDetailDoc,
+                                            LinkDoc, SwitchDoc)
 
 
 @for_all_methods(
