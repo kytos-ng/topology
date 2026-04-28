@@ -78,8 +78,6 @@ class TestMain:
             '.*.switch.port.created',
             'kytos/topology.notify_link_up_if_status',
             'topology.interruption.(start|end)',
-            'kytos/core.interface_tags',
-            'kytos/core.link_tags',
         ]
         actual_events = self.napp.listeners()
         assert sorted(expected_events) == sorted(actual_events)
@@ -1722,7 +1720,6 @@ class TestMain:
         dpid = '00:00:00:00:00:00:00:01'
         mock_switch = get_switch_mock(dpid)
         mock_interface = get_interface_mock('s1-eth1', 1, mock_switch)
-        mock_interface.set_tag_ranges = MagicMock()
         mock_interface.link = None
         self.napp.handle_on_interface_tags = MagicMock()
         self.napp.controller.get_interface_by_id = MagicMock()
@@ -1738,7 +1735,7 @@ class TestMain:
         args = mock_interface.set_tag_ranges.call_args[0]
         assert args[0] == payload['tag_type']
         assert args[1] == payload['tag_ranges']
-        assert self.napp.handle_on_interface_tags.call_count == 1
+        mock_interface.notify_tag_listeners.assert_called()
 
     async def test_set_tag_range_not_found(self):
         """Test set_tag_range. Not found"""
@@ -1813,7 +1810,7 @@ class TestMain:
         url = f"{self.base_endpoint}/interfaces/{interface_id}/tag_ranges"
         response = await self.api_client.delete(url)
         assert response.status_code == 200
-        assert mock_interface.reset_tag_ranges.call_count == 1
+        assert mock_interface.atomic_reset_tag_ranges.call_count == 1
 
     async def test_delete_tag_range_not_found(self):
         """Test delete_tag_range. Not found"""
@@ -1838,7 +1835,7 @@ class TestMain:
         mock_switch = get_switch_mock(dpid)
         mock_interface = get_interface_mock('s1-eth1', 1, mock_switch)
         mock_interface.reset_tag_ranges = MagicMock()
-        remove_tag = mock_interface.reset_tag_ranges
+        remove_tag = mock_interface.atomic_reset_tag_ranges
         remove_tag.side_effect = KytosTagtypeNotSupported("")
         self.napp.controller.get_interface_by_id = MagicMock()
         self.napp.controller.get_interface_by_id.return_value = mock_interface
@@ -1936,18 +1933,18 @@ class TestMain:
         response = await self.api_client.post(url, json=payload)
         assert response.status_code == 200
 
-        args = mock_intf.set_special_tags.call_args[0]
+        set_tags_mock = mock_intf.atomic_set_special_tags
+
+        args = set_tags_mock.call_args[0]
         assert args[0] == payload["tag_type"]
         assert args[1] == payload['special_tags']
-        assert self.napp.handle_on_interface_tags.call_count == 1
 
         # KytosTagError
-        mock_intf.set_special_tags.side_effect = KytosTagtypeNotSupported("")
+        set_tags_mock.side_effect = KytosTagtypeNotSupported("")
         url = f"{self.base_endpoint}/interfaces/{interface_id}/"\
               "special_tags"
         response = await self.api_client.post(url, json=payload)
         assert response.status_code == 400
-        assert self.napp.handle_on_interface_tags.call_count == 1
 
         # Interface Not Found
         self.napp.controller.get_interface_by_id.return_value = None
@@ -1955,7 +1952,6 @@ class TestMain:
               "special_tags"
         response = await self.api_client.post(url, json=payload)
         assert response.status_code == 404
-        assert self.napp.handle_on_interface_tags.call_count == 1
 
     async def test_delete_link(self):
         """Test delete_link"""

@@ -74,12 +74,20 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         # Attach listener for tag events.
         Link.register_tag_listener(
-            self.napp_id,
+            f"{self.napp_id}_update_db",
             self.handle_on_link_tags
         )
+        Link.register_tag_listener(
+            f"{self.napp_id}_emit_event",
+            self.emit_link_tags
+        )
         Interface.register_tag_listener(
-            self.napp_id,
+            f"{self.napp_id}_update_db",
             self.handle_on_interface_tags
+        )
+        Interface.register_tag_listener(
+            f"{self.napp_id}_emit_event",
+            self.emit_interface_tags
         )
 
         self.topo_controller.bootstrap_indexes()
@@ -735,15 +743,15 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                                     f"{tag_type} default tags {conflict} "
                                     f"already present in endpoint {endpoint}."
                                 )
-                            self.handle_on_interface_tags(endpoint)
+                            endpoint.notify_tag_listeners()
                         new_defaults = range_difference(
                             link.default_tag_ranges[tag_type],
                             tags_in_link
                         )
                         link.default_tag_ranges[tag_type] = new_defaults
-                        self.handle_on_link_tags(link)
+                        link.notify_tag_listeners()
                 interface.set_tag_ranges(tag_type, ranges)
-                self.handle_on_interface_tags(interface)
+                interface.notify_tag_listeners()
         except KytosTagError as err:
             raise HTTPException(400, detail=str(err))
         return JSONResponse("Operation Successful", status_code=200)
@@ -759,9 +767,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if not interface:
             raise HTTPException(404, detail="Interface not found")
         try:
-            with interface.tag_lock:
-                interface.reset_tag_ranges(tag_type)
-                self.handle_on_interface_tags(interface)
+            interface.atomic_reset_tag_ranges(tag_type)
         except KytosTagError as err:
             raise HTTPException(400, detail=str(err))
         return JSONResponse("Operation Successful", status_code=200)
@@ -779,9 +785,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if not interface:
             raise HTTPException(404, detail="Interface not found")
         try:
-            with interface.tag_lock:
-                interface.set_special_tags(tag_type, special_tags)
-                self.handle_on_interface_tags(interface)
+            interface.atomic_set_special_tags(tag_type, special_tags)
         except KytosTagError as err:
             raise HTTPException(400, detail=str(err))
         return JSONResponse("Operation Successful", status_code=200)
@@ -984,7 +988,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                             f"{tag_type} default tags {missing} "
                             f"missing from endpoint {endpoint}."
                         )
-                    self.handle_on_interface_tags(endpoint)
+                    endpoint.notify_tag_listeners()
                 new_defaults, conflict = range_addition(
                     link.default_tag_ranges[tag_type],
                     tags_not_in_link
@@ -999,7 +1003,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 link.set_tag_ranges(tag_type, ranges)
             except KytosTagError as err:
                 raise HTTPException(400, detail=str(err))
-            self.handle_on_link_tags(link)
+            link.notify_tag_listeners()
         return JSONResponse("Operation Successful", status_code=200)
 
     @rest('v3/links/{link_id}/tag_ranges', methods=['DELETE'])
@@ -1013,9 +1017,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if not link:
             raise HTTPException(404, detail="Link not found")
         try:
-            with link.tag_lock:
-                link.reset_tag_ranges(tag_type)
-                self.handle_on_link_tags(link)
+            link.atomic_reset_tag_ranges(tag_type)
         except KytosTagError as err:
             raise HTTPException(400, detail=str(err))
         return JSONResponse("Operation Successful", status_code=200)
@@ -1033,9 +1035,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if not link:
             raise HTTPException(404, detail="Link not found")
         try:
-            with link.tag_lock:
-                link.set_special_tags(tag_type, special_tags)
-                self.handle_on_link_tags(link)
+            link.atomic_set_special_tags(tag_type, special_tags)
         except KytosTagError as err:
             raise HTTPException(400, detail=str(err))
         return JSONResponse("Operation Successful", status_code=200)
@@ -1176,7 +1176,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                         ignore_missing=True
                     )
 
-                self.handle_on_interface_tags(endpoint)
+                endpoint.notify_tag_listeners()
 
             for switch in switches.values():
                 self.topo_controller.upsert_switch(
@@ -1302,18 +1302,12 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     link, reason="liveness_disabled"
                 )
 
-    @listen_to("kytos/core.interface_tags")
-    def on_interface_tags(self, event):
-        """Handle on_interface_tags."""
-        interface: Interface = event.content['interface']
-        with interface.tag_lock:
-            if (
-                interface.id in self._intfs_tags_updated_at
-                and self._intfs_tags_updated_at[interface.id] > event.timestamp
-            ):
-                return
-            self._intfs_tags_updated_at[interface.id] = event.timestamp
-            self.handle_on_interface_tags(interface)
+    def emit_interface_tags(self, interface):
+        """Send event for interface tag changes."""
+        name = "kytos/core.interface_tags"
+        content = {"interface": interface}
+        event = KytosEvent(name=name, content=content)
+        self.controller.buffers.app.put(event)
 
     def handle_on_interface_tags(
         self,
@@ -1332,18 +1326,12 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             interface.supported_tag_types,
         )
 
-    @listen_to("kytos/core.link_tags")
-    def on_link_tags(self, event):
-        """Handle on_link_tags."""
-        link = event.content["link"]
-        with link.tag_lock:
-            if (
-                link.id in self._link_tags_updated_at
-                and self._link_tags_updated_at[link.id] > event.timestamp
-            ):
-                return
-            self._link_tags_updated_at[link.id] = event.timestamp
-            self.handle_on_link_tags(link)
+    def emit_link_tags(self, link):
+        """Send event for link tag changes."""
+        name = "kytos/core.link_tags"
+        content = {"link": link}
+        event = KytosEvent(name=name, content=content)
+        self.controller.buffers.app.put(event)
 
     def handle_on_link_tags(
         self,
@@ -1778,7 +1766,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                         tag_type,
                         new_default_special_tags
                     )
-                self.handle_on_interface_tags(endpoint)
+                endpoint.notify_tag_listeners()
 
             # for switch_id, switch in switches.items():
             #     self.topo_controller.upsert_switch(
@@ -1794,7 +1782,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                 shared_special_tags,
                 supported_tag_types,
             )
-            self.handle_on_link_tags(link)
+            link.notify_tag_listeners()
 
             if link.is_active() and link.id not in self.link_status_change:
                 status_change_info = self.link_status_change[link.id]
