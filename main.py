@@ -77,17 +77,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             f"{self.napp_id}_update_db",
             self.handle_on_link_tags
         )
-        Link.register_tag_listener(
-            f"{self.napp_id}_emit_event",
-            self.emit_link_tags
-        )
         Interface.register_tag_listener(
             f"{self.napp_id}_update_db",
             self.handle_on_interface_tags
-        )
-        Interface.register_tag_listener(
-            f"{self.napp_id}_emit_event",
-            self.emit_interface_tags
         )
 
         self.topo_controller.bootstrap_indexes()
@@ -1302,13 +1294,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     link, reason="liveness_disabled"
                 )
 
-    def emit_interface_tags(self, interface):
-        """Send event for interface tag changes."""
-        name = "kytos/core.interface_tags"
-        content = {"interface": interface}
-        event = KytosEvent(name=name, content=content)
-        self.controller.buffers.app.put(event)
-
     def handle_on_interface_tags(
         self,
         interface: Interface
@@ -1325,13 +1310,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             interface.default_special_tags,
             interface.supported_tag_types,
         )
-
-    def emit_link_tags(self, link):
-        """Send event for link tag changes."""
-        name = "kytos/core.link_tags"
-        content = {"link": link}
-        event = KytosEvent(name=name, content=content)
-        self.controller.buffers.app.put(event)
 
     def handle_on_link_tags(
         self,

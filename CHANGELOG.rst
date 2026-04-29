@@ -20,7 +20,6 @@ Changed
 - Added tag pool for ``Links``, separate from ``Interfaces``.
 - Removed unused ``link_side`` from the DB switches collection.
 - ``notify_tag_listeners`` now calls directly into topology to update the db, rather than go through the event bus.
-- Tag changes performed by topology now produce the tag change event, rather than be completely silent to other napps.
 
 Fixed
 =====
