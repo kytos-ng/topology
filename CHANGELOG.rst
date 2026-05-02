@@ -24,6 +24,7 @@ Changed
 Fixed
 =====
 - Fixed potential race conditions in multithreaded code.
+- Fixed updating switch interfaces in the database when an interface is added while Kytos is running (from ``OFPPR_ADD`` message).
 
 General Information
 ===================

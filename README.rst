@@ -50,6 +50,7 @@ Subscribed
 - ``.*.switch.(new|reconnected)``
 - ``.*.connection.lost``
 - ``.*.switch.interface.created``
+- ``.*.switch.interfaces.created``
 - ``.*.switch.interface.deleted``
 - ``.*.switch.interface.link_up``
 - ``.*.switch.interface.link_down``
