@@ -895,8 +895,9 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     def handle_new_switch(self, event):
         """Create a new Device on the Topology."""
         switch = event.content['switch']
-        switch.activate()
-        self.topo_controller.upsert_switch(switch.id, switch.as_dict())
+        with self._switch_lock[switch.id]:
+            switch.activate()
+            self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         log.debug('Switch %s added to the Topology.', switch.id)
         self.notify_topology_update()
         if switch.is_enabled():
@@ -925,7 +926,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         if not interfaces:
             return
         switch = interfaces[0].switch
-        self.topo_controller.upsert_switch(switch.id, switch.as_dict())
+        with self._switch_lock[switch.id]:
+            self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         name = "kytos/topology.switch.interface.created"
         for interface in interfaces:
             event = KytosEvent(name=name, content={'interface': interface})
