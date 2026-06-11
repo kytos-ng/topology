@@ -1726,18 +1726,17 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
 
         with ExitStack() as stack:
             stack.enter_context(self.controller.switches_lock)
-            # NOTE: Maybe acquire the switch locks before creating the link
+            link_lock = Lock()
+            stack.enter_context(link_lock)
             try:
                 link, created = self.controller.get_link_or_create(
                     interface_a,
-                    interface_b
+                    interface_b,
+                    extern_stack=stack,
                 )
             except KytosLinkCreationError as err:
                 log.error(f'Error creating link: {err}.')
                 return
-            # NOTE: Other things could have acquired
-            # the lock between link creation and now.
-            stack.enter_context(link.lock)
             stack.enter_context(link.tag_lock)
 
             if not created:
@@ -1751,14 +1750,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                     interface_b
                 )
             }
-
-            # NOTE: Are we sure we don't need to udpate the switches?
-            # Previous versions didn't and this would just be for updating
-            # the nni value and attach the link id to the interface on the db
-            # switches = {
-            #     endpoint.switch.id: endpoint.switch
-            #     for endpoint in endpoints.values()
-            # }
 
             endpoints_list = list(endpoints.values())
 
@@ -1814,11 +1805,6 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
                         new_default_special_tags
                     )
                 endpoint.notify_tag_listeners()
-
-            # for switch_id, switch in switches.items():
-            #     self.topo_controller.upsert_switch(
-            #         switch_id, switch.as_dict()
-            #     )
 
             link.set_available_tags_tag_ranges(
                 shared_tag_ranges,
