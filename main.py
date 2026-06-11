@@ -14,12 +14,14 @@ from typing import Iterable, Optional
 
 import httpx
 import tenacity
+from pymongo.errors import PyMongoError
 from tenacity import (retry_if_exception_type, stop_after_attempt,
                       wait_combine, wait_fixed, wait_random)
 
 from kytos.core import KytosEvent, KytosNApp, log, rest
 from kytos.core.common import EntityStatus, GenericEntity
-from kytos.core.exceptions import (KytosInvalidTagRanges,
+from kytos.core.exceptions import (KytosDBWriteException,
+                                   KytosInvalidTagRanges,
                                    KytosLinkCreationError, KytosTagError)
 from kytos.core.helpers import listen_to, load_spec, now, validate_openapi
 from kytos.core.interface import Interface
@@ -77,9 +79,17 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             f"{self.napp_id}_update_db",
             self.handle_on_link_tags
         )
+        Link.register_bulk_tag_listener(
+            f"{self.napp_id}_update_db",
+            self.handle_on_bulk_link_tags
+        )
         Interface.register_tag_listener(
             f"{self.napp_id}_update_db",
             self.handle_on_interface_tags
+        )
+        Interface.register_bulk_tag_listener(
+            f"{self.napp_id}_update_db",
+            self.handle_on_bulk_interface_tags
         )
 
         self.topo_controller.bootstrap_indexes()
@@ -523,10 +533,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             )
 
             if not interface_enable_id:
-                self.topo_controller.enable_interfaces(
-                    switch.id,
-                    [interface.port_number for interface in interfaces]
-                )
+                self.topo_controller.upsert_switch(switch.id, switch.as_dict())
             else:
                 self.topo_controller.enable_interface(interface.id)
 
@@ -596,10 +603,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
             self.topo_controller.bulk_disable_links(link_ids)
 
             if not interface_disable_id:
-                self.topo_controller.disable_interfaces(
-                    switch.id,
-                    [interface.port_number for interface in interfaces]
-                )
+                self.topo_controller.upsert_switch(switch.id, switch.as_dict())
             else:
                 self.topo_controller.disable_interface(interface.id)
 
@@ -1299,17 +1303,48 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interface: Interface
     ):
         """Update interface details"""
-        intf_id = interface.id
-        self.topo_controller.upsert_interface_details(
-            intf_id,
-            interface.available_tags,
-            interface.tag_ranges,
-            interface.default_tag_ranges,
-            interface.special_available_tags,
-            interface.special_tags,
-            interface.default_special_tags,
-            interface.supported_tag_types,
-        )
+        try:
+            intf_id = interface.id
+            self.topo_controller.upsert_interface_details(
+                intf_id,
+                interface.available_tags,
+                interface.tag_ranges,
+                interface.default_tag_ranges,
+                interface.special_available_tags,
+                interface.special_tags,
+                interface.default_special_tags,
+                interface.supported_tag_types,
+            )
+        except PyMongoError as exc:
+            raise KytosDBWriteException(
+                "Failed to write interface tags to db."
+            ) from exc
+
+    def handle_on_bulk_interface_tags(
+        self,
+        interfaces: list[Interface]
+    ):
+        """Bulk update interface details"""
+        try:
+            self.topo_controller.bulk_upsert_interface_details(
+                [
+                    {
+                        "_id": intf.id,
+                        "available_tags": intf.available_tags,
+                        "tag_ranges": intf.tag_ranges,
+                        "default_tag_ranges": intf.default_tag_ranges,
+                        "special_available_tags": intf.special_available_tags,
+                        "special_tags": intf.special_tags,
+                        "default_special_tags": intf.default_special_tags,
+                        "supported_tag_types": intf.supported_tag_types,
+                    }
+                    for intf in interfaces
+                ]
+            )
+        except PyMongoError as exc:
+            raise KytosDBWriteException(
+                "Failed to write interface tags to db."
+            ) from exc
 
     def handle_on_link_tags(
         self,
@@ -1317,16 +1352,47 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
     ):
         """Update link details"""
         link_id = link.id
-        self.topo_controller.upsert_link_details(
-            link_id,
-            link.available_tags,
-            link.tag_ranges,
-            link.default_tag_ranges,
-            link.special_available_tags,
-            link.special_tags,
-            link.default_special_tags,
-            link.supported_tag_types,
-        )
+        try:
+            self.topo_controller.upsert_link_details(
+                link_id,
+                link.available_tags,
+                link.tag_ranges,
+                link.default_tag_ranges,
+                link.special_available_tags,
+                link.special_tags,
+                link.default_special_tags,
+                link.supported_tag_types,
+            )
+        except PyMongoError as exc:
+            raise KytosDBWriteException(
+                "Failed to write interface tags to db."
+            ) from exc
+
+    def handle_on_bulk_link_tags(
+        self,
+        links: list[Interface]
+    ):
+        """Bulk update link details"""
+        try:
+            self.topo_controller.bulk_upsert_link_details(
+                [
+                    {
+                        "_id": link.id,
+                        "available_tags": link.available_tags,
+                        "tag_ranges": link.tag_ranges,
+                        "default_tag_ranges": link.default_tag_ranges,
+                        "special_available_tags": link.special_available_tags,
+                        "special_tags": link.special_tags,
+                        "default_special_tags": link.default_special_tags,
+                        "supported_tag_types": link.supported_tag_types,
+                    }
+                    for link in links
+                ]
+            )
+        except PyMongoError as exc:
+            raise KytosDBWriteException(
+                "Failed to write interface tags to db."
+            ) from exc
 
     @listen_to('.*.switch.(new|reconnected)')
     def on_new_switch(self, event):
@@ -1480,7 +1546,7 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
          it was confirmed that the interface is not used."""
         switch: Switch = interface.switch
         switch.remove_interface(interface)
-        self.topo_controller.delete_interface(interface.id)
+        self.topo_controller.upsert_switch(switch.id, switch.as_dict())
         self.topo_controller.delete_interface_from_details(interface.id)
 
     @listen_to('.*.switch.interface.link_up')
@@ -1792,36 +1858,17 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         """Handle .*.network_status.updated events from of_lldp."""
         content = event.content
         interface_ids = content["interface_ids"]
-        ports_by_switch = defaultdict(set)
+        switches = set()
         for interface_id in interface_ids:
-            dpid, _, port = interface_id.rpartition(":")
-            port = int(port)
-            ports_by_switch[dpid].add(port)
+            dpid, _, _ = interface_id.rpartition(":")
+            switch = self.controller.get_switch_by_dpid(dpid)
+            if switch:
+                switches.add(switch)
 
-        for dpid, ports in ports_by_switch.items():
+        for switch in switches:
             # Ideally this would be done using the same lock
             # as that used by of_lldp
-            switch = self.controller.get_switch_by_dpid(dpid)
-            enabled_interfaces = [
-                port
-                for port in ports
-                if switch.interfaces[port].lldp
-            ]
-            disabled_interfaces = [
-                port
-                for port in ports
-                if not switch.interfaces[port].lldp
-            ]
-            if enabled_interfaces:
-                self.topo_controller.enable_interfaces_lldp(
-                    dpid,
-                    enabled_interfaces
-                )
-            if disabled_interfaces:
-                self.topo_controller.disable_interfaces_lldp(
-                    dpid,
-                    disabled_interfaces
-                )
+            self.topo_controller.upsert_switch(switch.id, switch.as_dict())
 
     def notify_switch_enabled(self, dpid):
         """Send an event to notify that a switch is enabled."""

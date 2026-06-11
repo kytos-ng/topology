@@ -4,8 +4,7 @@
 import os
 import re
 from datetime import datetime
-from threading import Lock
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import pymongo
 from pymongo.collection import ReturnDocument
@@ -35,7 +34,7 @@ from napps.kytos.topology.db.models import (InterfaceDetailDoc, LinkDetailDoc,
 class TopoController:
     """TopoController."""
 
-    def __init__(self, get_mongo=lambda: Mongo()) -> None:
+    def __init__(self, get_mongo=Mongo) -> None:
         """Constructor of TopoController."""
         self.mongo = get_mongo()
         self.db_client = self.mongo.client
@@ -134,27 +133,7 @@ class TopoController:
     def disable_switch(self, dpid: str) -> Optional[dict]:
         """Try to find one switch and disable it."""
         return self._update_switch(
-            dpid,
-            [
-                {
-                    "$set": {
-                        "enabled": False,
-                        "interfaces": {
-                            "$map": {
-                                "input": "$interfaces",
-                                "as": "iface",
-                                "in": {
-                                    "$setField": {
-                                        "input": "$$iface",
-                                        "field": "enabled",
-                                        "value": False
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            ]
+            dpid, {"$set": {"enabled": False, "interfaces.$[].enabled": False}}
         )
 
     def add_switch_metadata(self, dpid: str, metadata: dict) -> Optional[dict]:
@@ -180,16 +159,6 @@ class TopoController:
         """Try to disable one interface and its embedded object on links."""
         return self._update_interface(
             interface_id, {"$set": {"enabled": False}}
-        )
-
-    def delete_interface(self, interface_id: str) -> Optional[dict]:
-        """Try to delete an interface embedded in a switch."""
-        switch_id, _, port_num = interface_id.rpartition(":")
-        port_num = int(port_num)
-        return self.db.switches.find_one_and_update(
-            {"_id": switch_id},
-            {"$pull": {"interfaces": {"port_number": {"$eq": port_num}}}},
-            return_document=ReturnDocument.AFTER
         )
 
     def add_interface_metadata(
@@ -223,69 +192,6 @@ class TopoController:
             {"interfaces.id": interface_id},
             interfaces_expression,
             return_document=ReturnDocument.AFTER,
-        )
-
-    def enable_interfaces(
-        self,
-        switch_id: str,
-        ports: list[int]
-    ):
-        """Try to enable several interfaces."""
-        return self._update_interfaces_of_switch(
-            switch_id, ports, {"$set": {"enabled": True}}
-        )
-
-    def disable_interfaces(
-        self,
-        switch_id: str,
-        ports: list[int]
-    ):
-        """Try to disable several interfaces."""
-        return self._update_interfaces_of_switch(
-            switch_id, ports, {"$set": {"enabled": False}}
-        )
-
-    def enable_interfaces_lldp(
-        self,
-        switch_id: str,
-        ports: list[int]
-    ):
-        """Try to enable lldp on several interfaces."""
-        return self._update_interfaces_of_switch(
-            switch_id, ports, {"$set": {"lldp": True}}
-        )
-
-    def disable_interfaces_lldp(
-        self,
-        switch_id: str,
-        ports: list[int]
-    ):
-        """Try to disable lldp on several interfaces."""
-        return self._update_interfaces_of_switch(
-            switch_id, ports, {"$set": {"lldp": False}}
-        )
-
-    def _update_interfaces_of_switch(
-        self,
-        switch_id: str,
-        ports: list[int],
-        update_expr: dict
-    ):
-        self._set_updated_at(update_expr)
-        interfaces_expression = {}
-        for operator, values in update_expr.items():
-            interfaces_expression[operator] = {
-                f"interfaces.$[iface].{key}": value
-                for key, value in values.items()
-            }
-
-        return self.db.switches.find_one_and_update(
-            {"_id": switch_id},
-            interfaces_expression,
-            array_filters=[{
-                "iface.port_number": {"$in": ports}
-            }],
-            return_document=ReturnDocument.AFTER
         )
 
     def upsert_link(self, link_id: str, link_dict: dict) -> dict:
@@ -371,6 +277,36 @@ class TopoController:
         self._set_updated_at(update_expr)
         return self.db.links.update_many({"_id": {"$in": link_ids}},
                                          update_expr)
+
+    def bulk_upsert_interface_details(
+        self,
+        interface_details: list[dict]
+    ) -> Optional[dict]:
+        """Update or insert interfaces details."""
+        utc_now = datetime.utcnow()
+
+        ops = [
+            UpdateOne(
+                {"_id", interface_dict["_id"]},
+                {
+                    "$set": InterfaceDetailDoc(
+                        **interface_dict,
+                        updated_at=utc_now
+                    ).model_dump(exclude={"inserted_at"}),
+                    "$setOnInsert": {"inserted_at": utc_now}
+                },
+                upsert=True,
+            )
+            for interface_dict in interface_details
+        ]
+
+        with self.db_client.start_session() as session:
+
+            with session.start_transaction():
+                self.db.interface_details.bulk_write(
+                    ops,
+                    session=session
+                )
 
     # pylint: disable=too-many-arguments
     def upsert_interface_details(
@@ -479,6 +415,35 @@ class TopoController:
             upsert=True,
         )
         return updated
+
+    def bulk_upsert_link_details(
+        self,
+        link_details: list[dict]
+    ):
+        """Update or insert link details."""
+        utc_now = datetime.utcnow()
+
+        ops = [
+            UpdateOne(
+                {"_id", link_dict["_id"]},
+                {
+                    "$set": InterfaceDetailDoc(
+                        **link_dict,
+                        updated_at=utc_now
+                    ).model_dump(exclude={"inserted_at"}),
+                    "$setOnInsert": {"inserted_at": utc_now}
+                },
+                upsert=True,
+            )
+            for link_dict in link_details
+        ]
+
+        with self.db_client.start_session() as session:
+            with session.start_transaction():
+                self.db.link_details.bulk_write(
+                    ops,
+                    session=session
+                )
 
     def get_links_details(
         self, link_ids: List[str]

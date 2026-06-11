@@ -86,7 +86,7 @@ class TestTopoController:
         self.topo.db.switches.find_one_and_update.assert_called()
         arg1, arg2 = self.topo.db.switches.find_one_and_update.call_args[0]
         assert arg1 == {"_id": self.dpid}
-        assert not arg2[0]["$set"]["enabled"]
+        assert not arg2["$set"]["enabled"]
 
     def test_add_switch_metadata(self) -> None:
         """test_add_switch_metadata."""

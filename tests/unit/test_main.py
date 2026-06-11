@@ -712,8 +712,8 @@ class TestMain:
         endpoint = f"{self.base_endpoint}/interfaces/switch/{dpid}/enable"
         response = await self.api_client.post(endpoint)
         assert response.status_code == 200
-        self.napp.topo_controller.enable_interfaces.assert_called_with(
-            mock_switch.id, [1, 2]
+        self.napp.topo_controller.upsert_switch.assert_called_with(
+            mock_switch.id, mock_switch.as_dict()
         )
         assert mock_interface_1.enable.call_count == 1
         assert mock_interface_2.enable.call_count == 1
@@ -783,8 +783,8 @@ class TestMain:
         response = await self.api_client.post(endpoint)
         assert response.status_code == 200
 
-        self.napp.topo_controller.disable_interfaces.assert_called_with(
-            mock_switch.id, [1, 2]
+        self.napp.topo_controller.upsert_switch.assert_called_with(
+            mock_switch.id, mock_switch.as_dict()
         )
         assert mock_interface_1.disable.call_count == 1
         assert mock_interface_1.link.disable.call_count == 2
@@ -1002,10 +1002,12 @@ class TestMain:
 
         dpid_a = "00:00:00:00:00:00:00:01"
         dpid_b = "00:00:00:00:00:00:00:02"
-        interface_ids = [f"{dpid_a}:1", f"{dpid_b}:4"]
+        dpid_c = "00:00:00:00:00:00:00:03"
+        interface_ids = [f"{dpid_a}:1", f"{dpid_b}:4", f"{dpid_b}:5"]
 
         mock_switch_a = get_switch_mock(dpid_a, 0x04)
         mock_switch_b = get_switch_mock(dpid_b, 0x04)
+        mock_switch_c = get_switch_mock(dpid_c, 0x04)
         interface_mock_a = get_interface_mock(
             "test_interface_a", 1, mock_switch_a
         )
@@ -1014,27 +1016,39 @@ class TestMain:
             "test_interface_b", 4, mock_switch_b
         )
         interface_mock_b.lldp = False
+        interface_mock_c = get_interface_mock(
+            "test_interface_c", 5, mock_switch_b
+        )
+        interface_mock_c.lldp = True
+        interface_mock_d = get_interface_mock(
+            "test_interface_d", 5, mock_switch_c
+        )
+        interface_mock_d.lldp = True
         mock_switch_a.interfaces = {
-            1: interface_mock_a
+            1: interface_mock_a,
         }
         mock_switch_b.interfaces = {
-            4: interface_mock_b
+            4: interface_mock_b,
+            5: interface_mock_c,
         }
-        self.napp.controller.switches = {dpid_a: mock_switch_a,
-                                         dpid_b: mock_switch_b}
+        mock_switch_c.interfaces = {
+            5: interface_mock_d,
+        }
+        self.napp.controller.switches = {
+            dpid_a: mock_switch_a,
+            dpid_b: mock_switch_b,
+            dpid_c: mock_switch_c,
+        }
 
         event.content = {"interface_ids": interface_ids, "state": "disabled"}
         self.napp.handle_lldp_status_updated(event)
+        expected_switches = [
+            mock_switch_a,
+            mock_switch_b,
+        ]
 
-        mock_enable = self.napp.topo_controller.enable_interfaces_lldp
-        mock_disable = self.napp.topo_controller.disable_interfaces_lldp
-
-        mock_enable.assert_called_with(
-            dpid_a, [1]
-        )
-        mock_disable.assert_called_with(
-            dpid_b, [4]
-        )
+        mock_upsert_switch = self.napp.topo_controller.upsert_switch
+        assert mock_upsert_switch.call_count == len(expected_switches)
 
     def test_handle_topo_controller_upsert_switch(self):
         """Test handle_topo_controller_upsert_switch."""
@@ -2214,7 +2228,7 @@ class TestMain:
         mock_intf = get_interface_mock('s1-eth1', 1, mock_switch)
         self.napp._delete_interface(mock_intf)
         assert mock_switch.remove_interface.call_count == 1
-        assert self.napp.topo_controller.delete_interface.call_count == 1
+        assert self.napp.topo_controller.upsert_switch.call_count == 1
         delete = self.napp.topo_controller.delete_interface_from_details
         assert delete.call_count == 1
 
