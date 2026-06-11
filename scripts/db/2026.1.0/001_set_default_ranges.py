@@ -17,13 +17,15 @@ def aggregate_outdated_interfaces(mongo: Mongo):
                 "id": 1,
                 "default_tag_ranges": 1,
                 "default_special_tags": 1,
+                "supported_tag_types": 1,
             }}
         ]
     )
     for document in result:
         if (
             not "default_tag_ranges" in document or
-            not "default_special_tags" in document
+            not "default_special_tags" in document or
+            not "supported_tag_types" in document
         ):
             outdated_intfs.add(document["id"])
     
@@ -44,14 +46,19 @@ def update_database(mongo: Mongo):
     message_intfs = ""
     for intf in intfs_documents:
         _id = intf["id"]
-        if "default_tag_ranges" in intf and "default_special_tags" in intf:
+        if (
+            "default_tag_ranges" in intf
+            and "default_special_tags" in intf
+            and  "supported_tag_types" in intf
+        ):
             continue
         db.interface_details.update_one(
             {"id": _id},
             {
                 "$set": {
                     "default_tag_ranges": {"vlan": [[1, 4094]]},
-                    "default_special_tags": {"vlan": ["untagged", "any"]}
+                    "default_special_tags": {"vlan": ["untagged", "any"]},
+                    "supported_tag_types": ["vlan"],
                 }
             }
         )
