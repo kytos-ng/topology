@@ -538,3 +538,169 @@ class TestMain:
         }
 
         assert data == expected
+
+    async def test_link_creation_partial(self):
+        """Test transferring tags to from interfaces to a new link."""
+        # pylint: disable=attribute-defined-outside-init
+        self.napp.controller.loop = asyncio.get_running_loop()
+
+        self.interface_2_3 = Interface('s2-eth3', 3, self.switch_2)
+        self.switch_2.update_interface(self.interface_2_3)
+
+        self.interface_2_3.available_tags = {
+            "vlan": [[1, 50], [101, 200], [301, 4094]]
+        }
+
+        self.interface_2_3.special_available_tags = {
+            "vlan": ["untagged", "any"]
+        }
+
+        self.interface_3_3 = Interface('s3-eth3', 3, self.switch_3)
+        self.switch_3.update_interface(self.interface_3_3)
+
+        self.interface_3_3.available_tags = {
+            "vlan": [[1, 100], [151, 200], [351, 4094]]
+        }
+
+        self.interface_3_3.special_available_tags = {
+            "vlan": ["untagged"]
+        }
+
+        url = f"{self.base_url}/interfaces/{self.interface_2_3.id}/tag_ranges"
+        response = await self.api_client.get(
+            url
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        expected = {
+            self.interface_2_3.id: {
+                "available_tags": {"vlan": [[1, 50], [101, 200], [301, 4094]]},
+                "tag_ranges": {"vlan": [[1, 4094]]},
+                "default_tag_ranges": {"vlan": [[1, 4094]]},
+                "special_available_tags": {"vlan": ["untagged", "any"]},
+                "special_tags": {"vlan": ["untagged", "any"]},
+                "default_special_tags": {"vlan": ["untagged", "any"]},
+            },
+        }
+
+        assert data == expected
+
+        url = f"{self.base_url}/interfaces/{self.interface_3_3.id}/tag_ranges"
+        response = await self.api_client.get(
+            url
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        expected = {
+            self.interface_3_3.id: {
+                "available_tags": {
+                    "vlan": [[1, 100], [151, 200], [351, 4094]]
+                },
+                "tag_ranges": {"vlan": [[1, 4094]]},
+                "default_tag_ranges": {"vlan": [[1, 4094]]},
+                "special_available_tags": {"vlan": ["untagged"]},
+                "special_tags": {"vlan": ["untagged", "any"]},
+                "default_special_tags": {"vlan": ["untagged", "any"]},
+            },
+        }
+
+        assert data == expected
+
+        event = KytosEvent(
+            'create_link',
+            {
+                "interface_a": self.interface_2_3,
+                "interface_b": self.interface_3_3
+            }
+        )
+
+        self.napp.add_links(event)
+
+        new_link = self.interface_2_3.link
+
+        assert new_link is not None
+
+        self.link_2_3 = new_link
+
+        url = f"{self.base_url}/links/{self.link_2_3.id}/tag_ranges"
+        response = await self.api_client.get(
+            url
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        expected = {
+            self.link_2_3.id: {
+                "available_tags": {"vlan": [[1, 50], [151, 200], [351, 4094]]},
+                "tag_ranges": {"vlan": [[1, 50], [151, 200], [351, 4094]]},
+                "default_tag_ranges": {
+                    "vlan": [[1, 50], [151, 200], [351, 4094]]
+                },
+                "special_available_tags": {"vlan": ["untagged"]},
+                "special_tags": {"vlan": ["untagged"]},
+                "default_special_tags": {"vlan": ["untagged"]},
+            },
+        }
+
+        data[self.link_2_3.id]["special_available_tags"]["vlan"] = set(
+            data[self.link_2_3.id]["special_available_tags"]["vlan"]
+        )
+        data[self.link_2_3.id]["special_tags"]["vlan"] = set(
+            data[self.link_2_3.id]["special_tags"]["vlan"]
+        )
+        data[self.link_2_3.id]["default_special_tags"]["vlan"] = set(
+            data[self.link_2_3.id]["default_special_tags"]["vlan"]
+        )
+
+        expected[self.link_2_3.id]["special_available_tags"]["vlan"] = set(
+            expected[self.link_2_3.id]["special_available_tags"]["vlan"]
+        )
+        expected[self.link_2_3.id]["special_tags"]["vlan"] = set(
+            expected[self.link_2_3.id]["special_tags"]["vlan"]
+        )
+        expected[self.link_2_3.id]["default_special_tags"]["vlan"] = set(
+            expected[self.link_2_3.id]["default_special_tags"]["vlan"]
+        )
+
+        assert data == expected
+
+        url = f"{self.base_url}/interfaces/{self.interface_2_3.id}/tag_ranges"
+        response = await self.api_client.get(
+            url
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        expected = {
+            self.interface_2_3.id: {
+                "available_tags": {"vlan": [[101, 150], [301, 350]]},
+                "tag_ranges": {"vlan": [[51, 150], [201, 350]]},
+                "default_tag_ranges": {"vlan": [[51, 150], [201, 350]]},
+                "special_available_tags": {"vlan": ["any"]},
+                "special_tags": {"vlan": ["any"]},
+                "default_special_tags": {"vlan": ["any"]},
+            },
+        }
+        assert data == expected
+
+        url = f"{self.base_url}/interfaces/{self.interface_3_3.id}/tag_ranges"
+        response = await self.api_client.get(
+            url
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        expected = {
+            self.interface_3_3.id: {
+                "available_tags": {"vlan": [[51, 100]]},
+                "tag_ranges": {"vlan": [[51, 150], [201, 350]]},
+                "default_tag_ranges": {"vlan": [[51, 150], [201, 350]]},
+                "special_available_tags": {"vlan": []},
+                "special_tags": {"vlan": ["any"]},
+                "default_special_tags": {"vlan": ["any"]},
+            },
+        }
+
+        assert data == expected
