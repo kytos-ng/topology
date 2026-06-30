@@ -1325,6 +1325,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         interfaces: list[Interface]
     ):
         """Bulk update interface details"""
+        if not interfaces:
+            return
         try:
             self.topo_controller.bulk_upsert_interface_details(
                 [
@@ -1373,6 +1375,8 @@ class Main(KytosNApp):  # pylint: disable=too-many-public-methods
         links: list[Interface]
     ):
         """Bulk update link details"""
+        if not links:
+            return
         try:
             self.topo_controller.bulk_upsert_link_details(
                 [
