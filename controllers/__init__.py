@@ -4,8 +4,7 @@
 import os
 import re
 from datetime import datetime
-from threading import Lock
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import pymongo
 from pymongo.collection import ReturnDocument
@@ -16,8 +15,8 @@ from tenacity import retry_if_exception_type, stop_after_attempt, wait_random
 from kytos.core import log
 from kytos.core.db import Mongo
 from kytos.core.retry import before_sleep, for_all_methods, retries
-from napps.kytos.topology.db.models import (InterfaceDetailDoc, LinkDoc,
-                                            SwitchDoc)
+from napps.kytos.topology.db.models import (InterfaceDetailDoc, LinkDetailDoc,
+                                            LinkDoc, SwitchDoc)
 
 
 @for_all_methods(
@@ -35,7 +34,7 @@ from napps.kytos.topology.db.models import (InterfaceDetailDoc, LinkDoc,
 class TopoController:
     """TopoController."""
 
-    def __init__(self, get_mongo=lambda: Mongo()) -> None:
+    def __init__(self, get_mongo=Mongo) -> None:
         """Constructor of TopoController."""
         self.mongo = get_mongo()
         self.db_client = self.mongo.client
@@ -92,14 +91,20 @@ class TopoController:
         return {"interfaces": {value["id"]: value for value in interfaces}}
 
     @staticmethod
-    def _set_updated_at(update_expr: dict) -> None:
+    def _set_updated_at(update_expr: dict | list[dict]) -> None:
         """Set updated_at on $set expression."""
+        if isinstance(update_expr, list):
+            update_expr = update_expr[0]
         if "$set" in update_expr:
             update_expr["$set"].update({"updated_at": datetime.utcnow()})
         else:
             update_expr.update({"$set": {"updated_at": datetime.utcnow()}})
 
-    def _update_switch(self, dpid: str, update_expr: dict) -> Optional[dict]:
+    def _update_switch(
+        self,
+        dpid: str,
+        update_expr: dict | list[dict]
+    ) -> Optional[dict]:
         """Try to find one switch and update it given an update expression."""
         self._set_updated_at(update_expr)
         return self.db.switches.find_one_and_update({"_id": dpid}, update_expr)
@@ -273,14 +278,47 @@ class TopoController:
         return self.db.links.update_many({"_id": {"$in": link_ids}},
                                          update_expr)
 
+    def bulk_upsert_interface_details(
+        self,
+        interface_details: list[dict]
+    ) -> Optional[dict]:
+        """Update or insert interfaces details."""
+        utc_now = datetime.utcnow()
+
+        ops = [
+            UpdateOne(
+                {"_id", interface_dict["_id"]},
+                {
+                    "$set": InterfaceDetailDoc(
+                        **interface_dict,
+                        updated_at=utc_now
+                    ).model_dump(exclude={"inserted_at"}),
+                    "$setOnInsert": {"inserted_at": utc_now}
+                },
+                upsert=True,
+            )
+            for interface_dict in interface_details
+        ]
+
+        with self.db_client.start_session() as session:
+
+            with session.start_transaction():
+                self.db.interface_details.bulk_write(
+                    ops,
+                    session=session
+                )
+
     # pylint: disable=too-many-arguments
     def upsert_interface_details(
         self,
         id_: str,
         available_tags: dict[str, list[list[int]]],
         tag_ranges: dict[str, list[list[int]]],
+        default_tag_ranges: dict[str, list[list[int]]],
         special_available_tags: dict[str, list[str]],
-        special_tags: dict[str, list[str]]
+        special_tags: dict[str, list[str]],
+        default_special_tags: dict[str, list[str]],
+        supported_tag_types: list[str],
     ) -> Optional[dict]:
         """Update or insert interfaces details."""
         utc_now = datetime.utcnow()
@@ -288,8 +326,11 @@ class TopoController:
                 "_id": id_,
                 "available_tags": available_tags,
                 "tag_ranges": tag_ranges,
+                "default_tag_ranges": default_tag_ranges,
                 "special_available_tags": special_available_tags,
                 "special_tags": special_tags,
+                "default_special_tags": default_special_tags,
+                "supported_tag_types": supported_tag_types,
                 "updated_at": utc_now
         }).model_dump(exclude={"inserted_at"})
         updated = self.db.interface_details.find_one_and_update(
@@ -337,4 +378,85 @@ class TopoController:
         """Delete interface from interface_details."""
         return self.db.interface_details.find_one_and_delete(
             {"_id": intf_id}
+        )
+
+    # pylint: disable=too-many-arguments
+    def upsert_link_details(
+        self,
+        id_: str,
+        available_tags: dict[str, list[list[int]]],
+        tag_ranges: dict[str, list[list[int]]],
+        default_tag_ranges: dict[str, list[list[int]]],
+        special_available_tags: dict[str, list[str]],
+        special_tags: dict[str, list[str]],
+        default_special_tags: dict[str, list[str]],
+        supported_tag_types: list[str],
+    ) -> Optional[dict]:
+        """Update or insert link details."""
+        utc_now = datetime.utcnow()
+        model = LinkDetailDoc(**{
+                "_id": id_,
+                "available_tags": available_tags,
+                "tag_ranges": tag_ranges,
+                "default_tag_ranges": default_tag_ranges,
+                "special_available_tags": special_available_tags,
+                "special_tags": special_tags,
+                "default_special_tags": default_special_tags,
+                "supported_tag_types": supported_tag_types,
+                "updated_at": utc_now
+        }).model_dump(exclude={"inserted_at"})
+        updated = self.db.link_details.find_one_and_update(
+            {"_id": id_},
+            {
+                "$set": model,
+                "$setOnInsert": {"inserted_at": utc_now},
+            },
+            return_document=ReturnDocument.AFTER,
+            upsert=True,
+        )
+        return updated
+
+    def bulk_upsert_link_details(
+        self,
+        link_details: list[dict]
+    ):
+        """Update or insert link details."""
+        utc_now = datetime.utcnow()
+
+        ops = [
+            UpdateOne(
+                {"_id": link_dict["_id"]},
+                {
+                    "$set": InterfaceDetailDoc(
+                        **link_dict,
+                        updated_at=utc_now
+                    ).model_dump(exclude={"inserted_at"}),
+                    "$setOnInsert": {"inserted_at": utc_now}
+                },
+                upsert=True,
+            )
+            for link_dict in link_details
+        ]
+
+        with self.db_client.start_session() as session:
+            with session.start_transaction():
+                self.db.link_details.bulk_write(
+                    ops,
+                    session=session
+                )
+
+    def get_links_details(
+        self, link_ids: List[str]
+    ) -> Optional[dict]:
+        """Try to get link details given a list of link ids."""
+        return self.db.link_details.aggregate(
+            [
+                {"$match": {"_id": {"$in": link_ids}}},
+            ]
+        )
+
+    def delete_link_from_details(self, link_id: str) -> Optional[dict]:
+        """Delete link from link_details."""
+        return self.db.link_details.find_one_and_delete(
+            {"_id": link_id}
         )

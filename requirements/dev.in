@@ -1,3 +1,4 @@
 -e git+https://github.com/kytos-ng/python-openflow.git#egg=python-openflow
--e git+https://github.com/kytos-ng/kytos.git#egg=kytos[dev]
+# TODO: Revert pinned branch
+-e git+https://github.com/kytos-ng/kytos.git@feature/tag_capable#egg=kytos[dev]
 -e .

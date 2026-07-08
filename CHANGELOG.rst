@@ -7,13 +7,24 @@ All notable changes to the ``topology`` project will be documented in this file.
 [UNRELEASED] - Under development
 ********************************
 
-Fixed
+Added
 =====
-- Fixed updating switch interfaces in the database when an interface is added while Kytos is running (from ``OFPPR_ADD`` message).
+- Added new endpoint ``POST v3/links/{link_id}/tag_ranges`` for updating Link tag ranges.
+- Added new endpoint ``DELETE v3/links/{link_id}/tag_ranges`` for resetting link tag ranges.
+- Added new endpoint ``POST v3/links/{link_id}/special_tags`` for updating Link special tags.
+- Added new endpoint ``GET v3/links/tag_ranges`` for getting all link tags + special tags.
+- Added new endpoint ``GET v3/links/{link_id}/tag_ranges`` for getting the tags + special tags of a link.
 
 Changed
 =======
+- Added tag pool for ``Links``, separate from ``Interfaces``.
 - Removed unused ``link_side`` from the DB switches collection.
+- ``notify_tag_listeners`` now calls directly into topology to update the db, rather than go through the event bus.
+
+Fixed
+=====
+- Fixed potential race conditions in multithreaded code.
+- Fixed updating switch interfaces in the database when an interface is added while Kytos is running (from ``OFPPR_ADD`` message).
 
 General Information
 ===================
