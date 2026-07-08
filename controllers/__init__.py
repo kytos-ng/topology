@@ -425,7 +425,7 @@ class TopoController:
 
         ops = [
             UpdateOne(
-                {"_id", link_dict["_id"]},
+                {"_id": link_dict["_id"]},
                 {
                     "$set": InterfaceDetailDoc(
                         **link_dict,
